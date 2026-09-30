@@ -25,7 +25,7 @@ function startBackend(): Promise<BackendInfo> {
       MYPHOTOS_RESOURCES: resources,
       MYPHOTOS_RENDERER_DIR: join(here, '../renderer'),
       MYPHOTOS_CREATIONS: join(app.getPath('pictures'), 'MyPhotos Créations'),
-      ...(isDev ? { MYPHOTOS_DEV_ORIGIN: new URL(process.env.ELECTRON_RENDERER_URL!).origin } : {})
+      ...(isDev ? { MYPHOTOS_DEV_ORIGIN: new URL(process.env.ELECTRON_RENDERER_URL!).origin, MYPHOTOS_TOKEN: 'dev' } : {})
     }
   })
   backend = child
@@ -46,6 +46,31 @@ function startBackend(): Promise<BackendInfo> {
   return info
 }
 
+/** Render an app page to PDF in a hidden window (memory books). */
+async function printPdf(url: string, outFile: string, format: 'square' | 'a4' | 'large'): Promise<string> {
+  const win = new BrowserWindow({ show: false, width: 1200, height: 1200, webPreferences: { preload: join(here, '../preload/index.cjs'), sandbox: true, contextIsolation: true, offscreen: false } })
+  try {
+    await win.loadURL(url)
+    await new Promise<void>((resolve) => {
+      const check = async (): Promise<void> => {
+        const ready = (await win.webContents.executeJavaScript('document.documentElement.dataset.printReady === "1"').catch(() => false)) as boolean
+        if (ready) resolve()
+        else setTimeout(() => void check(), 300)
+      }
+      void check()
+      setTimeout(resolve, 60000)
+    })
+    const sizes = { square: { width: 8.27, height: 8.27 }, a4: 'A4' as const, large: { width: 11.8, height: 11.8 } }
+    const size = sizes[format]
+    const pdf = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: false, margins: { top: 0, bottom: 0, left: 0, right: 0 }, pageSize: size, landscape: format === 'a4' })
+    const { writeFile } = await import('node:fs/promises')
+    await writeFile(outFile, pdf)
+    return outFile
+  } finally {
+    win.destroy()
+  }
+}
+
 /** Privileged operations requested by the backend process. */
 async function handleHostCall(child: UtilityProcess, id: number, method: string, args: unknown): Promise<void> {
   try {
@@ -60,6 +85,9 @@ async function handleHostCall(child: UtilityProcess, id: number, method: string,
         }
       }
       result = failed
+    } else if (method === 'print-pdf' && args && typeof args === 'object') {
+      const { url, outFile, format } = args as { url: string; outFile: string; format: 'square' | 'a4' | 'large' }
+      result = await printPdf(url, outFile, format)
     } else throw new Error(`unknown host method ${method}`)
     child.postMessage({ type: 'host-reply', id, ok: true, result })
   } catch (e) {

@@ -198,5 +198,61 @@ export const migrations: string[] = [
     INSERT INTO search_fts(search_fts, rowid, text) VALUES ('delete', old.asset_id, old.text);
     INSERT INTO search_fts(rowid, text) VALUES (new.asset_id, new.text);
   END;
+  `,
+  /* 11 — moments, trips, memories */ `
+  CREATE TABLE moments (
+    id INTEGER PRIMARY KEY,
+    sig TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    start_at INTEGER NOT NULL,
+    end_at INTEGER NOT NULL,
+    day_start TEXT NOT NULL,
+    day_end TEXT NOT NULL,
+    city TEXT,
+    country TEXT,
+    lat REAL,
+    lon REAL,
+    n INTEGER NOT NULL,
+    cover_id INTEGER,
+    trip_id INTEGER
+  );
+  CREATE INDEX moments_start ON moments(start_at DESC);
+  CREATE TABLE moment_assets (
+    moment_id INTEGER NOT NULL REFERENCES moments(id) ON DELETE CASCADE,
+    asset_id INTEGER NOT NULL,
+    PRIMARY KEY (asset_id)
+  ) WITHOUT ROWID;
+  CREATE INDEX moment_assets_moment ON moment_assets(moment_id);
+  CREATE TABLE moment_titles (
+    sig TEXT PRIMARY KEY,
+    title TEXT NOT NULL
+  );
+  CREATE TABLE trips (
+    id INTEGER PRIMARY KEY,
+    sig TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    start_at INTEGER NOT NULL,
+    end_at INTEGER NOT NULL,
+    cities TEXT NOT NULL,
+    n INTEGER NOT NULL,
+    cover_id INTEGER
+  );
+  CREATE TABLE memories (
+    id INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL,
+    key TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    cover_id INTEGER,
+    asset_ids TEXT NOT NULL,
+    theme TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    dismissed INTEGER NOT NULL DEFAULT 0,
+    pinned INTEGER NOT NULL DEFAULT 0,
+    album_id INTEGER
+  );
+  CREATE INDEX memories_kind ON memories(kind);
   `
 ]

@@ -20,8 +20,11 @@ const lib = new Library({
   creationsDir: process.env.MYPHOTOS_CREATIONS,
   resourcesDir: process.env.MYPHOTOS_RESOURCES ?? resolve(process.cwd(), 'resources'),
   workerDir: import.meta.dirname,
-  moveToSystemTrash: (paths) => hostCall<string[]>('trash', paths)
+  moveToSystemTrash: (paths) => hostCall<string[]>('trash', paths),
+  printPdf: (url, outFile, format) => hostCall<string>('print-pdf', { url, outFile, format }),
+  appUrl: () => `http://127.0.0.1:${listeningPort}/?t=${token}`
 })
+let listeningPort = preferredPort
 const app = createApp(lib, { token, rendererDir, devOrigin: process.env.MYPHOTOS_DEV_ORIGIN })
 
 function listen(port: number): Promise<number> {
@@ -32,6 +35,7 @@ function listen(port: number): Promise<number> {
 }
 
 const port = await listen(preferredPort)
+listeningPort = port
 if ((process as unknown as { parentPort?: unknown }).parentPort) notifyParent({ type: 'ready', port, token })
 else console.log(`MyPhotos backend on http://127.0.0.1:${port}/?t=${token}  (data: ${dataDir})`)
 

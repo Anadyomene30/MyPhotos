@@ -35,6 +35,7 @@ function timelineQuery(c: Context): TimelineQuery {
     place: c.req.query('place') || undefined,
     search: c.req.query('search')?.trim() || undefined,
     similar: c.req.query('similar') ? parseInt(c.req.query('similar')!, 10) || undefined : undefined,
+    group: c.req.query('group') === 'moments' ? 'moments' : undefined,
     filter: f && (FILTERS as readonly string[]).includes(f) ? f : 'all',
     kind: k === 'photo' || k === 'video' ? k : 'all',
     year: year ? parseInt(year, 10) || undefined : undefined
@@ -97,6 +98,7 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
   }
   app.get('/api/timeline/buckets', async (c) => {
     const q = timelineQuery(c)
+    if (q.group === 'moments') lib.ensureMoments()
     if (q.search || q.similar) {
       const ids = await searchTiles(q)
       return c.json(ids.length ? [{ day: 'search', count: ids.length }] : [])
@@ -228,6 +230,56 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ removed })
   })
   app.get('/api/assets/:id/albums', (c) => c.json(lib.albums.forAsset(idParam(c))))
+
+  // ------------------------------------------------------------ moments & memories
+  app.get('/api/moments', (c) => c.json(lib.moments()))
+  app.patch('/api/moments/:id', async (c) => {
+    const body = z.object({ title: z.string().max(120) }).parse(await c.req.json())
+    lib.renameMoment(idParam(c), body.title)
+    return c.json({ ok: true })
+  })
+  app.get('/api/memories', async (c) => {
+    await lib.ensureMemories()
+    return c.json(lib.memories())
+  })
+  app.get('/api/memories/:id', (c) => {
+    const m = lib.memory(idParam(c))
+    return m ? c.json(m) : c.json({ error: 'not found' }, 404)
+  })
+  app.patch('/api/memories/:id', async (c) => {
+    const body = z.object({ title: z.string().max(120).optional(), subtitle: z.string().max(200).nullable().optional(), pinned: z.boolean().optional(), dismissed: z.boolean().optional(), assetIds: z.array(z.number().int()).optional(), coverId: z.number().int().optional() }).parse(await c.req.json())
+    lib.updateMemory(idParam(c), body)
+    return c.json({ ok: true })
+  })
+  app.post('/api/memories/:id/album', (c) => c.json({ albumId: lib.saveMemoryAsAlbum(idParam(c)) }))
+  app.post('/api/memories/:id/regenerate', (c) => {
+    lib.regenerateMemory(idParam(c))
+    return c.json({ ok: true })
+  })
+  app.post('/api/memories/:id/enrich', async (c) => {
+    try {
+      return c.json(await lib.enrichMemory(idParam(c)))
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+  app.post('/api/memories/:id/pdf', async (c) => {
+    const body = z.object({ format: z.enum(['square', 'a4', 'large']).default('square') }).parse(await c.req.json().catch(() => ({})))
+    try {
+      const m = lib.memory(idParam(c))
+      if (!m) return c.json({ error: 'not found' }, 404)
+      const file = await lib.printMemoryPdf(m.id, m.title, body.format)
+      return c.json({ file })
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+  app.get('/api/settings/cloud', (c) => c.json({ hasKey: Boolean(lib.setting('anthropic_api_key')) }))
+  app.put('/api/settings/cloud', async (c) => {
+    const body = z.object({ apiKey: z.string().max(300).nullable() }).parse(await c.req.json())
+    lib.setSetting('anthropic_api_key', body.apiKey?.trim() || null)
+    return c.json({ hasKey: Boolean(lib.setting('anthropic_api_key')) })
+  })
 
   // ------------------------------------------------------------ intelligence
   app.get('/api/ml/status', (c) => c.json(lib.ml.status()))

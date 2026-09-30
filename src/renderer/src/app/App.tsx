@@ -16,6 +16,8 @@ import { ExportDialog } from '@/features/export/ExportDialog'
 import { CleanupPage } from '@/features/cleanup/CleanupPage'
 import { PeoplePage } from '@/features/people/PeoplePage'
 import { PlacesPage } from '@/features/places/PlacesPage'
+import { MemoriesPage } from '@/features/memories/MemoriesPage'
+import { MemoryBook } from '@/features/memories/MemoryBook'
 import { Editor } from '@/features/editor/Editor'
 import { VideoEditor } from '@/features/editor/VideoEditor'
 
@@ -33,12 +35,20 @@ function useTheme(): void {
   }, [theme])
 }
 
+const printTarget = /^memory:(\d+)$/.exec(new URLSearchParams(location.search).get('print') ?? '')
+
 export function App() {
   useTheme()
+  if (printTarget) return <MemoryBook id={Number(printTarget[1])} printMode />
+  return <MainApp />
+}
+
+function MainApp() {
   const { jobs, scanning } = useServerEvents()
   const { data, isLoading, error } = useLibraryState()
   const viewerOpen = useUi((s) => s.viewerIndex !== null)
   const page = useUi((s) => s.page)
+  const memoryId = useUi((s) => s.memoryId)
 
   if (error) {
     return (
@@ -69,6 +79,8 @@ export function App() {
           <PeoplePage />
         ) : page === 'places' ? (
           <PlacesPage />
+        ) : page === 'memories' ? (
+          <MemoriesPage />
         ) : (
           <>
             <Toolbar />
@@ -76,6 +88,7 @@ export function App() {
           </>
         )}
       </main>
+      {memoryId !== null && <MemoryBook id={memoryId} />}
       {viewerOpen && <Viewer />}
       <Settings />
       <Toasts />

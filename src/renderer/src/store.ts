@@ -1,12 +1,12 @@
 import { create } from 'zustand'
 import type { KindFilter, LibraryFilter } from '@shared/types'
 
-export type Grouping = 'year' | 'month' | 'day'
+export type Grouping = 'year' | 'month' | 'day' | 'moments'
 export type Theme = 'system' | 'light' | 'dark'
 
 /** target cell sizes in CSS px */
 export const ZOOM_LEVELS = [44, 64, 88, 120, 160, 210, 280, 380] as const
-export const DEFAULT_ZOOM: Record<Grouping, number> = { year: 0, month: 2, day: 4 }
+export const DEFAULT_ZOOM: Record<Grouping, number> = { year: 0, month: 2, day: 4, moments: 3 }
 
 export interface Toast {
   id: number
@@ -14,7 +14,7 @@ export interface Toast {
   action?: { label: string; run: () => void }
 }
 
-export type Page = 'library' | 'cleanup' | 'people' | 'places'
+export type Page = 'library' | 'cleanup' | 'people' | 'places' | 'memories'
 
 interface UiState {
   page: Page
@@ -53,6 +53,8 @@ interface UiState {
   setEditorId(id: number | null): void
   videoEditorId: number | null
   setVideoEditorId(id: number | null): void
+  memoryId: number | null
+  openMemory(id: number | null): void
   setSmartEditor(v: { albumId: number | null } | null): void
   setKind(k: KindFilter): void
   setGrouping(g: Grouping): void
@@ -98,6 +100,8 @@ export const useUi = create<UiState>((set, get) => ({
   exportIds: null,
   editorId: null,
   videoEditorId: null,
+  memoryId: null,
+  openMemory: (memoryId) => set({ memoryId }),
   kind: 'all',
   grouping: saved.grouping ?? 'day',
   zoom: saved.zoom ?? DEFAULT_ZOOM.day,

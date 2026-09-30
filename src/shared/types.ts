@@ -77,6 +77,8 @@ export interface TimelineQuery {
   search?: string
   /** visually similar to this asset */
   similar?: number
+  /** group and order the timeline by moments instead of days */
+  group?: 'moments'
 }
 
 export type SmartRule =
@@ -107,9 +109,11 @@ export interface Album {
 }
 
 export interface DayBucket {
-  /** local calendar day YYYY-MM-DD, or 'unknown' */
+  /** local calendar day YYYY-MM-DD, 'unknown', 'search', or 'm:<momentId>' when grouped by moments */
   day: string
   count: number
+  title?: string
+  subtitle?: string
 }
 
 export interface Source {
@@ -282,4 +286,58 @@ export interface PlaceSummary {
   lon: number
   coverId: number | null
   coverV: string
+}
+
+export interface MomentSummary {
+  id: number
+  title: string
+  subtitle: string | null
+  dayStart: string
+  dayEnd: string
+  city: string | null
+  country: string | null
+  count: number
+  coverId: number | null
+  coverV: string
+  tripId: number | null
+}
+
+export type MemoryKind = 'year' | 'trip' | 'moment' | 'person' | 'category' | 'onThisDay' | 'custom'
+
+export type MemoryPage =
+  | { type: 'cover'; ids: number[] }
+  | { type: 'title'; text: string; sub?: string }
+  | { type: 'hero'; ids: [number] }
+  | { type: 'duo'; ids: number[] }
+  | { type: 'trio'; ids: number[] }
+  | { type: 'grid'; ids: number[] }
+  | { type: 'end'; ids: number[] }
+
+export interface MemoryTheme {
+  /** dominant colour of the cover, hex */
+  accent: string
+  /** dark or light text on the accent */
+  onAccent: 'light' | 'dark'
+  /** page background tint */
+  bg: string
+}
+
+export interface MemorySummary {
+  id: number
+  kind: MemoryKind
+  title: string
+  subtitle: string | null
+  coverId: number | null
+  coverV: string
+  count: number
+  pinned: boolean
+  albumId: number | null
+  theme: MemoryTheme
+  createdAt: number
+}
+
+export interface MemoryDetail extends MemorySummary {
+  assetIds: number[]
+  pages: MemoryPage[]
+  tiles: AssetTile[]
 }

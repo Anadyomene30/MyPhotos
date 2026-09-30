@@ -78,7 +78,7 @@ export function Timeline() {
     }
     if (last >= 0) cache.ensure(first, last)
     const g = topGroup !== null ? layout.groups[topGroup] : undefined
-    setLabel(g && (virtualizer.scrollOffset ?? 0) > 8 ? groupTitle(g.key, grouping) : null)
+    setLabel(g && (virtualizer.scrollOffset ?? 0) > 8 ? (g.title ?? groupTitle(g.key, grouping)) : null)
   }, [items, layout, cache, grouping, setLabel, virtualizer.scrollOffset])
 
   // Scroll to top when the section changes.
@@ -239,8 +239,8 @@ function useTimelineKeys(cache: TileCache, layout: Layout, scrollToRow: (i: numb
       } else if (e.key === '.' && selected.length) {
         const allFav = selected.every((id) => findTile(cache, layout, id)?.favorite)
         await patchAssets(selected, { favorite: !allFav })
-      } else if (!mod && (e.key === '1' || e.key === '2' || e.key === '3')) {
-        ui.setGrouping(e.key === '1' ? 'year' : e.key === '2' ? 'month' : 'day')
+      } else if (!mod && (e.key === '1' || e.key === '2' || e.key === '3' || e.key === '4')) {
+        ui.setGrouping(e.key === '1' ? 'year' : e.key === '2' ? 'month' : e.key === '3' ? 'day' : 'moments')
       } else if ((mod && (e.key === '=' || e.key === '+')) || (!mod && e.key === '+')) {
         e.preventDefault()
         ui.setZoom(ui.zoom + 1)

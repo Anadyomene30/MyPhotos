@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { BrushCleaning, Camera, Heart, Images, MapPin, Monitor, Settings, Tag, Trash2, Users, Aperture } from 'lucide-react'
+import { BrushCleaning, Camera, Heart, Images, MapPin, Monitor, Settings, Sparkles, Tag, Trash2, Users, Aperture } from 'lucide-react'
 import { useCategories, useMlStatus } from '@/api/hooks'
 import type { ComponentType } from 'react'
 import { useLibraryState } from '@/api/hooks'
@@ -66,7 +66,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
   }
 
   const types = TYPES.map(renderItem).filter(Boolean)
-  const pageItem = (id: 'people' | 'places' | 'cleanup', label: string, Icon: ComponentType<{ className?: string; strokeWidth?: number }>, n?: number) => (
+  const pageItem = (id: 'people' | 'places' | 'cleanup' | 'memories', label: string, Icon: ComponentType<{ className?: string; strokeWidth?: number }>, n?: number) => (
     <button
       key={id}
       onClick={() => openPage(id)}
@@ -89,6 +89,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
       <nav className="scroll-thin flex-1 space-y-5 overflow-y-auto px-2.5 pb-4">
         <Section title="Bibliothèque">
           {LIBRARY.map(renderItem)}
+          {pageItem('memories', 'Souvenirs', Sparkles)}
           {ml?.enabled && pageItem('people', 'Personnes', Users, ml.persons)}
           {pageItem('places', 'Lieux', MapPin)}
         </Section>

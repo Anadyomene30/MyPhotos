@@ -43,7 +43,7 @@ function ruleSql(rule: SmartRule, depth: number): { sql: string; params: Array<s
     }
     case 'album':
       if (depth > 0) return null // no nested album references beyond one level
-      return { sql: `id ${rule.op === 'notIn' ? 'NOT ' : ''}IN (SELECT asset_id FROM album_assets WHERE album_id = ?)`, params: [rule.value] }
+      return { sql: `assets.id ${rule.op === 'notIn' ? 'NOT ' : ''}IN (SELECT asset_id FROM album_assets WHERE album_id = ?)`, params: [rule.value] }
   }
 }
 
@@ -70,7 +70,7 @@ export class AlbumRepo {
     const a = this.row(id)
     if (!a) return { sql: '0', params: [] }
     if (a.kind === 'smart') return rulesToSql(a.rules ? (JSON.parse(a.rules) as SmartRules) : { match: 'all', rules: [] })
-    return { sql: 'id IN (SELECT asset_id FROM album_assets WHERE album_id = ?)', params: [id] }
+    return { sql: 'assets.id IN (SELECT asset_id FROM album_assets WHERE album_id = ?)', params: [id] }
   }
 
   list(): Album[] {

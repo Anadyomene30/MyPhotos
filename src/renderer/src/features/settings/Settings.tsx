@@ -8,6 +8,7 @@ import { useUi, type Theme } from '@/store'
 import { useAddSource } from '@/features/onboarding/Welcome'
 import { plural } from '@/lib/format'
 import { IntelligenceSettings } from './Intelligence'
+import { CloudSettings } from './Cloud'
 
 export function Settings() {
   const open = useUi((s) => s.settingsOpen)
@@ -86,6 +87,7 @@ export function Settings() {
             <p className="mt-2 text-[11.5px] text-faint">Retirer un dossier le retire seulement de MyPhotos. Vos fichiers restent intacts.</p>
           </section>
           <IntelligenceSettings />
+          <CloudSettings />
           <section className="flex items-center justify-between">
             <h3 className="text-[13px] font-semibold">Apparence</h3>
             <Segmented<Theme>

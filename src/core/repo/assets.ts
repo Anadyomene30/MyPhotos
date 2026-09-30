@@ -4,25 +4,25 @@ import { isWebNative } from '../media/kinds'
 import type { PhotoEdit } from '@shared/edit/types'
 import type { AssetDetail, AssetKind, AssetTile, DayBucket, LibraryCounts, LibraryFilter, TimelineQuery } from '@shared/types'
 
-const VISIBLE = 'hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL'
+const VISIBLE = 'assets.hidden = 0 AND assets.missing_at IS NULL AND assets.trashed_at IS NULL'
 const ORDER = 'day DESC, taken_at DESC, id DESC'
 
 export function filterWhere(q: TimelineQuery, albumCond?: { sql: string; params: Array<string | number> }): { sql: string; params: Array<string | number> } {
   const parts: string[] = []
   const params: Array<string | number> = []
   const f: LibraryFilter = q.filter
-  if (f === 'trash') parts.push('hidden = 0 AND missing_at IS NULL AND trashed_at IS NOT NULL')
+  if (f === 'trash') parts.push('assets.hidden = 0 AND assets.missing_at IS NULL AND assets.trashed_at IS NOT NULL')
   else parts.push(VISIBLE)
-  if (f === 'photos') parts.push("kind = 'photo'")
-  if (f === 'videos') parts.push("kind = 'video'")
+  if (f === 'photos') parts.push("assets.kind = 'photo'")
+  if (f === 'videos') parts.push("assets.kind = 'video'")
   if (f === 'live') parts.push('is_live = 1')
   if (f === 'screenshots') parts.push('is_screenshot = 1')
   if (f === 'favorites') parts.push('favorite = 1')
   if (f === 'raw') parts.push('is_raw = 1')
-  if (q.kind === 'photo') parts.push("kind = 'photo'")
-  if (q.kind === 'video') parts.push("kind = 'video'")
+  if (q.kind === 'photo') parts.push("assets.kind = 'photo'")
+  if (q.kind === 'video') parts.push("assets.kind = 'video'")
   if (q.year) {
-    parts.push('day >= ? AND day <= ?')
+    parts.push('assets.day >= ? AND assets.day <= ?')
     params.push(`${q.year}-01-01`, `${q.year}-12-31`)
   }
   if (albumCond) {
@@ -30,15 +30,15 @@ export function filterWhere(q: TimelineQuery, albumCond?: { sql: string; params:
     params.push(...albumCond.params)
   }
   if (q.person) {
-    parts.push('id IN (SELECT asset_id FROM faces WHERE person_id = ? AND hidden = 0)')
+    parts.push('assets.id IN (SELECT asset_id FROM faces WHERE person_id = ? AND hidden = 0)')
     params.push(q.person)
   }
   if (q.category) {
-    parts.push('id IN (SELECT asset_id FROM categories WHERE label = ?)')
+    parts.push('assets.id IN (SELECT asset_id FROM categories WHERE label = ?)')
     params.push(q.category)
   }
   if (q.place) {
-    parts.push('(place_city = ? OR place_country = ?)')
+    parts.push('(assets.place_city = ? OR assets.place_country = ?)')
     params.push(q.place, q.place)
   }
   return { sql: parts.join(' AND '), params }
@@ -50,7 +50,7 @@ function orderedFrom(q: TimelineQuery): string {
   return q.kind === 'photo' || q.kind === 'video' ? 'assets INDEXED BY assets_kind_timeline' : 'assets INDEXED BY assets_timeline'
 }
 
-const TILE_COLS = 'id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v, qhash, (edit IS NOT NULL) AS edited, (SELECT count(*) FROM assets v WHERE v.version_of = assets.id AND v.trashed_at IS NULL) AS versions'
+const TILE_COLS = 'assets.id, assets.kind, assets.ratio, assets.taken_at, assets.duration, assets.is_live, assets.favorite, assets.is_raw, assets.thumb_v, assets.qhash, (assets.edit IS NOT NULL) AS edited, (SELECT count(*) FROM assets v WHERE v.version_of = assets.id AND v.trashed_at IS NULL) AS versions'
 
 /** Thumbnail cache key: content fingerprint + regeneration counter, so a reused id never shows a stale image. */
 export function thumbKey(r: Row): string {
@@ -88,31 +88,51 @@ export class AssetRepo {
 
   buckets(q: TimelineQuery): DayBucket[] {
     const w = this.where(q)
+    if (q.group === 'moments') {
+      return this.stmts
+        .get(`SELECT 'm:' || m.id AS day, count(*) AS count, m.title AS title, m.subtitle AS subtitle
+          FROM assets JOIN moment_assets ma ON ma.asset_id = assets.id JOIN moments m ON m.id = ma.moment_id
+          WHERE ${w.sql} GROUP BY m.id ORDER BY m.start_at DESC`)
+        .all(...w.params) as unknown as DayBucket[]
+    }
     return this.stmts
       .get(`SELECT day, count(*) AS count FROM ${orderedFrom(q)} WHERE ${w.sql} GROUP BY day ORDER BY day DESC`)
       .all(...w.params) as unknown as DayBucket[]
   }
 
-  page(q: TimelineQuery, offset: number, limit: number): AssetTile[] {
+  private orderedSql(q: TimelineQuery, cols: string): { sql: string; params: Array<string | number> } {
     const w = this.where(q)
-    const rows = this.stmts
-      .get(`SELECT ${TILE_COLS} FROM ${orderedFrom(q)} WHERE ${w.sql} ORDER BY ${ORDER} LIMIT ? OFFSET ?`)
-      .all(...w.params, limit, offset) as Row[]
+    if (q.group === 'moments') {
+      return {
+        sql: `SELECT ${cols} FROM assets JOIN moment_assets ma ON ma.asset_id = assets.id JOIN moments m ON m.id = ma.moment_id WHERE ${w.sql} ORDER BY m.start_at DESC, assets.taken_at DESC, assets.id DESC`,
+        params: w.params
+      }
+    }
+    return { sql: `SELECT ${cols} FROM ${orderedFrom(q)} WHERE ${w.sql} ORDER BY ${ORDER}`, params: w.params }
+  }
+
+  page(q: TimelineQuery, offset: number, limit: number): AssetTile[] {
+    const o = this.orderedSql(q, TILE_COLS.replace(/\bassets\.id\b/g, 'assets.id'))
+    const rows = this.stmts.get(`${o.sql} LIMIT ? OFFSET ?`).all(...o.params, limit, offset) as Row[]
     return rows.map(toTile)
   }
 
   ids(q: TimelineQuery): number[] {
-    const w = this.where(q)
-    return (this.stmts.get(`SELECT id FROM ${orderedFrom(q)} WHERE ${w.sql} ORDER BY ${ORDER}`).all(...w.params) as Array<{ id: number }>).map((r) => r.id)
+    const o = this.orderedSql(q, 'assets.id AS id')
+    return (this.stmts.get(o.sql).all(...o.params) as Array<{ id: number }>).map((r) => r.id)
   }
 
   /** Position of an asset inside a filtered timeline, used to open the viewer at the right index. */
   indexOf(q: TimelineQuery, id: number): number | null {
+    if (q.group === 'moments') {
+      const i = this.ids(q).indexOf(id)
+      return i >= 0 ? i : null
+    }
     const row = this.stmts.get('SELECT day, taken_at FROM assets WHERE id = ?').get(id) as Row | undefined
     if (!row) return null
     const w = this.where(q)
     const r = this.stmts
-      .get(`SELECT count(*) AS n FROM ${orderedFrom(q)} WHERE ${w.sql} AND (day > ? OR (day = ? AND (taken_at > ? OR (taken_at = ? AND id > ?))))`)
+      .get(`SELECT count(*) AS n FROM ${orderedFrom(q)} WHERE ${w.sql} AND (assets.day > ? OR (assets.day = ? AND (assets.taken_at > ? OR (assets.taken_at = ? AND assets.id > ?))))`)
       .get(...w.params, row.day as string, row.day as string, row.taken_at as number, row.taken_at as number, id) as { n: number }
     return r.n
   }
@@ -149,7 +169,7 @@ export class AssetRepo {
     if (!ids.length) return []
     const w = this.where({ ...q, search: undefined, similar: undefined })
     const rows = this.stmts
-      .get(`SELECT ${TILE_COLS} FROM assets WHERE ${w.sql} AND id IN (SELECT value FROM json_each(?))`)
+      .get(`SELECT ${TILE_COLS} FROM assets WHERE ${w.sql} AND assets.id IN (SELECT value FROM json_each(?))`)
       .all(...w.params, JSON.stringify(ids)) as Row[]
     const byId = new Map(rows.map((r) => [r.id as number, toTile(r)]))
     return ids.map((id) => byId.get(id)).filter((t): t is AssetTile => Boolean(t))

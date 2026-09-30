@@ -171,7 +171,8 @@ export function Toolbar() {
         options={[
           { value: 'year', label: 'Années', title: 'Années (1)' },
           { value: 'month', label: 'Mois', title: 'Mois (2)' },
-          { value: 'day', label: 'Jours', title: 'Jours (3)' }
+          { value: 'day', label: 'Jours', title: 'Jours (3)' },
+          { value: 'moments', label: 'Moments', title: 'Moments (4)' }
         ]}
       />
 

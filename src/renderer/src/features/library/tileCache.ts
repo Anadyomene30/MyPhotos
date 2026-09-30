@@ -4,7 +4,7 @@ import type { AssetTile, TimelineQuery } from '@shared/types'
 const PAGE = 240
 
 export function queryParams(q: TimelineQuery): Record<string, string | number | undefined> {
-  return { filter: q.filter, kind: q.kind, year: q.year, album: q.album, person: q.person, category: q.category, place: q.place, search: q.search, similar: q.similar }
+  return { filter: q.filter, kind: q.kind, year: q.year, album: q.album, person: q.person, category: q.category, place: q.place, search: q.search, similar: q.similar, group: q.group }
 }
 
 /**

@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { api, onServerEvent, qs } from './client'
 import { useUi } from '@/store'
 import { TileCache, queryKey } from '@/features/library/tileCache'
-import type { Album, AssetDetail, DayBucket, FaceInfo, JobGroupState, LibraryState, MlStatus, PersonSummary, PlaceSummary, SmartRules, TimelineQuery } from '@shared/types'
+import type { Album, AssetDetail, DayBucket, FaceInfo, JobGroupState, LibraryState, MemoryDetail, MemorySummary, MlStatus, PersonSummary, PlaceSummary, SmartRules, TimelineQuery } from '@shared/types'
 import { queryParams } from '@/features/library/tileCache'
 
 /** Wire server-sent events into react-query and the UI store. Mount once. */
@@ -48,6 +48,8 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
           void qc.invalidateQueries({ queryKey: ['categories'] })
           void qc.invalidateQueries({ queryKey: ['places'] })
           void qc.invalidateQueries({ queryKey: ['ml-status'] })
+          void qc.invalidateQueries({ queryKey: ['memories'] })
+          void qc.invalidateQueries({ queryKey: ['memory'] })
         }
       }),
     [qc, bump]
@@ -68,9 +70,10 @@ export function useTimelineQuery(): TimelineQuery {
   const place = useUi((s) => s.place)
   const search = useUi((s) => s.search)
   const similar = useUi((s) => s.similarTo)
+  const grouping = useUi((s) => s.grouping)
   return useMemo(
-    () => ({ filter: section, kind, album: album ?? undefined, person: person ?? undefined, category: category ?? undefined, place: place ?? undefined, search: search.trim() || undefined, similar: similar ?? undefined }),
-    [section, kind, album, person, category, place, search, similar]
+    () => ({ filter: section, kind, album: album ?? undefined, person: person ?? undefined, category: category ?? undefined, place: place ?? undefined, search: search.trim() || undefined, similar: similar ?? undefined, group: grouping === 'moments' && !search.trim() && similar === null ? ('moments' as const) : undefined }),
+    [section, kind, album, person, category, place, search, similar, grouping]
   )
 }
 
@@ -173,4 +176,19 @@ export const mlApi = {
   setCover: (personId: number, faceId: number) => api(`/api/persons/${personId}/cover`, { method: 'POST', json: { faceId } }),
   moveFace: (faceId: number, personId: number | null) => api(`/api/faces/${faceId}/move`, { method: 'POST', json: { personId } }),
   namePerson: (faceId: number, name: string) => api<{ personId: number }>(`/api/faces/${faceId}/person`, { method: 'POST', json: { name } })
+}
+
+export function useMemories() {
+  return useQuery({ queryKey: ['memories'], queryFn: () => api<MemorySummary[]>('/api/memories') })
+}
+
+export function useMemory(id: number | null) {
+  return useQuery({ queryKey: ['memory', id], queryFn: () => api<MemoryDetail>(`/api/memories/${id}`), enabled: id !== null })
+}
+
+export const memoriesApi = {
+  update: (id: number, patch: { title?: string; subtitle?: string | null; pinned?: boolean; dismissed?: boolean; assetIds?: number[]; coverId?: number }) => api(`/api/memories/${id}`, { method: 'PATCH', json: patch }),
+  saveAlbum: (id: number) => api<{ albumId: number }>(`/api/memories/${id}/album`, { method: 'POST' }),
+  regenerate: (id: number) => api(`/api/memories/${id}/regenerate`, { method: 'POST' }),
+  enrich: (id: number) => api<{ title: string; subtitle: string }>(`/api/memories/${id}/enrich`, { method: 'POST' })
 }

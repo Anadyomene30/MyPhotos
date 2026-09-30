@@ -19,6 +19,10 @@ import sharp from 'sharp'
 import { SHARP_EXTS } from './media/kinds'
 import { buildCleanupReport } from './cleanup'
 import { MlService } from './ml/service'
+import { rebuildMoments } from './organize/moments'
+import { paginate, proposeMemories, syncMemories } from './organize/memories'
+import { enrichWithClaude } from './organize/claudeTitles'
+import { thumbKey, toTile } from './repo/assets'
 import { Geocoder } from './geo'
 import { analyzeImage } from './media/analyze'
 import { ThumbStore, type ThumbSize } from './media/thumbs'
@@ -30,7 +34,7 @@ import { tmpdir } from 'node:os'
 import { rm as rmAsync } from 'node:fs/promises'
 import { isAbsolute, relative as relPath } from 'node:path'
 import type { DecodeInput } from './media/decode'
-import type { AssetKind, CleanupReport, ExportOptions, SearchHit, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
+import type { AssetKind, CleanupReport, ExportOptions, MemoryDetail, MemorySummary, MemoryTheme, MomentSummary, SearchHit, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
 
 export interface LibraryOptions {
   dataDir: string
@@ -45,6 +49,10 @@ export interface LibraryOptions {
   resourcesDir?: string
   /** folder holding the built worker scripts (ml-worker.js, fusion-worker.js) */
   workerDir?: string
+  /** Render a page of the app to PDF (Electron host). Returns the written file path. */
+  printPdf?: (url: string, outFile: string, format: 'square' | 'a4' | 'large') => Promise<string>
+  /** URL of the running app, used to render pages (set once the server listens) */
+  appUrl?: () => string
 }
 
 type Stage = 'meta' | 'thumb' | 'analyze' | 'ml'
@@ -234,6 +242,7 @@ export class Library extends EventEmitter {
           this.ml.afterBatch()
           this.send({ type: 'ml-status', status: this.ml.status() })
         }
+        await this.ensureMemories().catch(() => undefined)
       } while (this.indexAgain && !this.closed)
     })().finally(() => {
       this.indexing = null
@@ -408,6 +417,152 @@ export class Library extends EventEmitter {
     } catch {
       return null
     }
+  }
+
+  // ---------------------------------------------------------------- moments & memories
+
+  private momentsVersion = -1
+  private memoriesVersion = -1
+
+  /** Rebuild moments when the library changed since the last build (cheap: one ordered scan). */
+  ensureMoments(): void {
+    if (this.momentsVersion === this.version) return
+    rebuildMoments(this.db)
+    this.momentsVersion = this.version
+  }
+
+  moments(): MomentSummary[] {
+    this.ensureMoments()
+    const rows = this.db.prepare('SELECT m.*, a.thumb_v, a.qhash FROM moments m LEFT JOIN assets a ON a.id = m.cover_id ORDER BY m.start_at DESC').all() as Row[]
+    return rows.map((r) => ({
+      id: r.id as number, title: r.title as string, subtitle: r.subtitle as string | null, dayStart: r.day_start as string, dayEnd: r.day_end as string,
+      city: r.city as string | null, country: r.country as string | null, count: r.n as number, coverId: r.cover_id as number | null,
+      coverV: r.cover_id ? thumbKey(r) : '', tripId: r.trip_id as number | null
+    }))
+  }
+
+  renameMoment(id: number, title: string): void {
+    const m = this.db.prepare('SELECT sig FROM moments WHERE id = ?').get(id) as { sig: string } | undefined
+    if (!m) return
+    const t = title.trim()
+    if (t) {
+      this.db.prepare('INSERT INTO moment_titles (sig, title) VALUES (?, ?) ON CONFLICT(sig) DO UPDATE SET title = excluded.title').run(m.sig, t)
+      this.db.prepare('UPDATE moments SET title = ? WHERE id = ?').run(t, id)
+    } else {
+      this.db.prepare('DELETE FROM moment_titles WHERE sig = ?').run(m.sig)
+      this.momentsVersion = -1
+      this.ensureMoments()
+    }
+    this.emitChanged()
+  }
+
+  /** Propose and store memories; runs after moments when the library changed. */
+  async ensureMemories(): Promise<void> {
+    this.ensureMoments()
+    if (this.memoriesVersion === this.version) return
+    this.memoriesVersion = this.version
+    const drafts = proposeMemories(this.db)
+    const created = await syncMemories(this.db, drafts, (id) => this.thumbs.pathFor(id, 'grid'))
+    if (created) this.emitChanged()
+  }
+
+  private memoryRow(r: Row): MemorySummary {
+    const cover = r.cover_id ? this.assets.raw(r.cover_id as number) : undefined
+    const ids = JSON.parse(r.asset_ids as string) as number[]
+    return {
+      id: r.id as number, kind: r.kind as MemorySummary['kind'], title: r.title as string, subtitle: r.subtitle as string | null,
+      coverId: (r.cover_id as number | null) ?? null, coverV: cover ? thumbKey(cover) : '', count: ids.length, pinned: r.pinned === 1,
+      albumId: (r.album_id as number | null) ?? null, theme: r.theme ? (JSON.parse(r.theme as string) as MemoryTheme) : { accent: '#1f2937', onAccent: 'light', bg: '#111113' },
+      createdAt: r.created_at as number
+    }
+  }
+
+  memories(): MemorySummary[] {
+    const rows = this.db.prepare('SELECT * FROM memories WHERE dismissed = 0 ORDER BY pinned DESC, created_at DESC, id DESC').all() as Row[]
+    return rows.map((r) => this.memoryRow(r))
+  }
+
+  memory(id: number): MemoryDetail | null {
+    const r = this.db.prepare('SELECT * FROM memories WHERE id = ?').get(id) as Row | undefined
+    if (!r) return null
+    const s = this.memoryRow(r)
+    const ids = (JSON.parse(r.asset_ids as string) as number[])
+    const rows = this.db.prepare(`SELECT id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v, qhash, (edit IS NOT NULL) AS edited, 0 AS versions, quality, favorite AS fav
+        FROM assets WHERE id IN (SELECT value FROM json_each(?)) AND missing_at IS NULL AND trashed_at IS NULL`).all(JSON.stringify(ids)) as Row[]
+    const byId = new Map(rows.map((x) => [x.id as number, x]))
+    const live = ids.filter((i) => byId.has(i))
+    const tiles = live.map((i) => toTile(byId.get(i)!))
+    const pages = paginate(live.map((i) => ({ id: i, ratio: (byId.get(i)!.ratio as number | null) ?? 1.5, score: ((byId.get(i)!.quality as number | null) ?? 0) + (byId.get(i)!.fav === 1 ? 0.3 : 0) })), s.title, s.subtitle)
+    return { ...s, assetIds: live, pages, tiles }
+  }
+
+  updateMemory(id: number, patch: { title?: string; subtitle?: string | null; pinned?: boolean; dismissed?: boolean; assetIds?: number[]; coverId?: number }): void {
+    const r = this.db.prepare('SELECT * FROM memories WHERE id = ?').get(id) as Row | undefined
+    if (!r) return
+    this.db.prepare('UPDATE memories SET title = ?, subtitle = ?, pinned = ?, dismissed = ?, asset_ids = ?, cover_id = ?, updated_at = ? WHERE id = ?').run(
+      patch.title?.trim() || (r.title as string), patch.subtitle === undefined ? (r.subtitle as string | null) : patch.subtitle,
+      patch.pinned === undefined ? (r.pinned as number) : patch.pinned ? 1 : 0, patch.dismissed === undefined ? (r.dismissed as number) : patch.dismissed ? 1 : 0,
+      patch.assetIds ? JSON.stringify(patch.assetIds) : (r.asset_ids as string), patch.coverId ?? (r.cover_id as number | null), Date.now(), id)
+    this.emitChanged()
+  }
+
+  /** Save a memory as a real album (kept in sync by id). */
+  saveMemoryAsAlbum(id: number): number {
+    const r = this.db.prepare('SELECT title, asset_ids, album_id FROM memories WHERE id = ?').get(id) as { title: string; asset_ids: string; album_id: number | null } | undefined
+    if (!r) throw new Error('Souvenir introuvable')
+    if (r.album_id && this.albums.get(r.album_id)) return r.album_id
+    const a = this.albums.create(r.title, 'manual', null, JSON.parse(r.asset_ids) as number[])
+    this.db.prepare('UPDATE memories SET album_id = ? WHERE id = ?').run(a.id, id)
+    this.emitChanged()
+    return a.id
+  }
+
+  /** Regenerate the selection of an automatic memory. */
+  regenerateMemory(id: number): void {
+    const r = this.db.prepare('SELECT key FROM memories WHERE id = ?').get(id) as { key: string } | undefined
+    if (!r) return
+    const d = proposeMemories(this.db).find((x) => x.key === r.key)
+    if (!d) return
+    this.db.prepare('UPDATE memories SET asset_ids = ?, cover_id = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(d.ids), d.coverId, Date.now(), id)
+    this.emitChanged()
+  }
+
+  /** Ask Claude for a better title (opt-in, needs an API key in settings). */
+  async enrichMemory(id: number): Promise<{ title: string; subtitle: string }> {
+    const key = this.setting('anthropic_api_key')
+    if (!key) throw new Error('Ajoutez une clé API Claude dans les réglages pour activer cette fonction')
+    const m = this.memory(id)
+    if (!m) throw new Error('Souvenir introuvable')
+    const ids = m.assetIds
+    const places = (this.db.prepare(`SELECT place_city AS c, count(*) AS n FROM assets WHERE id IN (SELECT value FROM json_each(?)) AND place_city IS NOT NULL GROUP BY 1 ORDER BY n DESC LIMIT 4`).all(JSON.stringify(ids)) as Array<{ c: string }>).map((r) => r.c)
+    const people = (this.db.prepare(`SELECT DISTINCT p.name FROM faces f JOIN persons p ON p.id = f.person_id WHERE p.name IS NOT NULL AND f.asset_id IN (SELECT value FROM json_each(?)) LIMIT 6`).all(JSON.stringify(ids)) as Array<{ name: string }>).map((r) => r.name)
+    const days = (this.db.prepare(`SELECT min(day) AS a, max(day) AS b FROM assets WHERE id IN (SELECT value FROM json_each(?))`).get(JSON.stringify(ids)) as { a: string; b: string })
+    const thumbs: string[] = []
+    for (const aid of [m.coverId ?? ids[0]!, ...ids.filter((x) => x !== m.coverId).slice(0, 5)]) {
+      const f = await this.thumbnail(aid, 'grid')
+      if (f) thumbs.push(f)
+    }
+    const r = await enrichWithClaude(key, { kind: m.kind, currentTitle: m.title, subtitle: m.subtitle, places, people, dateRange: `${days.a} → ${days.b}`, count: ids.length, thumbs })
+    this.updateMemory(id, { title: r.title, subtitle: r.subtitle })
+    return { title: r.title, subtitle: r.subtitle }
+  }
+
+  async printMemoryPdf(id: number, title: string, format: 'square' | 'a4' | 'large'): Promise<string> {
+    if (!this.opts.printPdf || !this.opts.appUrl) throw new Error('Export PDF disponible uniquement dans l’application de bureau')
+    await mkdirAsync(this.creationsDir, { recursive: true })
+    const safe = title.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 80)
+    let out = join(this.creationsDir, `${safe}.pdf`)
+    for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${safe} (${i}).pdf`)
+    return this.opts.printPdf(`${this.opts.appUrl()}&print=memory:${id}&format=${format}`, out, format)
+  }
+
+  setting(key: string): string | null {
+    return (this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined)?.value ?? null
+  }
+
+  setSetting(key: string, value: string | null): void {
+    if (value === null) this.db.prepare('DELETE FROM settings WHERE key = ?').run(key)
+    else this.db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value)
   }
 
   // ---------------------------------------------------------------- cleanup

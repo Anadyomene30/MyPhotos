@@ -6,6 +6,7 @@ import type { Grouping } from '@/store'
 export function groupTitle(key: string, grouping: Grouping): string {
   if (key === 'unknown') return 'Date inconnue'
   if (key === 'search') return 'Résultats'
+  if (key.startsWith('m:')) return 'Moment'
   if (grouping === 'year') return key
   if (grouping === 'month') return monthLabel(key)
   return dayLabel(key).title
@@ -13,6 +14,17 @@ export function groupTitle(key: string, grouping: Grouping): string {
 
 export const GroupHeader = memo(function GroupHeader({ group, grouping }: { group: Group; grouping: Grouping }) {
   const n = plural(group.count, 'élément', 'éléments')
+  if (group.key.startsWith('m:')) {
+    return (
+      <div className="group/mh flex h-full items-end justify-between pb-2.5" style={{ paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}>
+        <div className="min-w-0">
+          <h2 className="truncate font-display text-[22px] leading-none font-bold tracking-tight">{group.title ?? 'Moment'}</h2>
+          {group.subtitle && <div className="mt-1 truncate text-[12.5px] text-muted">{group.subtitle}</div>}
+        </div>
+        <span className="shrink-0 text-[12px] text-faint">{n}</span>
+      </div>
+    )
+  }
   if (grouping === 'year') {
     return (
       <div className="flex h-full items-end justify-between pb-3" style={{ paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}>

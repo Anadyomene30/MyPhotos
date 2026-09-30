@@ -5,6 +5,8 @@ export interface Group {
   key: string
   start: number
   count: number
+  title?: string
+  subtitle?: string
 }
 
 export type LayoutRow =
@@ -21,12 +23,13 @@ export interface Layout {
   height: number
 }
 
-export const HEADER_HEIGHT: Record<Grouping, number> = { day: 58, month: 74, year: 96 }
+export const HEADER_HEIGHT: Record<Grouping, number> = { day: 58, month: 74, year: 96, moments: 66 }
 export const GAP = 2
 export const SIDE_PADDING = 20
 
 export function groupKey(day: string, grouping: Grouping): string {
-  if (day === 'unknown' || day === 'search') return day
+  if (day === 'unknown' || day === 'search' || day.startsWith('m:')) return day
+  if (grouping === 'moments') return day
   return grouping === 'day' ? day : grouping === 'month' ? day.slice(0, 7) : day.slice(0, 4)
 }
 
@@ -37,7 +40,7 @@ export function groupBuckets(buckets: DayBucket[], grouping: Grouping): Group[] 
     const key = groupKey(b.day, grouping)
     const last = groups[groups.length - 1]
     if (last && last.key === key) last.count += b.count
-    else groups.push({ key, start, count: b.count })
+    else groups.push({ key, start, count: b.count, ...(b.title ? { title: b.title, subtitle: b.subtitle } : {}) })
     start += b.count
   }
   return groups
