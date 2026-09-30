@@ -87,3 +87,11 @@ img.thumb { opacity: 0; transition: opacity 160ms ease-out; }
 img.thumb.loaded { opacity: 1; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* editor sliders: invisible track, round thumb */
+.editor-range::-webkit-slider-runnable-track { height: 20px; background: transparent; }
+.editor-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 14px; height: 14px; margin-top: 3px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); cursor: grab;
+}
+.editor-range:active::-webkit-slider-thumb { cursor: grabbing; transform: scale(1.1); }

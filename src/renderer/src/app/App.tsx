@@ -14,6 +14,7 @@ import { PromptHost } from '@/components/Prompt'
 import { SmartAlbumEditor } from '@/features/albums/SmartAlbumEditor'
 import { ExportDialog } from '@/features/export/ExportDialog'
 import { CleanupPage } from '@/features/cleanup/CleanupPage'
+import { Editor } from '@/features/editor/Editor'
 
 function useTheme(): void {
   const theme = useUi((s) => s.theme)
@@ -75,6 +76,7 @@ export function App() {
       <PromptHost />
       <SmartAlbumEditor />
       <ExportDialog />
+      <Editor />
     </div>
   )
 }

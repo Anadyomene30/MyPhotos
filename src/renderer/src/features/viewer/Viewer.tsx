@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent, type WheelEvent as RWheelEvent } from 'react'
 import clsx from 'clsx'
-import { ChevronLeft, ChevronRight, Download, FolderOpen, Heart, Info, RotateCcw, Share, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, FolderOpen, Heart, Info, RotateCcw, Share, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { media } from '@/api/client'
 import { patchAssets, useAsset, useBuckets, useTileCache, useTimelineQuery } from '@/api/hooks'
 import { useUi } from '@/store'
@@ -57,11 +57,14 @@ export function Viewer() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.target as HTMLElement).closest('input, textarea')) return
+      const ui = useUi.getState()
+      if (ui.exportIds || ui.editorId !== null || ui.videoEditorId !== null) return
       if (e.key === 'Escape') closeViewer()
       else if (e.key === 'ArrowRight') go(1)
       else if (e.key === 'ArrowLeft') go(-1)
-      else if (useUi.getState().exportIds) return
+      else if ((e.key === 'e' || e.key === 'E') && tile && !inTrash) (tile.kind === 'photo' ? useUi.getState().setEditorId(tile.id) : useUi.getState().setVideoEditorId(tile.id))
       else if (e.key === 'i' || e.key === 'I') toggleInfo()
+      else if ((e.key === 'e' || e.key === 'E') && tile && !inTrash) (tile.kind === 'photo' ? ui.setEditorId(tile.id) : ui.setVideoEditorId(tile.id))
       else if (e.key === '.') toggleFavorite()
       else if (e.key === 'Backspace' || e.key === 'Delete') trash()
       else if (e.key === ' ' && tile?.kind !== 'video') {
@@ -97,6 +100,15 @@ export function Viewer() {
               <IconButton label="Favori (.)" onClick={toggleFavorite}>
                 <Heart className={clsx('size-[18px]', tile?.favorite && 'fill-heart text-heart')} />
               </IconButton>
+            )}
+            {tile && !inTrash && (
+              <button
+                onClick={() => (tile.kind === 'photo' ? useUi.getState().setEditorId(tile.id) : useUi.getState().setVideoEditorId(tile.id))}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-white/85 hover:bg-white/10"
+                title="Modifier (E)"
+              >
+                <SlidersHorizontal className="size-4" /> Modifier
+              </button>
             )}
             {tile && (
               <IconButton label="Exporter" onClick={() => useUi.getState().setExportIds([tile.id])}>

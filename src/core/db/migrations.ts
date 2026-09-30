@@ -126,5 +126,9 @@ export const migrations: string[] = [
     sources TEXT NOT NULL,
     created_at INTEGER NOT NULL
   );
+  `,
+  /* 8 — non-destructive photo edits */ `
+  ALTER TABLE assets ADD COLUMN edit TEXT;
+  ALTER TABLE assets ADD COLUMN edited_at INTEGER;
   `
 ]

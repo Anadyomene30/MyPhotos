@@ -11,6 +11,8 @@ import { FolderWatcher } from './scan/watcher'
 import { readMetadata } from './media/metadata'
 import { fullHash, quickHash } from './media/hash'
 import { fuseInWorker } from './edit/runInWorker'
+import { parseEdit } from './edit/render'
+import { normalizeEdit, isNeutral, type PhotoEdit } from '@shared/edit/types'
 import { mkdir as mkdirAsync } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import sharp from 'sharp'
@@ -282,7 +284,7 @@ export class Library extends EventEmitter {
   async indexThumb(row: Row): Promise<boolean> {
     const id = row.id as number
     try {
-      const r = await this.thumbs.generate(id, decodeInput(row), 'grid')
+      const r = await this.thumbs.generate(id, decodeInput(row), 'grid', 'background', parseEdit(row.edit))
       this.markThumb(row, r.width / r.height)
       return true
     } catch {
@@ -309,7 +311,7 @@ export class Library extends EventEmitter {
   }
 
   private markThumb(row: Row, ratio: number): void {
-    const known = row.ratio as number | null
+    const known = row.edit ? null : (row.ratio as number | null)
     this.db.prepare('UPDATE assets SET thumb_state = 1, analyze_state = CASE WHEN thumb_state = 1 THEN analyze_state ELSE 0 END, ratio = ? WHERE id = ?').run(known ?? ratio, row.id as number)
   }
 
@@ -323,7 +325,7 @@ export class Library extends EventEmitter {
       row = this.assets.raw(id)!
     }
     try {
-      const r = await this.thumbs.generate(id, decodeInput(row), size, 'interactive')
+      const r = await this.thumbs.generate(id, decodeInput(row), size, 'interactive', parseEdit(row.edit))
       if (size === 'grid') this.markThumb(row, r.width / r.height)
       return r.file
     } catch {
@@ -510,6 +512,31 @@ export class Library extends EventEmitter {
   }
 
   // ---------------------------------------------------------------- edits
+
+  /** Unedited 2048 px working image for the editor. */
+  async sourcePreview(id: number): Promise<string | null> {
+    if (await this.thumbs.exists(id, 'source')) return this.thumbs.pathFor(id, 'source')
+    const row = this.assets.raw(id)
+    if (!row) return null
+    try {
+      return (await this.thumbs.generate(id, decodeInput(row), 'source', 'interactive', null)).file
+    } catch {
+      return null
+    }
+  }
+
+  /** Save (or clear with null) non-destructive edits; the original file is never touched. */
+  async setEdit(id: number, edit: PhotoEdit | null): Promise<void> {
+    const row = this.assets.raw(id)
+    if (!row || row.kind !== 'photo') throw new Error('Seules les photos peuvent être retouchées ici')
+    const e = edit ? normalizeEdit(edit) : null
+    const json = e && !isNeutral(e) ? JSON.stringify(e) : null
+    this.db.prepare('UPDATE assets SET edit = ?, edited_at = ?, thumb_state = 0, analyze_state = 0, thumb_v = thumb_v + 1 WHERE id = ?').run(json, json ? Date.now() : null, id)
+    await this.thumbs.remove(id)
+    await this.thumbnail(id, 'grid')
+    this.cleanupCache = null
+    this.emitChanged()
+  }
 
   setFavorite(ids: number[], favorite: boolean): void {
     transaction(this.db, () => this.assets.setFavorite(ids, favorite))

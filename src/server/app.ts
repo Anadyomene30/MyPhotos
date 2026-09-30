@@ -103,6 +103,22 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     const d = lib.assets.detail(idParam(c))
     return d ? c.json(d) : c.json({ error: 'not found' }, 404)
   })
+  app.put('/api/assets/:id/edit', async (c) => {
+    const body = (await c.req.json()) as { edit: unknown }
+    try {
+      await lib.setEdit(idParam(c), body.edit ? (body.edit as never) : null)
+      return c.json(lib.assets.detail(idParam(c)))
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+  /** Unedited, orientation-corrected source for the editor (never the edited render). */
+  app.get('/api/source/:id', async (c) => {
+    const d = lib.assets.raw(idParam(c))
+    if (!d) return c.body(null, 404)
+    const file = await lib.sourcePreview(idParam(c))
+    return file ? sendFile(c, file, { type: 'image/webp', cache: 'private, max-age=3600' }) : c.body(null, 404)
+  })
   app.patch('/api/assets', async (c) => {
     const body = z
       .object({ ids: z.array(z.number().int()).min(1).max(100000), favorite: z.boolean().optional(), trashed: z.boolean().optional() })

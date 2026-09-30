@@ -1,6 +1,7 @@
 import type { Db, Row } from '../db'
 import { StatementCache } from '../db'
 import { isWebNative } from '../media/kinds'
+import type { PhotoEdit } from '@shared/edit/types'
 import type { AssetDetail, AssetKind, AssetTile, DayBucket, LibraryCounts, LibraryFilter, TimelineQuery } from '@shared/types'
 
 const VISIBLE = 'hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL'
@@ -37,7 +38,7 @@ function orderedFrom(q: TimelineQuery): string {
   return q.kind === 'photo' || q.kind === 'video' ? 'assets INDEXED BY assets_kind_timeline' : 'assets INDEXED BY assets_timeline'
 }
 
-const TILE_COLS = 'id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v, qhash'
+const TILE_COLS = 'id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v, qhash, (edit IS NOT NULL) AS edited'
 
 /** Thumbnail cache key: content fingerprint + regeneration counter, so a reused id never shows a stale image. */
 export function thumbKey(r: Row): string {
@@ -54,6 +55,7 @@ export function toTile(r: Row): AssetTile {
     live: r.is_live === 1,
     favorite: r.favorite === 1,
     raw: r.is_raw === 1,
+    edited: r.edited === 1 || Boolean(r.edit),
     v: thumbKey(r)
   }
 }
@@ -161,7 +163,8 @@ export class AssetRepo {
       rating: r.rating as number,
       hasLiveVideo: Boolean(r.live_video),
       rawCompanion: (r.raw_companion as string | null) ?? null,
-      webNative: isWebNative(kind, ext),
+      webNative: isWebNative(kind, ext) && !r.edit,
+      edit: r.edit ? (JSON.parse(r.edit as string) as PhotoEdit) : null,
       trashedAt: r.trashed_at as number | null
     }
   }

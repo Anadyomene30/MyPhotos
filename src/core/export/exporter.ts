@@ -3,7 +3,9 @@ import { existsSync } from 'node:fs'
 import { copyFile, mkdir, rm, utimes } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Sharp } from 'sharp'
+import sharp from 'sharp'
 import { openImage } from '../media/decode'
+import { parseEdit, renderPhoto } from '../edit/render'
 import { ffmpegPaths } from '../media/ffmpeg'
 import { extOf } from '../media/kinds'
 import type { Row } from '../db'
@@ -54,10 +56,17 @@ function withMetadata(img: Sharp, row: Row, mode: ExportOptions['metadata']): Sh
 }
 
 async function exportPhoto(row: Row, out: string, opts: ExportOptions): Promise<void> {
-  const f = opts.photo.format
-  let img = await openImage({ path: row.path as string, ext: row.ext as string, kind: 'photo', orientation: row.orientation as number | null, duration: null })
+  const edit = parseEdit(row.edit)
+  // edited photos cannot be byte-identical copies: they are rendered as high quality JPEG
+  const f = opts.photo.format === 'original' ? 'jpeg' : opts.photo.format
+  const input = { path: row.path as string, ext: row.ext as string, kind: 'photo' as const, orientation: row.orientation as number | null, duration: null }
+  let img: Sharp
+  if (edit) {
+    const r = await renderPhoto(input, edit, opts.photo.maxSize)
+    img = sharp(r.data, { raw: { width: r.width, height: r.height, channels: 3 } })
+  } else img = await openImage(input)
   if (opts.photo.maxSize) img = img.resize({ width: opts.photo.maxSize, height: opts.photo.maxSize, fit: 'inside', withoutEnlargement: true })
-  const q = Math.max(1, Math.min(100, Math.round(opts.photo.quality)))
+  const q = opts.photo.format === 'original' ? 95 : Math.max(1, Math.min(100, Math.round(opts.photo.quality)))
   if (f === 'jpeg') img = img.jpeg({ quality: q, mozjpeg: true, chromaSubsampling: q >= 90 ? '4:4:4' : '4:2:0' })
   else if (f === 'png') img = img.png({ compressionLevel: 8 })
   else if (f === 'webp') img = img.webp({ quality: q, effort: 4 })
@@ -144,11 +153,11 @@ export function runExport(jobId: string, rows: Row[], opts: ExportOptions, onPro
       try {
         await mkdir(dir, { recursive: true })
         if (kind === 'photo') {
-          if (opts.photo.format === 'original') {
+          if (opts.photo.format === 'original' && !row.edit) {
             out = alloc.allocate(dir, base, extOf(String(row.name)) || 'jpg', join)
             await copyFile(row.path as string, out)
           } else {
-            out = alloc.allocate(dir, base, PHOTO_EXT[opts.photo.format], join)
+            out = alloc.allocate(dir, base, PHOTO_EXT[opts.photo.format === 'original' ? 'jpeg' : opts.photo.format], join)
             await exportPhoto(row, out, opts)
           }
           if (opts.includeRaw && row.raw_companion) {

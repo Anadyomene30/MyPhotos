@@ -39,6 +39,10 @@ interface UiState {
   smartEditor: { albumId: number | null } | null
   exportIds: number[] | null
   setExportIds(ids: number[] | null): void
+  editorId: number | null
+  setEditorId(id: number | null): void
+  videoEditorId: number | null
+  setVideoEditorId(id: number | null): void
   setSmartEditor(v: { albumId: number | null } | null): void
   setKind(k: KindFilter): void
   setGrouping(g: Grouping): void
@@ -72,6 +76,8 @@ export const useUi = create<UiState>((set, get) => ({
   albumId: null,
   smartEditor: null,
   exportIds: null,
+  editorId: null,
+  videoEditorId: null,
   kind: 'all',
   grouping: saved.grouping ?? 'day',
   zoom: saved.zoom ?? DEFAULT_ZOOM.day,
@@ -87,6 +93,8 @@ export const useUi = create<UiState>((set, get) => ({
   openAlbum: (albumId) => set({ page: 'library', section: 'all', albumId, selection: new Set(), anchor: null, viewerIndex: null }),
   setSmartEditor: (smartEditor) => set({ smartEditor }),
   setExportIds: (exportIds) => set({ exportIds }),
+  setEditorId: (editorId) => set({ editorId }),
+  setVideoEditorId: (videoEditorId) => set({ videoEditorId }),
   setKind: (kind) => set({ kind, selection: new Set(), anchor: null }),
   setGrouping: (grouping) => set({ grouping, zoom: DEFAULT_ZOOM[grouping] }),
   setZoom: (zoom) => set({ zoom: Math.max(0, Math.min(ZOOM_LEVELS.length - 1, zoom)) }),

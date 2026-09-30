@@ -11,6 +11,8 @@ export interface AssetTile {
   live: boolean
   favorite: boolean
   raw: boolean
+  /** has non-destructive edits */
+  edited: boolean
   /** cache key of the thumbnail: changes with the file content or a regeneration */
   v: string
 }
@@ -40,6 +42,7 @@ export interface AssetDetail extends AssetTile {
   rawCompanion: string | null
   /** true when the browser can display the original file directly */
   webNative: boolean
+  edit: import('./edit/types').PhotoEdit | null
   trashedAt: number | null
 }
 
