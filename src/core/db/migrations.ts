@@ -77,5 +77,24 @@ export const migrations: string[] = [
   /* 2 — covering index so library counts never scan the wide assets table */ `
   CREATE INDEX assets_counts ON assets(kind, is_live, is_screenshot, favorite, is_raw)
     WHERE hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL;
+  `,
+  /* 3 — albums (manual and smart) */ `
+  CREATE TABLE albums (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'manual',
+    rules TEXT,
+    cover_id INTEGER REFERENCES assets(id) ON DELETE SET NULL,
+    sort_order REAL NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE TABLE album_assets (
+    album_id INTEGER NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (album_id, asset_id)
+  ) WITHOUT ROWID;
+  CREATE INDEX album_assets_asset ON album_assets(asset_id);
   `
 ]

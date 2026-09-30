@@ -16,6 +16,8 @@ export interface Toast {
 
 interface UiState {
   section: LibraryFilter
+  /** active album, shown with the library filters applied inside it */
+  albumId: number | null
   kind: KindFilter
   grouping: Grouping
   zoom: number
@@ -29,6 +31,9 @@ interface UiState {
   version: number
   toasts: Toast[]
   setSection(s: LibraryFilter): void
+  openAlbum(id: number): void
+  smartEditor: { albumId: number | null } | null
+  setSmartEditor(v: { albumId: number | null } | null): void
   setKind(k: KindFilter): void
   setGrouping(g: Grouping): void
   setZoom(z: number): void
@@ -56,6 +61,8 @@ let toastId = 0
 
 export const useUi = create<UiState>((set, get) => ({
   section: 'all',
+  albumId: null,
+  smartEditor: null,
   kind: 'all',
   grouping: saved.grouping ?? 'day',
   zoom: saved.zoom ?? DEFAULT_ZOOM.day,
@@ -67,7 +74,9 @@ export const useUi = create<UiState>((set, get) => ({
   theme: saved.theme ?? 'system',
   version: 0,
   toasts: [],
-  setSection: (section) => set({ section, selection: new Set(), anchor: null, viewerIndex: null }),
+  setSection: (section) => set({ section, albumId: null, selection: new Set(), anchor: null, viewerIndex: null }),
+  openAlbum: (albumId) => set({ section: 'all', albumId, selection: new Set(), anchor: null, viewerIndex: null }),
+  setSmartEditor: (smartEditor) => set({ smartEditor }),
   setKind: (kind) => set({ kind, selection: new Set(), anchor: null }),
   setGrouping: (grouping) => set({ grouping, zoom: DEFAULT_ZOOM[grouping] }),
   setZoom: (zoom) => set({ zoom: Math.max(0, Math.min(ZOOM_LEVELS.length - 1, zoom)) }),

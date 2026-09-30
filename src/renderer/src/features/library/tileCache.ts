@@ -56,7 +56,7 @@ export class TileCache {
     this.loading.add(p)
     try {
       const q = this.query
-      const tiles = await api<AssetTile[]>(`/api/timeline/page${qs({ filter: q.filter, kind: q.kind, year: q.year, offset: p * PAGE, limit: PAGE })}`)
+      const tiles = await api<AssetTile[]>(`/api/timeline/page${qs({ filter: q.filter, kind: q.kind, year: q.year, album: q.album, offset: p * PAGE, limit: PAGE })}`)
       this.pages.set(p, tiles)
       this.stale.delete(p)
       this.notify()
@@ -74,4 +74,4 @@ export class TileCache {
   }
 }
 
-export const queryKey = (q: TimelineQuery): string => `${q.filter}|${q.kind ?? 'all'}|${q.year ?? ''}`
+export const queryKey = (q: TimelineQuery): string => `${q.filter}|${q.kind ?? 'all'}|${q.year ?? ''}|${q.album ?? ''}`

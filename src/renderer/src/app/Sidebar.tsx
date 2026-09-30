@@ -5,6 +5,7 @@ import { useLibraryState } from '@/api/hooks'
 import { useUi } from '@/store'
 import { count } from '@/lib/format'
 import { JobsIndicator } from '@/components/JobsIndicator'
+import { SidebarAlbums } from '@/features/albums/SidebarAlbums'
 import type { JobGroupState, LibraryCounts, LibraryFilter } from '@shared/types'
 
 interface Item {
@@ -29,6 +30,7 @@ const OTHER: Item[] = [{ id: 'trash', label: 'Corbeille', icon: Trash2, count: '
 export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: boolean }) {
   const { data } = useLibraryState()
   const section = useUi((s) => s.section)
+  const albumId = useUi((s) => s.albumId)
   const setSection = useUi((s) => s.setSection)
   const setSettingsOpen = useUi((s) => s.setSettingsOpen)
   const counts = data?.counts
@@ -38,7 +40,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
     const n = counts?.[it.count] ?? 0
     if (it.hideWhenEmpty && n === 0) return null
     const Icon = it.icon
-    const active = section === it.id
+    const active = section === it.id && albumId === null
     return (
       <button
         key={it.id}
@@ -65,6 +67,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
       <nav className="scroll-thin flex-1 space-y-5 overflow-y-auto px-2.5 pb-4">
         <Section title="Bibliothèque">{LIBRARY.map(renderItem)}</Section>
         {types.length > 0 && <Section title="Types de fichiers">{types}</Section>}
+        <SidebarAlbums />
         <Section title="Autres">{OTHER.map(renderItem)}</Section>
       </nav>
       <div className="no-drag space-y-2 border-t border-line p-2.5">

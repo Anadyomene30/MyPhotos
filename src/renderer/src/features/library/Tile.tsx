@@ -27,6 +27,7 @@ export const Tile = memo(function Tile({ tile, index, size, selected, compact }:
     <div
       data-index={index}
       data-id={tile?.id}
+      draggable={Boolean(tile)}
       className={clsx('tile-bg group relative overflow-hidden', !compact && 'rounded-[3px]')}
       style={{ width: size, height: size }}
     >

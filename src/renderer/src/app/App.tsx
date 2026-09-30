@@ -10,6 +10,8 @@ import { Welcome } from '@/features/onboarding/Welcome'
 import { Settings } from '@/features/settings/Settings'
 import { Toasts } from '@/components/Toasts'
 import { ConfirmHost } from '@/components/Confirm'
+import { PromptHost } from '@/components/Prompt'
+import { SmartAlbumEditor } from '@/features/albums/SmartAlbumEditor'
 
 function useTheme(): void {
   const theme = useUi((s) => s.theme)
@@ -61,6 +63,8 @@ export function App() {
       <Settings />
       <Toasts />
       <ConfirmHost />
+      <PromptHost />
+      <SmartAlbumEditor />
     </div>
   )
 }

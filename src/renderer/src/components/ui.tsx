@@ -1,9 +1,10 @@
 import clsx from 'clsx'
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react'
 
-export function IconButton({ className, active, children, label, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean; label: string }) {
+export const IconButton = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean; label: string }>(function IconButton({ className, active, children, label, ...rest }, ref) {
   return (
     <button
+      ref={ref}
       type="button"
       title={label}
       aria-label={label}
@@ -17,7 +18,7 @@ export function IconButton({ className, active, children, label, ...rest }: Butt
       {children}
     </button>
   )
-}
+})
 
 export function Segmented<T extends string>({ value, options, onChange, size = 'md' }: {
   value: T

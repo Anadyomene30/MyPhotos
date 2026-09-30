@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { api, qs } from '@/api/client'
+import { api, media, qs } from '@/api/client'
+import { DRAG_MIME, setDragImage } from '@/features/albums/drag'
 import { patchAssets, useBuckets, useTileCache, useTimelineQuery } from '@/api/hooks'
 import { useUi, ZOOM_LEVELS } from '@/store'
 import { buildLayout, rowOfIndex, SIDE_PADDING, type Layout } from './layout'
@@ -81,7 +82,7 @@ export function Timeline() {
   }, [items, layout, cache, grouping, setLabel, virtualizer.scrollOffset])
 
   // Scroll to top when the section changes.
-  const qKey = `${q.filter}|${q.kind}`
+  const qKey = `${q.filter}|${q.kind}|${q.album ?? ''}`
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
     anchorIndex.current = 0
@@ -128,6 +129,25 @@ export function Timeline() {
     [cache]
   )
 
+  const onDragStart = useCallback(
+    (e: DragEvent) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>('[data-index]')
+      const index = el ? Number(el.dataset.index) : NaN
+      const tile = Number.isNaN(index) ? undefined : cache.get(index)
+      if (!tile) return
+      const ui = useUi.getState()
+      let ids = [...ui.selection]
+      if (!ui.selection.has(tile.id)) {
+        ui.select([tile.id], 'replace', index)
+        ids = [tile.id]
+      }
+      e.dataTransfer.effectAllowed = 'copy'
+      e.dataTransfer.setData(DRAG_MIME, JSON.stringify(ids))
+      setDragImage(e.dataTransfer, media.thumb(tile.id, tile.v), ids.length)
+    },
+    [cache]
+  )
+
   const onDoubleClick = useCallback((e: MouseEvent) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-index]')
     if (el) useUi.getState().openViewer(Number(el.dataset.index))
@@ -147,7 +167,7 @@ export function Timeline() {
 
   return (
     <div className="relative h-full">
-      <div ref={scrollRef} className="scroll-thin h-full overflow-y-auto overflow-x-hidden" onClick={onClick} onDoubleClick={onDoubleClick}>
+      <div ref={scrollRef} className="scroll-thin h-full overflow-y-auto overflow-x-hidden" onClick={onClick} onDoubleClick={onDoubleClick} onDragStart={onDragStart}>
         <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
           {items.map((it) => {
             const r = layout.rows[it.index]!
@@ -202,7 +222,7 @@ function useTimelineKeys(cache: TileCache, layout: Layout, scrollToRow: (i: numb
       else if (mod && e.key.toLowerCase() === 'a') {
         e.preventDefault()
         const q = cache.query
-        const ids = await api<number[]>(`/api/timeline/ids${qs({ filter: q.filter, kind: q.kind, year: q.year })}`)
+        const ids = await api<number[]>(`/api/timeline/ids${qs({ filter: q.filter, kind: q.kind, year: q.year, album: q.album })}`)
         ui.select(ids, 'replace')
       } else if ((e.key === 'Enter' || e.key === ' ') && ui.anchor !== null) {
         e.preventDefault()

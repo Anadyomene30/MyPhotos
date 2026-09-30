@@ -57,6 +57,34 @@ export interface TimelineQuery {
   filter: LibraryFilter
   kind?: KindFilter
   year?: number
+  album?: number
+}
+
+export type SmartRule =
+  | { field: 'kind'; value: 'photo' | 'video' }
+  | { field: 'favorite' | 'live' | 'screenshot' | 'raw' | 'hasLocation' | 'noLocation' }
+  | { field: 'year'; op: 'is' | 'before' | 'after'; value: number }
+  | { field: 'month'; value: number }
+  | { field: 'dateRange'; from: string; to: string }
+  | { field: 'camera' | 'folder' | 'name'; op: 'contains' | 'notContains'; value: string }
+  | { field: 'ext'; value: string }
+  | { field: 'album'; op: 'in' | 'notIn'; value: number }
+
+export interface SmartRules {
+  match: 'all' | 'any'
+  rules: SmartRule[]
+}
+
+export interface Album {
+  id: number
+  name: string
+  kind: 'manual' | 'smart'
+  rules: SmartRules | null
+  count: number
+  coverId: number | null
+  coverV: number
+  createdAt: number
+  updatedAt: number
 }
 
 export interface DayBucket {

@@ -1,7 +1,12 @@
 import clsx from 'clsx'
-import { Heart, Minus, Plus, RotateCcw, Trash2, X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { FolderMinus, Heart, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
 import { IconButton, Segmented } from '@/components/ui'
-import { patchAssets, useLibraryState } from '@/api/hooks'
+import { albumsApi, patchAssets, useAlbums, useLibraryState } from '@/api/hooks'
+import { AddToAlbumButton } from '@/features/albums/AddToAlbumMenu'
+import { MenuItem, MenuSeparator, Popover } from '@/components/Popover'
+import { promptText } from '@/components/Prompt'
+import { confirm } from '@/components/Confirm'
 import { useUi, ZOOM_LEVELS, type Grouping } from '@/store'
 import { useScrollLabel } from '@/features/library/scrollLabel'
 import { trashWithUndo } from '@/features/library/Timeline'
@@ -24,12 +29,16 @@ export function Toolbar() {
   const { setKind, setGrouping, setZoom, clearSelection } = useUi.getState()
   const label = useScrollLabel((s) => s.label)
   const { data } = useLibraryState()
+  const albumId = useUi((s) => s.albumId)
+  const { data: albums } = useAlbums()
+  const album = albumId !== null ? albums?.find((a) => a.id === albumId) : undefined
   const win = window.desktop && window.desktop.platform !== 'darwin'
   const n = selection.size
   const counts = data?.counts
 
   const subtitle = (() => {
     if (!counts) return ''
+    if (album) return plural(album.count, 'élément', 'éléments')
     if (section === 'all') {
       if (kind === 'photo') return plural(counts.photos, 'photo', 'photos')
       if (kind === 'video') return plural(counts.videos, 'vidéo', 'vidéos')
@@ -56,8 +65,9 @@ export function Toolbar() {
           </div>
         ) : (
           <div className="flex items-baseline gap-2.5 truncate">
-            <h1 className="font-display text-[15px] font-semibold tracking-tight">{label ?? TITLES[section]}</h1>
-            <span className="truncate text-[12px] text-muted">{label ? TITLES[section] : subtitle}</span>
+            <h1 className="font-display text-[15px] font-semibold tracking-tight">{label ?? album?.name ?? TITLES[section]}</h1>
+            <span className="truncate text-[12px] text-muted">{label ? (album?.name ?? TITLES[section]) : subtitle}</span>
+            {album && !label && <AlbumMenu albumId={album.id} name={album.name} smart={album.kind === 'smart'} />}
           </div>
         )}
       </div>
@@ -77,6 +87,24 @@ export function Toolbar() {
             </>
           ) : (
             <>
+              <AddToAlbumButton ids={[...selection]} />
+              {album?.kind === 'manual' && (
+                <IconButton
+                  label="Retirer de l’album"
+                  onClick={() => {
+                    const ids = [...selection]
+                    void albumsApi.removeAssets(album.id, ids).then(() => {
+                      clearSelection()
+                      useUi.getState().toast(`${ids.length > 1 ? `${ids.length} éléments retirés` : '1 élément retiré'} de « ${album.name} »`, {
+                        label: 'Annuler',
+                        run: () => void albumsApi.add(album.id, ids)
+                      })
+                    })
+                  }}
+                >
+                  <FolderMinus className="size-[17px]" />
+                </IconButton>
+              )}
               <IconButton label="Ajouter aux favoris (.)" onClick={() => void patchAssets([...selection], { favorite: true })}>
                 <Heart className="size-[17px]" />
               </IconButton>
@@ -135,5 +163,59 @@ export function Toolbar() {
         </IconButton>
       </div>
     </header>
+  )
+}
+
+function AlbumMenu({ albumId, name, smart }: { albumId: number; name: string; smart: boolean }) {
+  const ref = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const close = (): void => setOpen(false)
+  return (
+    <>
+      <IconButton ref={ref} label="Options de l’album" className="size-6 self-center" onClick={() => setOpen((o) => !o)} active={open}>
+        <MoreHorizontal className="size-4" />
+      </IconButton>
+      <Popover anchor={ref.current} open={open} onClose={close} align="start" width={230}>
+        <MenuItem
+          icon={<Pencil className="size-4" />}
+          onClick={() => {
+            close()
+            void promptText({ title: 'Renommer l’album', initial: name, confirmLabel: 'Renommer' }).then((n) => (n ? albumsApi.update(albumId, { name: n }) : null))
+          }}
+        >
+          Renommer…
+        </MenuItem>
+        {smart && (
+          <MenuItem
+            icon={<Sparkles className="size-4" />}
+            onClick={() => {
+              close()
+              useUi.getState().setSmartEditor({ albumId })
+            }}
+          >
+            Modifier les règles…
+          </MenuItem>
+        )}
+        <MenuSeparator />
+        <MenuItem
+          danger
+          icon={<Trash2 className="size-4 text-red-500" />}
+          onClick={() => {
+            close()
+            void confirm({
+              title: `Supprimer l’album « ${name} » ?`,
+              message: 'Seul l’album est supprimé. Les photos et vidéos restent dans votre photothèque.',
+              confirmLabel: 'Supprimer l’album',
+              danger: true
+            }).then((ok) => {
+              if (!ok) return
+              void albumsApi.remove(albumId).then(() => useUi.getState().setSection('all'))
+            })
+          }}
+        >
+          Supprimer l’album…
+        </MenuItem>
+      </Popover>
+    </>
   )
 }

@@ -1,0 +1,69 @@
+import { useEffect, useRef, useState } from 'react'
+import { create } from 'zustand'
+import { Button } from './ui'
+
+interface PromptRequest {
+  title: string
+  placeholder?: string
+  initial?: string
+  confirmLabel: string
+  resolve(v: string | null): void
+}
+
+const usePromptStore = create<{ req: PromptRequest | null; set(r: PromptRequest | null): void }>((set) => ({ req: null, set: (req) => set({ req }) }))
+
+export function promptText(opts: Omit<PromptRequest, 'resolve'>): Promise<string | null> {
+  return new Promise((resolve) => usePromptStore.getState().set({ ...opts, resolve }))
+}
+
+export function PromptHost() {
+  const req = usePromptStore((s) => s.req)
+  const set = usePromptStore((s) => s.set)
+  const [value, setValue] = useState('')
+  const input = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (req) {
+      setValue(req.initial ?? '')
+      setTimeout(() => input.current?.select(), 0)
+    }
+  }, [req])
+  if (!req) return null
+  const close = (v: string | null): void => {
+    req.resolve(v && v.trim() ? v.trim() : null)
+    set(null)
+  }
+  return (
+    <div className="animate-fade-in fixed inset-0 z-[60] grid place-items-center bg-black/35 backdrop-blur-[2px]" onMouseDown={() => close(null)}>
+      <form
+        className="animate-pop-in w-[380px] max-w-[92vw] rounded-2xl border border-line bg-surface p-5 shadow-2xl dark:bg-elevated"
+        onMouseDown={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault()
+          close(value)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.stopPropagation()
+            close(null)
+          }
+        }}
+      >
+        <h2 className="font-display text-[16px] font-semibold">{req.title}</h2>
+        <input
+          ref={input}
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={req.placeholder}
+          className="mt-3 w-full rounded-lg border border-line bg-bg px-3 py-2 text-[13px] outline-none focus:border-accent"
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <Button onClick={() => close(null)}>Annuler</Button>
+          <Button variant="primary" type="submit" disabled={!value.trim()}>
+            {req.confirmLabel}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}

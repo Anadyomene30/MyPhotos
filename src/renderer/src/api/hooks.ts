@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { api, onServerEvent, qs } from './client'
 import { useUi } from '@/store'
 import { TileCache, queryKey } from '@/features/library/tileCache'
-import type { AssetDetail, DayBucket, JobGroupState, LibraryState, TimelineQuery } from '@shared/types'
+import type { Album, AssetDetail, DayBucket, JobGroupState, LibraryState, SmartRules, TimelineQuery } from '@shared/types'
 
 /** Wire server-sent events into react-query and the UI store. Mount once. */
 export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } {
@@ -22,6 +22,7 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
           void qc.invalidateQueries({ queryKey: ['buckets'] })
           void qc.invalidateQueries({ queryKey: ['years'] })
           void qc.invalidateQueries({ queryKey: ['asset'] })
+          void qc.invalidateQueries({ queryKey: ['albums'] })
         }
       }),
     [qc, bump]
@@ -36,13 +37,14 @@ export function useLibraryState() {
 export function useTimelineQuery(): TimelineQuery {
   const section = useUi((s) => s.section)
   const kind = useUi((s) => s.kind)
-  return useMemo(() => ({ filter: section, kind }), [section, kind])
+  const album = useUi((s) => s.albumId)
+  return useMemo(() => ({ filter: section, kind, album: album ?? undefined }), [section, kind, album])
 }
 
 export function useBuckets(q: TimelineQuery) {
   return useQuery({
     queryKey: ['buckets', queryKey(q)],
-    queryFn: () => api<DayBucket[]>(`/api/timeline/buckets${qs({ filter: q.filter, kind: q.kind, year: q.year })}`),
+    queryFn: () => api<DayBucket[]>(`/api/timeline/buckets${qs({ filter: q.filter, kind: q.kind, year: q.year, album: q.album })}`),
     placeholderData: keepPreviousData
   })
 }
@@ -84,4 +86,17 @@ export function useTileCache(q: TimelineQuery): TileCache {
 
 export async function patchAssets(ids: number[], patch: { favorite?: boolean; trashed?: boolean }): Promise<void> {
   await api('/api/assets', { method: 'PATCH', json: { ids, ...patch } })
+}
+
+export function useAlbums() {
+  return useQuery({ queryKey: ['albums'], queryFn: () => api<Album[]>('/api/albums') })
+}
+
+export const albumsApi = {
+  create: (name: string, opts: { kind?: 'manual' | 'smart'; rules?: SmartRules; assetIds?: number[] } = {}) =>
+    api<Album>('/api/albums', { method: 'POST', json: { name, kind: opts.kind ?? 'manual', rules: opts.rules, assetIds: opts.assetIds } }),
+  update: (id: number, patch: { name?: string; rules?: SmartRules; coverId?: number | null }) => api<Album>(`/api/albums/${id}`, { method: 'PATCH', json: patch }),
+  remove: (id: number) => api(`/api/albums/${id}`, { method: 'DELETE' }),
+  add: (id: number, ids: number[]) => api<{ added: number }>(`/api/albums/${id}/assets`, { method: 'POST', json: { ids } }),
+  removeAssets: (id: number, ids: number[]) => api<{ removed: number }>(`/api/albums/${id}/assets`, { method: 'DELETE', json: { ids } })
 }

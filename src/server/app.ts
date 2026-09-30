@@ -21,7 +21,9 @@ function timelineQuery(c: Context): TimelineQuery {
   const f = c.req.query('filter') as LibraryFilter | undefined
   const year = c.req.query('year')
   const k = c.req.query('kind')
+  const album = c.req.query('album')
   return {
+    album: album ? parseInt(album, 10) || undefined : undefined,
     filter: f && (FILTERS as readonly string[]).includes(f) ? f : 'all',
     kind: k === 'photo' || k === 'video' ? k : 'all',
     year: year ? parseInt(year, 10) || undefined : undefined
@@ -99,6 +101,57 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     if (body.trashed !== undefined) lib.setTrashed(body.ids, body.trashed)
     return c.json({ ok: true })
   })
+
+  // ------------------------------------------------------------ albums
+  const smartRule = z.union([
+    z.object({ field: z.literal('kind'), value: z.enum(['photo', 'video']) }),
+    z.object({ field: z.enum(['favorite', 'live', 'screenshot', 'raw', 'hasLocation', 'noLocation']) }),
+    z.object({ field: z.literal('year'), op: z.enum(['is', 'before', 'after']), value: z.number().int() }),
+    z.object({ field: z.literal('month'), value: z.number().int().min(1).max(12) }),
+    z.object({ field: z.literal('dateRange'), from: z.string(), to: z.string() }),
+    z.object({ field: z.enum(['camera', 'folder', 'name']), op: z.enum(['contains', 'notContains']), value: z.string() }),
+    z.object({ field: z.literal('ext'), value: z.string() }),
+    z.object({ field: z.literal('album'), op: z.enum(['in', 'notIn']), value: z.number().int() })
+  ])
+  const smartRules = z.object({ match: z.enum(['all', 'any']), rules: z.array(smartRule).max(50) })
+
+  app.get('/api/albums', (c) => c.json(lib.albums.list()))
+  app.get('/api/albums/:id', (c) => {
+    const a = lib.albums.get(idParam(c))
+    return a ? c.json(a) : c.json({ error: 'not found' }, 404)
+  })
+  app.post('/api/albums', async (c) => {
+    const body = z
+      .object({ name: z.string().max(200), kind: z.enum(['manual', 'smart']).default('manual'), rules: smartRules.optional(), assetIds: z.array(z.number().int()).max(200000).optional() })
+      .parse(await c.req.json())
+    const a = lib.albums.create(body.name, body.kind, body.kind === 'smart' ? (body.rules ?? { match: 'all', rules: [] }) : null, body.assetIds)
+    lib.changed()
+    return c.json(a)
+  })
+  app.patch('/api/albums/:id', async (c) => {
+    const body = z.object({ name: z.string().max(200).optional(), rules: smartRules.optional(), coverId: z.number().int().nullable().optional() }).parse(await c.req.json())
+    const a = lib.albums.update(idParam(c), body)
+    lib.changed()
+    return a ? c.json(a) : c.json({ error: 'not found' }, 404)
+  })
+  app.delete('/api/albums/:id', (c) => {
+    lib.albums.remove(idParam(c))
+    lib.changed()
+    return c.json({ ok: true })
+  })
+  app.post('/api/albums/:id/assets', async (c) => {
+    const body = z.object({ ids: z.array(z.number().int()).min(1).max(200000) }).parse(await c.req.json())
+    const added = lib.albums.addAssets(idParam(c), body.ids)
+    lib.changed()
+    return c.json({ added })
+  })
+  app.delete('/api/albums/:id/assets', async (c) => {
+    const body = z.object({ ids: z.array(z.number().int()).min(1).max(200000) }).parse(await c.req.json())
+    const removed = lib.albums.removeAssets(idParam(c), body.ids)
+    lib.changed()
+    return c.json({ removed })
+  })
+  app.get('/api/assets/:id/albums', (c) => c.json(lib.albums.forAsset(idParam(c))))
 
   app.post('/api/trash/empty', async (c) => {
     const body = z.object({ ids: z.array(z.number().int()).optional() }).parse(await c.req.json().catch(() => ({})))

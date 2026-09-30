@@ -6,7 +6,7 @@ import type { AssetDetail, AssetKind, AssetTile, DayBucket, LibraryCounts, Libra
 const VISIBLE = 'hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL'
 const ORDER = 'day DESC, taken_at DESC, id DESC'
 
-export function filterWhere(q: TimelineQuery): { sql: string; params: Array<string | number> } {
+export function filterWhere(q: TimelineQuery, albumCond?: { sql: string; params: Array<string | number> }): { sql: string; params: Array<string | number> } {
   const parts: string[] = []
   const params: Array<string | number> = []
   const f: LibraryFilter = q.filter
@@ -23,6 +23,10 @@ export function filterWhere(q: TimelineQuery): { sql: string; params: Array<stri
   if (q.year) {
     parts.push('day >= ? AND day <= ?')
     params.push(`${q.year}-01-01`, `${q.year}-12-31`)
+  }
+  if (albumCond) {
+    parts.push(`(${albumCond.sql})`)
+    params.push(...albumCond.params)
   }
   return { sql: parts.join(' AND '), params }
 }
@@ -51,19 +55,26 @@ export function toTile(r: Row): AssetTile {
 
 export class AssetRepo {
   private stmts: StatementCache
+  /** resolves an album id to its SQL condition (set by the library) */
+  albumCondition: ((id: number) => { sql: string; params: Array<string | number> }) | null = null
+
   constructor(private db: Db) {
     this.stmts = new StatementCache(db)
   }
 
+  private where(q: TimelineQuery): { sql: string; params: Array<string | number> } {
+    return filterWhere(q, q.album && this.albumCondition ? this.albumCondition(q.album) : undefined)
+  }
+
   buckets(q: TimelineQuery): DayBucket[] {
-    const w = filterWhere(q)
+    const w = this.where(q)
     return this.stmts
       .get(`SELECT day, count(*) AS count FROM ${orderedFrom(q)} WHERE ${w.sql} GROUP BY day ORDER BY day DESC`)
       .all(...w.params) as unknown as DayBucket[]
   }
 
   page(q: TimelineQuery, offset: number, limit: number): AssetTile[] {
-    const w = filterWhere(q)
+    const w = this.where(q)
     const rows = this.stmts
       .get(`SELECT ${TILE_COLS} FROM ${orderedFrom(q)} WHERE ${w.sql} ORDER BY ${ORDER} LIMIT ? OFFSET ?`)
       .all(...w.params, limit, offset) as Row[]
@@ -71,7 +82,7 @@ export class AssetRepo {
   }
 
   ids(q: TimelineQuery): number[] {
-    const w = filterWhere(q)
+    const w = this.where(q)
     return (this.stmts.get(`SELECT id FROM ${orderedFrom(q)} WHERE ${w.sql} ORDER BY ${ORDER}`).all(...w.params) as Array<{ id: number }>).map((r) => r.id)
   }
 
@@ -79,7 +90,7 @@ export class AssetRepo {
   indexOf(q: TimelineQuery, id: number): number | null {
     const row = this.stmts.get('SELECT day, taken_at FROM assets WHERE id = ?').get(id) as Row | undefined
     if (!row) return null
-    const w = filterWhere(q)
+    const w = this.where(q)
     const r = this.stmts
       .get(`SELECT count(*) AS n FROM ${orderedFrom(q)} WHERE ${w.sql} AND (day > ? OR (day = ? AND (taken_at > ? OR (taken_at = ? AND id > ?))))`)
       .get(...w.params, row.day as string, row.day as string, row.taken_at as number, row.taken_at as number, id) as { n: number }

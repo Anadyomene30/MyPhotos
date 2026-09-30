@@ -5,6 +5,7 @@ import { cpus } from 'node:os'
 import { join, resolve } from 'node:path'
 import { openDb, transaction, type Db, type Row } from './db'
 import { AssetRepo } from './repo/assets'
+import { AlbumRepo } from './repo/albums'
 import { applyChanges, pairLivePhotos, scanSource } from './scan/scanner'
 import { FolderWatcher } from './scan/watcher'
 import { readMetadata } from './media/metadata'
@@ -33,6 +34,7 @@ const STAGE_LABEL: Record<Stage, string> = {
 export class Library extends EventEmitter {
   readonly db: Db
   readonly assets: AssetRepo
+  readonly albums: AlbumRepo
   readonly thumbs: ThumbStore
   private watcher: FolderWatcher | null
   private version = 1
@@ -49,6 +51,8 @@ export class Library extends EventEmitter {
     mkdirSync(opts.dataDir, { recursive: true })
     this.db = openDb(join(opts.dataDir, 'library.db'))
     this.assets = new AssetRepo(this.db)
+    this.albums = new AlbumRepo(this.db)
+    this.assets.albumCondition = (id) => this.albums.condition(id)
     this.thumbs = new ThumbStore(join(opts.dataDir, 'cache'))
     this.watcher = opts.watch === false ? null : new FolderWatcher((root, paths) => void this.onFsChanges(root, paths))
   }
@@ -73,6 +77,11 @@ export class Library extends EventEmitter {
     this.closed = true
     this.watcher?.close()
     this.db.close()
+  }
+
+  /** Signal that library content changed (albums, edits) so clients refresh. */
+  changed(): void {
+    this.emitChanged()
   }
 
   private send(e: ServerEvent): void {
