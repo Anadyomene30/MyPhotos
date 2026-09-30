@@ -18,6 +18,8 @@ import { existsSync } from 'node:fs'
 import sharp from 'sharp'
 import { SHARP_EXTS } from './media/kinds'
 import { buildCleanupReport } from './cleanup'
+import { MlService } from './ml/service'
+import { Geocoder } from './geo'
 import { analyzeImage } from './media/analyze'
 import { ThumbStore, type ThumbSize } from './media/thumbs'
 import { limiter, throttle } from './util'
@@ -28,7 +30,7 @@ import { tmpdir } from 'node:os'
 import { rm as rmAsync } from 'node:fs/promises'
 import { isAbsolute, relative as relPath } from 'node:path'
 import type { DecodeInput } from './media/decode'
-import type { AssetKind, CleanupReport, ExportOptions, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
+import type { AssetKind, CleanupReport, ExportOptions, SearchHit, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
 
 export interface LibraryOptions {
   dataDir: string
@@ -39,14 +41,19 @@ export interface LibraryOptions {
   moveToSystemTrash?: (paths: string[]) => Promise<string[]>
   /** folder where MyPhotos writes the photos it creates (HDR fusions, edits saved as copies) */
   creationsDir?: string
+  /** folder holding bundled resources (geo dataset, ffmpeg) */
+  resourcesDir?: string
+  /** folder holding the built worker scripts (ml-worker.js, fusion-worker.js) */
+  workerDir?: string
 }
 
-type Stage = 'meta' | 'thumb' | 'analyze'
+type Stage = 'meta' | 'thumb' | 'analyze' | 'ml'
 
 const STAGE_LABEL: Record<Stage, string> = {
   meta: 'Lecture des métadonnées',
   thumb: 'Création des miniatures',
-  analyze: 'Analyse des images'
+  analyze: 'Analyse des images',
+  ml: 'Reconnaissance des visages et du contenu'
 }
 
 export class Library extends EventEmitter {
@@ -54,6 +61,8 @@ export class Library extends EventEmitter {
   readonly assets: AssetRepo
   readonly albums: AlbumRepo
   readonly thumbs: ThumbStore
+  readonly ml: MlService
+  private geocoder: Geocoder | null | undefined
   private watcher: FolderWatcher | null
   private version = 1
   private scanning = false
@@ -75,10 +84,28 @@ export class Library extends EventEmitter {
     this.assets.albumCondition = (id) => this.albums.condition(id)
     this.thumbs = new ThumbStore(join(opts.dataDir, 'cache'))
     this.watcher = opts.watch === false ? null : new FolderWatcher((root, paths) => void this.onFsChanges(root, paths))
+    this.ml = new MlService(this.db, opts.dataDir, opts.workerDir ?? join(process.cwd(), 'out', 'main'), {
+      jobs: () => this.emitJobs(),
+      changed: () => this.emitChanged(),
+      status: () => this.send({ type: 'ml-status', status: this.ml.status() })
+    })
+  }
+
+  private geo(): Geocoder | null {
+    if (this.geocoder !== undefined) return this.geocoder
+    const dir = this.opts.resourcesDir ?? join(process.cwd(), 'resources')
+    try {
+      this.geocoder = Geocoder.load(dir)
+    } catch {
+      this.geocoder = null
+    }
+    return this.geocoder
   }
 
   async start(): Promise<void> {
     this.retryFailuresAfterUpgrade()
+    this.ml.loadVectors()
+    void this.ml.ensureStarted().then(() => this.kickIndexer())
     for (const s of this.sources()) this.watcher?.add(s.path)
     await this.rescanAll()
   }
@@ -95,6 +122,7 @@ export class Library extends EventEmitter {
 
   close(): void {
     this.closed = true
+    void this.ml.stop()
     this.watcher?.close()
     this.db.close()
   }
@@ -200,6 +228,12 @@ export class Library extends EventEmitter {
         this.emitChanged()
         await this.runStage('thumb')
         await this.runStage('analyze')
+        this.geocodePending()
+        if (this.ml.canIndex) {
+          await this.runStage('ml')
+          this.ml.afterBatch()
+          this.send({ type: 'ml-status', status: this.ml.status() })
+        }
       } while (this.indexAgain && !this.closed)
     })().finally(() => {
       this.indexing = null
@@ -210,7 +244,8 @@ export class Library extends EventEmitter {
   private static PENDING: Record<Stage, string> = {
     meta: 'meta_state = 0 AND missing_at IS NULL',
     thumb: 'thumb_state = 0 AND meta_state <> 0 AND hidden = 0 AND missing_at IS NULL',
-    analyze: 'analyze_state = 0 AND thumb_state = 1 AND hidden = 0 AND missing_at IS NULL'
+    analyze: 'analyze_state = 0 AND thumb_state = 1 AND hidden = 0 AND missing_at IS NULL',
+    ml: 'ml_state = 0 AND thumb_state = 1 AND hidden = 0 AND missing_at IS NULL'
   }
 
   private pendingCount(stage: Stage): number {
@@ -218,7 +253,7 @@ export class Library extends EventEmitter {
   }
 
   private async runStage(stage: Stage): Promise<void> {
-    const concurrency = stage === 'thumb' ? Math.max(2, Math.floor(cpus().length / 2)) : Math.max(4, cpus().length)
+    const concurrency = stage === 'ml' ? 3 : stage === 'thumb' ? Math.max(2, Math.floor(cpus().length / 2)) : Math.max(4, cpus().length)
     const run = limiter(concurrency)
     const select = this.db.prepare(`SELECT * FROM assets WHERE ${Library.PENDING[stage]} ORDER BY day DESC, taken_at DESC LIMIT 256`)
     let done = 0
@@ -234,7 +269,7 @@ export class Library extends EventEmitter {
         await Promise.all(
           batch.map((row) =>
             run(async () => {
-              const ok = stage === 'meta' ? await this.indexMeta(row) : stage === 'thumb' ? await this.indexThumb(row) : await this.indexAnalysis(row)
+              const ok = stage === 'meta' ? await this.indexMeta(row) : stage === 'thumb' ? await this.indexThumb(row) : stage === 'analyze' ? await this.indexAnalysis(row) : await this.indexMl(row)
               if (ok) done++
               else failed++
               group.done = done + failed
@@ -278,6 +313,7 @@ export class Library extends EventEmitter {
         .run(m.takenAt, m.tzOffset, m.day, m.dateSource, m.width, m.height, m.orientation, ratio,
           m.duration, m.lat, m.lon, m.make, m.model, m.lens, m.iso, m.fnumber, m.exposure, m.focal,
           m.screenshot ? 1 : 0, m.contentId, qhash, id)
+      this.db.prepare('UPDATE assets SET geo_state = 0 WHERE id = ?').run(id)
       return true
     } catch {
       this.db.prepare('UPDATE assets SET meta_state = 2 WHERE id = ?').run(id)
@@ -295,6 +331,43 @@ export class Library extends EventEmitter {
       this.db.prepare('UPDATE assets SET thumb_state = 2 WHERE id = ?').run(id)
       return false
     }
+  }
+
+  /** Faces, CLIP embedding and categories; videos use their poster frame. */
+  private async indexMl(row: Row): Promise<boolean> {
+    if (this.closed || !this.ml.canIndex) return false
+    const input = row.kind === 'video' ? { path: this.thumbs.pathFor(row.id as number, 'grid'), ext: 'webp', kind: 'photo' as const, orientation: null, duration: null } : decodeInput(row)
+    return this.ml.indexAsset(row, input)
+  }
+
+  /** Offline reverse geocoding for assets with GPS coordinates (fast, synchronous). */
+  geocodePending(): void {
+    const rows = this.db.prepare('SELECT id, lat, lon FROM assets WHERE geo_state = 0 AND meta_state <> 0 LIMIT 5000').all() as Array<{ id: number; lat: number | null; lon: number | null }>
+    if (!rows.length) return
+    const geo = this.geo()
+    transaction(this.db, () => {
+      const up = this.db.prepare('UPDATE assets SET place_city = ?, place_admin = ?, place_country = ?, place_cc = ?, geo_state = 1 WHERE id = ?')
+      for (const r of rows) {
+        const p = geo && r.lat !== null && r.lon !== null ? geo.lookup(r.lat, r.lon) : null
+        up.run(p?.city ?? null, p?.admin ?? null, p?.country ?? null, p?.cc ?? null, r.id)
+      }
+    })
+    this.ml.refreshSearchText(rows.map((r) => r.id))
+    if (rows.length === 5000) this.geocodePending()
+  }
+
+  private searchCache = new Map<string, { version: number; ids: number[]; scores: Map<number, number> }>()
+
+  /** Ranked ids for a search string (cached per library version). */
+  async searchIds(query: string): Promise<{ ids: number[]; scores: Map<number, number> }> {
+    const key = query.trim().toLowerCase()
+    const c = this.searchCache.get(key)
+    if (c && c.version === this.version) return c
+    const hits: SearchHit[] = await this.ml.search(query)
+    const entry = { version: this.version, ids: hits.map((h) => h.id), scores: new Map(hits.map((h) => [h.id, h.score])) }
+    this.searchCache.set(key, entry)
+    if (this.searchCache.size > 20) this.searchCache.delete(this.searchCache.keys().next().value!)
+    return entry
   }
 
   /** Perceptual hash, sharpness and exposure from the grid thumbnail (never re-reads the original). */
@@ -389,6 +462,10 @@ export class Library extends EventEmitter {
     this.db.prepare('INSERT OR IGNORE INTO cleanup_ignored (signature, kind, created_at) VALUES (?, ?, ?)').run(signature, kind, Date.now())
     this.cleanupCache = null
     this.emitChanged()
+  }
+
+  tilePath(z: number, x: number, y: number): string {
+    return join(this.opts.dataDir, 'cache', 'tiles', String(z), String(x), `${y}.png`)
   }
 
   // ---------------------------------------------------------------- creations

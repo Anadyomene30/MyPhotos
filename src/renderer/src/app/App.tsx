@@ -14,6 +14,8 @@ import { PromptHost } from '@/components/Prompt'
 import { SmartAlbumEditor } from '@/features/albums/SmartAlbumEditor'
 import { ExportDialog } from '@/features/export/ExportDialog'
 import { CleanupPage } from '@/features/cleanup/CleanupPage'
+import { PeoplePage } from '@/features/people/PeoplePage'
+import { PlacesPage } from '@/features/places/PlacesPage'
 import { Editor } from '@/features/editor/Editor'
 import { VideoEditor } from '@/features/editor/VideoEditor'
 
@@ -63,6 +65,10 @@ export function App() {
       <main className="relative min-w-0 flex-1">
         {page === 'cleanup' ? (
           <CleanupPage />
+        ) : page === 'people' ? (
+          <PeoplePage />
+        ) : page === 'places' ? (
+          <PlacesPage />
         ) : (
           <>
             <Toolbar />

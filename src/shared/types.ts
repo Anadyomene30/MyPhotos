@@ -46,6 +46,9 @@ export interface AssetDetail extends AssetTile {
   webNative: boolean
   edit: import('./edit/types').PhotoEdit | null
   versionOf: number | null
+  place: string | null
+  placeCountry: string | null
+  categories?: string[]
   versionList: Array<{ id: number; name: string; createdAt: number; v: string }>
   trashedAt: number | null
 }
@@ -67,6 +70,13 @@ export interface TimelineQuery {
   kind?: KindFilter
   year?: number
   album?: number
+  person?: number
+  category?: string
+  place?: string
+  /** free text: names, places, people, categories and semantic search */
+  search?: string
+  /** visually similar to this asset */
+  similar?: number
 }
 
 export type SmartRule =
@@ -145,6 +155,7 @@ export type ServerEvent =
   | { type: 'scan'; scanning: boolean }
   | { type: 'export-done'; result: ExportResult }
   | { type: 'creation-done'; ok: boolean; assetId: number | null; error?: string; sources: number[] }
+  | { type: 'ml-status'; status: MlStatus }
 
 export type PhotoFormat = 'original' | 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff'
 export type VideoFormat = 'original' | 'mp4-h264' | 'mp4-hevc' | 'webm' | 'mov-prores' | 'gif'
@@ -221,4 +232,54 @@ export interface CleanupReport {
   analyzed: number
   total: number
   version: number
+}
+
+export interface MlStatus {
+  enabled: boolean
+  workerAvailable: boolean
+  installed: Record<string, boolean>
+  packs: Array<{ id: string; title: string; bytes: number }>
+  download: { pack: string; done: number; total: number } | null
+  running: { faces: boolean; clip: boolean }
+  pending: number
+  done: number
+  persons: number
+  error: string | null
+}
+
+export interface PersonSummary {
+  id: number
+  name: string | null
+  hidden: boolean
+  coverFaceId: number | null
+  photos: number
+}
+
+export interface SearchHit {
+  id: number
+  score: number
+}
+
+export interface FaceInfo {
+  id: number
+  x: number
+  y: number
+  w: number
+  h: number
+  personId: number | null
+  personName: string | null
+  quality: number
+  suggestions: Array<{ personId: number; name: string | null; score: number }>
+}
+
+export interface PlaceSummary {
+  city: string
+  admin: string | null
+  country: string | null
+  cc: string | null
+  count: number
+  lat: number
+  lon: number
+  coverId: number | null
+  coverV: string
 }

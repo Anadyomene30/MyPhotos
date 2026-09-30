@@ -134,5 +134,69 @@ export const migrations: string[] = [
   /* 9 — versions: edited copies stacked under their original */ `
   ALTER TABLE assets ADD COLUMN version_of INTEGER;
   CREATE INDEX assets_version_of ON assets(version_of) WHERE version_of IS NOT NULL;
+  `,
+  /* 10 — local intelligence: faces, people, CLIP embeddings, categories, places, text search */ `
+  ALTER TABLE assets ADD COLUMN ml_state INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE assets ADD COLUMN geo_state INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE assets ADD COLUMN place_city TEXT;
+  ALTER TABLE assets ADD COLUMN place_admin TEXT;
+  ALTER TABLE assets ADD COLUMN place_country TEXT;
+  ALTER TABLE assets ADD COLUMN place_cc TEXT;
+  CREATE INDEX assets_ml_state ON assets(ml_state) WHERE ml_state = 0;
+  CREATE INDEX assets_geo_state ON assets(geo_state) WHERE geo_state = 0;
+  CREATE INDEX assets_place ON assets(place_city) WHERE place_city IS NOT NULL;
+
+  CREATE TABLE faces (
+    id INTEGER PRIMARY KEY,
+    asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    x REAL NOT NULL, y REAL NOT NULL, w REAL NOT NULL, h REAL NOT NULL,
+    kps TEXT,
+    score REAL NOT NULL,
+    quality REAL NOT NULL,
+    person_id INTEGER,
+    emb BLOB NOT NULL,
+    hidden INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX faces_asset ON faces(asset_id);
+  CREATE INDEX faces_person ON faces(person_id);
+
+  CREATE TABLE persons (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    cover_face_id INTEGER,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    centroid BLOB,
+    n INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+  );
+
+  CREATE TABLE clip_emb (
+    asset_id INTEGER PRIMARY KEY REFERENCES assets(id) ON DELETE CASCADE,
+    emb BLOB NOT NULL
+  );
+
+  CREATE TABLE categories (
+    asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    score REAL NOT NULL,
+    PRIMARY KEY (asset_id, label)
+  ) WITHOUT ROWID;
+  CREATE INDEX categories_label ON categories(label);
+
+  CREATE TABLE search_text (
+    asset_id INTEGER PRIMARY KEY REFERENCES assets(id) ON DELETE CASCADE,
+    text TEXT NOT NULL
+  );
+  CREATE VIRTUAL TABLE search_fts USING fts5(text, content='search_text', content_rowid='asset_id', tokenize='unicode61 remove_diacritics 2');
+  CREATE TRIGGER search_text_ai AFTER INSERT ON search_text BEGIN
+    INSERT INTO search_fts(rowid, text) VALUES (new.asset_id, new.text);
+  END;
+  CREATE TRIGGER search_text_ad AFTER DELETE ON search_text BEGIN
+    INSERT INTO search_fts(search_fts, rowid, text) VALUES ('delete', old.asset_id, old.text);
+  END;
+  CREATE TRIGGER search_text_au AFTER UPDATE ON search_text BEGIN
+    INSERT INTO search_fts(search_fts, rowid, text) VALUES ('delete', old.asset_id, old.text);
+    INSERT INTO search_fts(rowid, text) VALUES (new.asset_id, new.text);
+  END;
   `
 ]

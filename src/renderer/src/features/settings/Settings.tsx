@@ -7,6 +7,7 @@ import { Button, IconButton, Segmented } from '@/components/ui'
 import { useUi, type Theme } from '@/store'
 import { useAddSource } from '@/features/onboarding/Welcome'
 import { plural } from '@/lib/format'
+import { IntelligenceSettings } from './Intelligence'
 
 export function Settings() {
   const open = useUi((s) => s.settingsOpen)
@@ -39,14 +40,14 @@ export function Settings() {
 
   return (
     <div className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/30 backdrop-blur-[2px]" onMouseDown={() => setOpen(false)}>
-      <div className="animate-pop-in w-[560px] max-w-[92vw] rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="animate-pop-in flex max-h-[88vh] w-[560px] max-w-[92vw] flex-col rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 className="font-display text-[16px] font-semibold">Réglages</h2>
           <IconButton label="Fermer" onClick={() => setOpen(false)}>
             <X className="size-4" />
           </IconButton>
         </div>
-        <div className="space-y-6 p-5">
+        <div className="scroll-thin space-y-6 overflow-y-auto p-5">
           <section>
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-[13px] font-semibold">Dossiers de la photothèque</h3>
@@ -84,6 +85,7 @@ export function Settings() {
             {error && <p className="mt-2 text-[12px] text-red-500">{error}</p>}
             <p className="mt-2 text-[11.5px] text-faint">Retirer un dossier le retire seulement de MyPhotos. Vos fichiers restent intacts.</p>
           </section>
+          <IntelligenceSettings />
           <section className="flex items-center justify-between">
             <h3 className="text-[13px] font-semibold">Apparence</h3>
             <Segmented<Theme>

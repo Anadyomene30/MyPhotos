@@ -3,6 +3,10 @@ import type { AssetTile, TimelineQuery } from '@shared/types'
 
 const PAGE = 240
 
+export function queryParams(q: TimelineQuery): Record<string, string | number | undefined> {
+  return { filter: q.filter, kind: q.kind, year: q.year, album: q.album, person: q.person, category: q.category, place: q.place, search: q.search, similar: q.similar }
+}
+
 /**
  * Sparse, paged cache of timeline tiles. The grid knows only counts (from day buckets) and asks
  * for the tiles of visible rows. Stale pages keep rendering until their refresh arrives, so a
@@ -56,7 +60,7 @@ export class TileCache {
     this.loading.add(p)
     try {
       const q = this.query
-      const tiles = await api<AssetTile[]>(`/api/timeline/page${qs({ filter: q.filter, kind: q.kind, year: q.year, album: q.album, offset: p * PAGE, limit: PAGE })}`)
+      const tiles = await api<AssetTile[]>(`/api/timeline/page${qs({ ...queryParams(q), offset: p * PAGE, limit: PAGE })}`)
       this.pages.set(p, tiles)
       this.stale.delete(p)
       this.notify()
@@ -74,4 +78,4 @@ export class TileCache {
   }
 }
 
-export const queryKey = (q: TimelineQuery): string => `${q.filter}|${q.kind ?? 'all'}|${q.year ?? ''}|${q.album ?? ''}`
+export const queryKey = (q: TimelineQuery): string => JSON.stringify(queryParams(q))

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent, type WheelEvent as RWheelEvent } from 'react'
 import clsx from 'clsx'
-import { ChevronLeft, ChevronRight, Download, FolderOpen, Heart, Info, RotateCcw, Share, SlidersHorizontal, Trash2, Undo2, Unlink } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, FolderOpen, Heart, Info, RotateCcw, ScanFace, Share, SlidersHorizontal, Sparkles, Trash2, Undo2, Unlink } from 'lucide-react'
+import { FacesOverlay } from '@/features/people/FacesOverlay'
+import { useMlStatus } from '@/api/hooks'
 import { useState as useLocalState } from 'react'
 import { api } from '@/api/client'
 import { media } from '@/api/client'
@@ -29,6 +31,8 @@ export function Viewer() {
   const version = detail?.versionList.find((v) => v.id === versionId)
   const shownTile = tile && version ? { ...tile, id: version.id, v: version.v, live: false } : tile
   const { data: shownDetail } = useAsset(shownTile?.id)
+  const { data: ml } = useMlStatus()
+  const [facesOn, setFacesOn] = useLocalState(false)
 
   useEffect(() => {
     cache.ensure(Math.max(0, i - 6), Math.min(total - 1, i + 6))
@@ -71,6 +75,7 @@ export function Viewer() {
       else if (e.key === 'ArrowLeft') go(-1)
       else if ((e.key === 'e' || e.key === 'E') && tile && !inTrash) (tile.kind === 'photo' ? useUi.getState().setEditorId(tile.id) : useUi.getState().setVideoEditorId(tile.id))
       else if (e.key === 'i' || e.key === 'I') toggleInfo()
+      else if (e.key === 'f' || e.key === 'F') setFacesOn((v) => !v)
       else if ((e.key === 'e' || e.key === 'E') && tile && !inTrash) (tile.kind === 'photo' ? ui.setEditorId(tile.id) : ui.setVideoEditorId(tile.id))
       else if (e.key === '.') toggleFavorite()
       else if (e.key === 'Backspace' || e.key === 'Delete') trash()
@@ -140,6 +145,21 @@ export function Viewer() {
                 <Share className="size-[18px]" />
               </IconButton>
             )}
+            {ml?.enabled && tile?.kind === 'photo' && (
+              <>
+                <IconButton label="Visages (f)" onClick={() => setFacesOn((v) => !v)} active={facesOn}>
+                  <ScanFace className="size-[18px]" />
+                </IconButton>
+                {ml.running.clip && (
+                  <IconButton label="Photos semblables" onClick={() => {
+                    closeViewer()
+                    useUi.getState().openSimilar(tile.id)
+                  }}>
+                    <Sparkles className="size-[18px]" />
+                  </IconButton>
+                )}
+              </>
+            )}
             <IconButton label="Informations (i)" onClick={toggleInfo} active={infoOpen}>
               <Info className="size-[18px]" />
             </IconButton>
@@ -161,7 +181,7 @@ export function Viewer() {
         </div>
 
         <div className="relative flex-1 overflow-hidden">
-          {shownTile && <Stage key={shownTile.id} tile={shownTile} detail={shownDetail?.id === shownTile.id ? shownDetail : undefined} />}
+          {shownTile && <Stage key={shownTile.id} tile={shownTile} detail={shownDetail?.id === shownTile.id ? shownDetail : undefined} facesOn={facesOn && Boolean(ml?.enabled)} />}
           {detail && detail.versionList.length > 0 && (
             <div className="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-black/55 p-1 backdrop-blur-xl">
               <button onClick={() => setVersionId(null)} className={clsx('rounded-lg px-3 py-1.5 text-[12px] font-medium', !version ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
@@ -223,8 +243,28 @@ function NavButton({ side, onClick }: { side: 'left' | 'right'; onClick(): void 
 }
 
 /** Photo or video area with fit-to-screen, double-click zoom, wheel/pinch zoom and drag panning. */
-function Stage({ tile, detail }: { tile: AssetTile; detail: AssetDetail | undefined }) {
+function Stage({ tile, detail, facesOn }: { tile: AssetTile; detail: AssetDetail | undefined; facesOn: boolean }) {
   const [loaded, setLoaded] = useState(false)
+  const wrap = useRef<HTMLDivElement>(null)
+  const [box, setBox] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setBox({ w: e!.contentRect.width, h: e!.contentRect.height }))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const ratio = detail?.width && detail.height ? detail.width / detail.height : tile.ratio
+  const imgRect = (() => {
+    if (!box.w || !box.h) return null
+    let w = box.w
+    let h = w / ratio
+    if (h > box.h) {
+      h = box.h
+      w = h * ratio
+    }
+    return { left: (box.w - w) / 2, top: (box.h - h) / 2, width: w, height: h }
+  })()
   const [scale, setScale] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [liveOn, setLiveOn] = useState(false)
@@ -282,9 +322,11 @@ function Stage({ tile, detail }: { tile: AssetTile; detail: AssetDetail | undefi
       onPointerUp={() => (drag.current = null)}
     >
       <div
+        ref={wrap}
         className="relative grid h-full w-full place-items-center transition-transform duration-150 ease-out"
         style={{ transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)` }}
       >
+        {scale === 1 && loaded && <FacesOverlay assetId={tile.id} rect={imgRect} visible={facesOn} />}
         {!loaded && <img src={media.thumb(tile.id, tile.v)} alt="" draggable={false} className="absolute max-h-full max-w-full object-contain blur-[2px]" style={{ aspectRatio: tile.ratio, height: '100%' }} />}
         <img
           src={media.preview(tile.id, tile.v)}

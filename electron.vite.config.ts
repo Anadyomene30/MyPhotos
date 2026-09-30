@@ -13,10 +13,13 @@ export default defineConfig({
     resolve: { alias },
     build: {
       rollupOptions: {
+        // native/ML runtimes stay external so their binaries resolve from node_modules
+        external: ['onnxruntime-node', '@huggingface/transformers', 'sharp', 'extract-raw-preview', 'exifr', 'fdir', 'xxhash-wasm', 'hono', '@hono/node-server', 'zod'],
         input: {
           index: resolve('src/main/index.ts'),
           backend: resolve('src/backend/index.ts'),
-          'fusion-worker': resolve('src/core/edit/fusion-worker.ts')
+          'fusion-worker': resolve('src/core/edit/fusion-worker.ts'),
+          'ml-worker': resolve('src/ml/worker.ts')
         }
       }
     }

@@ -10,7 +10,7 @@ import { GroupHeader, groupTitle } from './GroupHeader'
 import { EmptySection } from './EmptySection'
 import { YearScrubber } from './YearScrubber'
 import { useScrollLabel } from './scrollLabel'
-import type { TileCache } from './tileCache'
+import { queryParams, type TileCache } from './tileCache'
 
 export const TOOLBAR_HEIGHT = 52
 
@@ -82,7 +82,7 @@ export function Timeline() {
   }, [items, layout, cache, grouping, setLabel, virtualizer.scrollOffset])
 
   // Scroll to top when the section changes.
-  const qKey = `${q.filter}|${q.kind}|${q.album ?? ''}`
+  const qKey = JSON.stringify(queryParams(q))
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 })
     anchorIndex.current = 0
@@ -227,7 +227,7 @@ function useTimelineKeys(cache: TileCache, layout: Layout, scrollToRow: (i: numb
       else if (mod && e.key.toLowerCase() === 'a') {
         e.preventDefault()
         const q = cache.query
-        const ids = await api<number[]>(`/api/timeline/ids${qs({ filter: q.filter, kind: q.kind, year: q.year, album: q.album })}`)
+        const ids = await api<number[]>(`/api/timeline/ids${qs(queryParams(q))}`)
         ui.select(ids, 'replace')
       } else if ((e.key === 'Enter' || e.key === ' ') && ui.anchor !== null) {
         e.preventDefault()

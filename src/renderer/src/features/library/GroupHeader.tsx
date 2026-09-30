@@ -5,6 +5,7 @@ import type { Grouping } from '@/store'
 
 export function groupTitle(key: string, grouping: Grouping): string {
   if (key === 'unknown') return 'Date inconnue'
+  if (key === 'search') return 'Résultats'
   if (grouping === 'year') return key
   if (grouping === 'month') return monthLabel(key)
   return dayLabel(key).title
@@ -25,6 +26,14 @@ export const GroupHeader = memo(function GroupHeader({ group, grouping }: { grou
       <div className="flex h-full items-end justify-between pb-2.5" style={{ paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}>
         <h2 className="font-display text-[26px] leading-none font-bold tracking-tight">{groupTitle(group.key, grouping)}</h2>
         <span className="text-[12px] text-muted">{n}</span>
+      </div>
+    )
+  }
+  if (group.key === 'search') {
+    return (
+      <div className="flex h-full items-end justify-between pb-2" style={{ paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}>
+        <h2 className="font-display text-[19px] leading-none font-semibold tracking-tight">Résultats les plus pertinents</h2>
+        <span className="text-[12px] text-faint">{n}</span>
       </div>
     )
   }

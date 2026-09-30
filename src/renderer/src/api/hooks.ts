@@ -3,7 +3,8 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { api, onServerEvent, qs } from './client'
 import { useUi } from '@/store'
 import { TileCache, queryKey } from '@/features/library/tileCache'
-import type { Album, AssetDetail, DayBucket, JobGroupState, LibraryState, SmartRules, TimelineQuery } from '@shared/types'
+import type { Album, AssetDetail, DayBucket, FaceInfo, JobGroupState, LibraryState, MlStatus, PersonSummary, PlaceSummary, SmartRules, TimelineQuery } from '@shared/types'
+import { queryParams } from '@/features/library/tileCache'
 
 /** Wire server-sent events into react-query and the UI store. Mount once. */
 export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } {
@@ -16,6 +17,7 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
       onServerEvent((e) => {
         if (e.type === 'jobs') setJobs(e.jobs)
         if (e.type === 'scan') setScanning(e.scanning)
+        if (e.type === 'ml-status') qc.setQueryData(['ml-status'], e.status)
         if (e.type === 'creation-done') {
           const ui = useUi.getState()
           if (!e.ok) ui.toast(`Création impossible : ${e.error ?? 'erreur inconnue'}`)
@@ -41,6 +43,11 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
           void qc.invalidateQueries({ queryKey: ['asset'] })
           void qc.invalidateQueries({ queryKey: ['albums'] })
           void qc.invalidateQueries({ queryKey: ['cleanup'] })
+          void qc.invalidateQueries({ queryKey: ['persons'] })
+          void qc.invalidateQueries({ queryKey: ['faces'] })
+          void qc.invalidateQueries({ queryKey: ['categories'] })
+          void qc.invalidateQueries({ queryKey: ['places'] })
+          void qc.invalidateQueries({ queryKey: ['ml-status'] })
         }
       }),
     [qc, bump]
@@ -56,13 +63,21 @@ export function useTimelineQuery(): TimelineQuery {
   const section = useUi((s) => s.section)
   const kind = useUi((s) => s.kind)
   const album = useUi((s) => s.albumId)
-  return useMemo(() => ({ filter: section, kind, album: album ?? undefined }), [section, kind, album])
+  const person = useUi((s) => s.personId)
+  const category = useUi((s) => s.category)
+  const place = useUi((s) => s.place)
+  const search = useUi((s) => s.search)
+  const similar = useUi((s) => s.similarTo)
+  return useMemo(
+    () => ({ filter: section, kind, album: album ?? undefined, person: person ?? undefined, category: category ?? undefined, place: place ?? undefined, search: search.trim() || undefined, similar: similar ?? undefined }),
+    [section, kind, album, person, category, place, search, similar]
+  )
 }
 
 export function useBuckets(q: TimelineQuery) {
   return useQuery({
     queryKey: ['buckets', queryKey(q)],
-    queryFn: () => api<DayBucket[]>(`/api/timeline/buckets${qs({ filter: q.filter, kind: q.kind, year: q.year, album: q.album })}`),
+    queryFn: () => api<DayBucket[]>(`/api/timeline/buckets${qs(queryParams(q))}`),
     placeholderData: keepPreviousData
   })
 }
@@ -126,4 +141,36 @@ export async function openAsset(id: number): Promise<void> {
   ui.setKind('all')
   const { index } = await api<{ index: number | null }>(`/api/timeline/index/${id}`)
   if (index !== null) useUi.getState().openViewer(index)
+}
+
+export function useMlStatus() {
+  return useQuery({ queryKey: ['ml-status'], queryFn: () => api<MlStatus>('/api/ml/status'), refetchInterval: (q) => (q.state.data?.download ? 1000 : false) })
+}
+
+export function usePersons(all = false) {
+  return useQuery({ queryKey: ['persons', all], queryFn: () => api<PersonSummary[]>(`/api/persons${all ? '?all=1' : ''}`) })
+}
+
+export function useFaces(assetId: number | undefined) {
+  return useQuery({ queryKey: ['faces', assetId], queryFn: () => api<FaceInfo[]>(`/api/assets/${assetId}/faces`), enabled: assetId !== undefined })
+}
+
+export function useCategories() {
+  return useQuery({ queryKey: ['categories'], queryFn: () => api<Array<{ id: string; label: string; count: number; coverId: number }>>('/api/categories') })
+}
+
+export function usePlaces() {
+  return useQuery({ queryKey: ['places'], queryFn: () => api<PlaceSummary[]>('/api/places') })
+}
+
+export const mlApi = {
+  enable: (enabled: boolean) => api<MlStatus>('/api/ml/enable', { method: 'POST', json: { enabled } }),
+  download: (pack: string) => api('/api/ml/download/' + pack, { method: 'POST' }),
+  cancelDownload: () => api('/api/ml/download', { method: 'DELETE' }),
+  renamePerson: (id: number, name: string | null) => api(`/api/persons/${id}`, { method: 'PATCH', json: { name } }),
+  hidePerson: (id: number, hidden: boolean) => api(`/api/persons/${id}`, { method: 'PATCH', json: { hidden } }),
+  merge: (into: number, from: number[]) => api('/api/persons/merge', { method: 'POST', json: { into, from } }),
+  setCover: (personId: number, faceId: number) => api(`/api/persons/${personId}/cover`, { method: 'POST', json: { faceId } }),
+  moveFace: (faceId: number, personId: number | null) => api(`/api/faces/${faceId}/move`, { method: 'POST', json: { personId } }),
+  namePerson: (faceId: number, name: string) => api<{ personId: number }>(`/api/faces/${faceId}/person`, { method: 'POST', json: { name } })
 }

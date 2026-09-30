@@ -14,7 +14,7 @@ export interface Toast {
   action?: { label: string; run: () => void }
 }
 
-export type Page = 'library' | 'cleanup'
+export type Page = 'library' | 'cleanup' | 'people' | 'places'
 
 interface UiState {
   page: Page
@@ -22,6 +22,16 @@ interface UiState {
   section: LibraryFilter
   /** active album, shown with the library filters applied inside it */
   albumId: number | null
+  personId: number | null
+  category: string | null
+  place: string | null
+  search: string
+  similarTo: number | null
+  openPerson(id: number): void
+  openCategory(id: string): void
+  openPlace(city: string): void
+  setSearch(q: string): void
+  openSimilar(id: number): void
   kind: KindFilter
   grouping: Grouping
   zoom: number
@@ -74,6 +84,16 @@ export const useUi = create<UiState>((set, get) => ({
   openPage: (page) => set({ page, selection: new Set(), anchor: null, viewerIndex: null }),
   section: 'all',
   albumId: null,
+  personId: null,
+  category: null,
+  place: null,
+  search: '',
+  similarTo: null,
+  openPerson: (personId) => set({ page: 'library', section: 'all', albumId: null, personId, category: null, place: null, search: '', similarTo: null, selection: new Set(), anchor: null, viewerIndex: null }),
+  openCategory: (category) => set({ page: 'library', section: 'all', albumId: null, personId: null, category, place: null, search: '', similarTo: null, selection: new Set(), anchor: null, viewerIndex: null }),
+  openPlace: (place) => set({ page: 'library', section: 'all', albumId: null, personId: null, category: null, place, search: '', similarTo: null, selection: new Set(), anchor: null, viewerIndex: null }),
+  setSearch: (search) => set({ page: 'library', search, similarTo: null, selection: new Set(), anchor: null, viewerIndex: null }),
+  openSimilar: (similarTo) => set({ page: 'library', section: 'all', albumId: null, personId: null, category: null, place: null, search: '', similarTo, selection: new Set(), anchor: null, viewerIndex: null }),
   smartEditor: null,
   exportIds: null,
   editorId: null,
@@ -89,8 +109,8 @@ export const useUi = create<UiState>((set, get) => ({
   theme: saved.theme ?? 'system',
   version: 0,
   toasts: [],
-  setSection: (section) => set({ page: 'library', section, albumId: null, selection: new Set(), anchor: null, viewerIndex: null }),
-  openAlbum: (albumId) => set({ page: 'library', section: 'all', albumId, selection: new Set(), anchor: null, viewerIndex: null }),
+  setSection: (section) => set({ page: 'library', section, albumId: null, personId: null, category: null, place: null, search: '', similarTo: null, selection: new Set(), anchor: null, viewerIndex: null }),
+  openAlbum: (albumId) => set({ page: 'library', section: 'all', albumId, personId: null, category: null, place: null, search: '', similarTo: null, selection: new Set(), anchor: null, viewerIndex: null }),
   setSmartEditor: (smartEditor) => set({ smartEditor }),
   setExportIds: (exportIds) => set({ exportIds }),
   setEditorId: (editorId) => set({ editorId }),

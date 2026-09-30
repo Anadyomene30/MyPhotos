@@ -95,3 +95,6 @@ img.thumb.loaded { opacity: 1; }
   border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5); cursor: grab;
 }
 .editor-range:active::-webkit-slider-thumb { cursor: grabbing; transform: scale(1.1); }
+
+.maplibre-dark .maplibregl-canvas { filter: brightness(0.85) contrast(1.05) saturate(0.85); }
+.maplibregl-ctrl-attrib { font-size: 10px; }

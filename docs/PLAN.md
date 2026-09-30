@@ -167,8 +167,8 @@ Raccourcis, animations, i18n EN, accessibilité, notarisation mac, installeur Wi
 - **Éditeur vidéo** : découpe, vitesse, rotation/miroir/format, couleur, netteté, débruitage, stabilisation, volume ; rendu ffmpeg dans « MyPhotos Créations ».
 - **RAW + JPEG** regroupés en un seul élément.
 
-### État d’avancement (2026-09-30)
-Phases 0, 1, 2, 3 terminées, plus les ajouts ci-dessus. Prochaine : phase 4 (IA locale : visages, recherche, catégories).
+### État d’avancement (2026-10-01)
+Phases 0 à 4 terminées, plus les ajouts ci-dessus. Phase 4 réalisée avec : modèles InsightFace (SCRFD + ArcFace) et CLIP ViT-B/32 quantifié, téléchargés à l’activation dans `<données>/models`, worker thread ONNX, regroupement incrémental des visages, recherche texte (FTS5) + sémantique, catégories zéro-shot, géocodage hors ligne (GeoNames), carte MapLibre avec tuiles OSM proxifiées et mises en cache. Prochaine : phase 5 (Moments, Souvenirs, livre photo).
 
 ## 4. Vérification
 - **Tests unitaires** (vitest) sur `src/core` : hash, pHash, moments, sélection de souvenirs, règles d'albums intelligents, décodage sur la mini-photothèque de test (jpg, heic iPhone à tuiles, raw NEF/CR2/DNG, mov live, doublons exacts et rafales).

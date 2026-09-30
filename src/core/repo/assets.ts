@@ -29,6 +29,18 @@ export function filterWhere(q: TimelineQuery, albumCond?: { sql: string; params:
     parts.push(`(${albumCond.sql})`)
     params.push(...albumCond.params)
   }
+  if (q.person) {
+    parts.push('id IN (SELECT asset_id FROM faces WHERE person_id = ? AND hidden = 0)')
+    params.push(q.person)
+  }
+  if (q.category) {
+    parts.push('id IN (SELECT asset_id FROM categories WHERE label = ?)')
+    params.push(q.category)
+  }
+  if (q.place) {
+    parts.push('(place_city = ? OR place_country = ?)')
+    params.push(q.place, q.place)
+  }
   return { sql: parts.join(' AND '), params }
 }
 
@@ -132,6 +144,17 @@ export class AssetRepo {
       .all() as unknown as Array<{ year: number; count: number }>
   }
 
+  /** Tiles for explicit ids, filtered like the timeline, returned in the given order. */
+  tilesByIds(q: TimelineQuery, ids: number[]): AssetTile[] {
+    if (!ids.length) return []
+    const w = this.where({ ...q, search: undefined, similar: undefined })
+    const rows = this.stmts
+      .get(`SELECT ${TILE_COLS} FROM assets WHERE ${w.sql} AND id IN (SELECT value FROM json_each(?))`)
+      .all(...w.params, JSON.stringify(ids)) as Row[]
+    const byId = new Map(rows.map((r) => [r.id as number, toTile(r)]))
+    return ids.map((id) => byId.get(id)).filter((t): t is AssetTile => Boolean(t))
+  }
+
   raw(id: number): Row | undefined {
     return this.stmts.get('SELECT * FROM assets WHERE id = ?').get(id) as Row | undefined
   }
@@ -167,6 +190,9 @@ export class AssetRepo {
       webNative: isWebNative(kind, ext) && !r.edit,
       edit: r.edit ? (JSON.parse(r.edit as string) as PhotoEdit) : null,
       versionOf: (r.version_of as number | null) ?? null,
+      place: (r.place_city as string | null) ?? null,
+      placeCountry: (r.place_country as string | null) ?? null,
+      categories: (this.stmts.get('SELECT label FROM categories WHERE asset_id = ? ORDER BY score DESC').all(r.id as number) as Array<{ label: string }>).map((c) => c.label),
       versionList: (this.stmts.get('SELECT id, name, added_at, thumb_v, qhash FROM assets WHERE version_of = ? AND trashed_at IS NULL AND missing_at IS NULL ORDER BY added_at').all(r.id as number) as Row[]).map((v) => ({
         id: v.id as number, name: v.name as string, createdAt: v.added_at as number, v: thumbKey(v)
       })),

@@ -2,7 +2,9 @@ import clsx from 'clsx'
 import { useRef, useState } from 'react'
 import { FolderMinus, Share, Heart, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
 import { IconButton, Segmented } from '@/components/ui'
-import { albumsApi, patchAssets, useAlbums, useLibraryState } from '@/api/hooks'
+import { albumsApi, patchAssets, useAlbums, useCategories, useLibraryState, usePersons } from '@/api/hooks'
+import { SearchBar } from './SearchBar'
+import { PersonAvatar } from '@/features/people/PeoplePage'
 import { AddToAlbumButton } from '@/features/albums/AddToAlbumMenu'
 import { startFusion } from '@/features/cleanup/BracketList'
 import { MenuItem, MenuSeparator, Popover } from '@/components/Popover'
@@ -34,6 +36,21 @@ export function Toolbar() {
   const albumId = useUi((s) => s.albumId)
   const { data: albums } = useAlbums()
   const album = albumId !== null ? albums?.find((a) => a.id === albumId) : undefined
+  const personId = useUi((s) => s.personId)
+  const category = useUi((s) => s.category)
+  const place = useUi((s) => s.place)
+  const search = useUi((s) => s.search)
+  const similarTo = useUi((s) => s.similarTo)
+  const { data: persons } = usePersons(true)
+  const { data: cats } = useCategories()
+  const person = personId !== null ? persons?.find((p) => p.id === personId) : undefined
+  const context: { title: string; icon?: React.ReactNode } | null =
+    personId !== null ? { title: person?.name ?? 'Personne sans nom', icon: person ? <PersonAvatar person={person} size={22} /> : undefined }
+    : category ? { title: cats?.find((c) => c.id === category)?.label ?? category }
+    : place ? { title: place }
+    : similarTo !== null ? { title: 'Photos semblables' }
+    : search.trim() ? { title: `« ${search.trim()} »` }
+    : null
   const win = window.desktop && window.desktop.platform !== 'darwin'
   const n = selection.size
   const counts = data?.counts
@@ -41,6 +58,7 @@ export function Toolbar() {
   const subtitle = (() => {
     if (!counts) return ''
     if (album) return plural(album.count, 'élément', 'éléments')
+    if (context) return ''
     if (section === 'all') {
       if (kind === 'photo') return plural(counts.photos, 'photo', 'photos')
       if (kind === 'video') return plural(counts.videos, 'vidéo', 'vidéos')
@@ -67,8 +85,20 @@ export function Toolbar() {
           </div>
         ) : (
           <div className="flex items-baseline gap-2.5 truncate">
-            <h1 className="font-display text-[15px] font-semibold tracking-tight">{label ?? album?.name ?? TITLES[section]}</h1>
-            <span className="truncate text-[12px] text-muted">{label ? (album?.name ?? TITLES[section]) : subtitle}</span>
+            {context && !label ? (
+              <div className="no-drag flex items-center gap-2">
+                {context.icon}
+                <h1 className="font-display text-[15px] font-semibold tracking-tight">{context.title}</h1>
+                <button onClick={() => useUi.getState().setSection('all')} className="grid size-5 place-items-center rounded-full bg-hover text-muted hover:text-fg" aria-label="Retour à la photothèque" title="Retour à la photothèque">
+                  <X className="size-3" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <h1 className="font-display text-[15px] font-semibold tracking-tight">{label ?? album?.name ?? TITLES[section]}</h1>
+                <span className="truncate text-[12px] text-muted">{label ? (context?.title ?? album?.name ?? TITLES[section]) : subtitle}</span>
+              </>
+            )}
             {album && !label && <AlbumMenu albumId={album.id} name={album.name} smart={album.kind === 'smart'} />}
           </div>
         )}
@@ -132,6 +162,8 @@ export function Toolbar() {
           Vider la corbeille
         </Button>
       )}
+
+      <SearchBar />
 
       <Segmented<Grouping>
         value={grouping}

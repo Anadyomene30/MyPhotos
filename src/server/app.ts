@@ -1,10 +1,14 @@
-import { join, normalize, sep } from 'node:path'
+import { dirname, join, normalize, sep } from 'node:path'
 import { existsSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { Hono, type Context } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { cors } from 'hono/cors'
 import { z } from 'zod'
-import type { Library } from '@core/library'
+import { decodeInput, type Library } from '@core/library'
+import { thumbKey } from '@core/repo/assets'
+import { CATEGORIES } from '@core/ml/categories'
+import type { Row } from '@core/db'
 import type { LibraryFilter, ServerEvent, TimelineQuery } from '@shared/types'
 import { mimeFor, sendFile } from './files'
 import { NEUTRAL_VIDEO, type VideoEdit } from '@shared/edit/video'
@@ -23,8 +27,14 @@ function timelineQuery(c: Context): TimelineQuery {
   const year = c.req.query('year')
   const k = c.req.query('kind')
   const album = c.req.query('album')
+  const person = c.req.query('person')
   return {
     album: album ? parseInt(album, 10) || undefined : undefined,
+    person: person ? parseInt(person, 10) || undefined : undefined,
+    category: c.req.query('category') || undefined,
+    place: c.req.query('place') || undefined,
+    search: c.req.query('search')?.trim() || undefined,
+    similar: c.req.query('similar') ? parseInt(c.req.query('similar')!, 10) || undefined : undefined,
     filter: f && (FILTERS as readonly string[]).includes(f) ? f : 'all',
     kind: k === 'photo' || k === 'video' ? k : 'all',
     year: year ? parseInt(year, 10) || undefined : undefined
@@ -80,14 +90,41 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ ok: true })
   })
 
-  app.get('/api/timeline/buckets', (c) => c.json(lib.assets.buckets(timelineQuery(c))))
-  app.get('/api/timeline/page', (c) => {
+  /** Search results are one ranked list shown as a single group. */
+  const searchTiles = async (q: TimelineQuery): Promise<number[]> => {
+    const ids = q.similar ? lib.ml.similar(q.similar, 200).map((h) => h.id) : (await lib.searchIds(q.search!)).ids
+    return lib.assets.tilesByIds(q, ids).map((t) => t.id)
+  }
+  app.get('/api/timeline/buckets', async (c) => {
+    const q = timelineQuery(c)
+    if (q.search || q.similar) {
+      const ids = await searchTiles(q)
+      return c.json(ids.length ? [{ day: 'search', count: ids.length }] : [])
+    }
+    return c.json(lib.assets.buckets(q))
+  })
+  app.get('/api/timeline/page', async (c) => {
+    const q = timelineQuery(c)
     const offset = Math.max(0, parseInt(c.req.query('offset') ?? '0', 10) || 0)
     const limit = Math.min(1000, Math.max(1, parseInt(c.req.query('limit') ?? '200', 10) || 200))
-    return c.json(lib.assets.page(timelineQuery(c), offset, limit))
+    if (q.search || q.similar) {
+      const ids = await searchTiles(q)
+      return c.json(lib.assets.tilesByIds(q, ids.slice(offset, offset + limit)))
+    }
+    return c.json(lib.assets.page(q, offset, limit))
   })
-  app.get('/api/timeline/ids', (c) => c.json(lib.assets.ids(timelineQuery(c))))
-  app.get('/api/timeline/index/:id', (c) => c.json({ index: lib.assets.indexOf(timelineQuery(c), idParam(c)) }))
+  app.get('/api/timeline/ids', async (c) => {
+    const q = timelineQuery(c)
+    return c.json(q.search || q.similar ? await searchTiles(q) : lib.assets.ids(q))
+  })
+  app.get('/api/timeline/index/:id', async (c) => {
+    const q = timelineQuery(c)
+    if (q.search || q.similar) {
+      const i = (await searchTiles(q)).indexOf(idParam(c))
+      return c.json({ index: i >= 0 ? i : null })
+    }
+    return c.json({ index: lib.assets.indexOf(q, idParam(c)) })
+  })
   app.get('/api/years', (c) => c.json(lib.assets.years()))
 
   app.post('/api/assets/summary', async (c) => {
@@ -191,6 +228,100 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ removed })
   })
   app.get('/api/assets/:id/albums', (c) => c.json(lib.albums.forAsset(idParam(c))))
+
+  // ------------------------------------------------------------ intelligence
+  app.get('/api/ml/status', (c) => c.json(lib.ml.status()))
+  app.post('/api/ml/enable', async (c) => {
+    const body = z.object({ enabled: z.boolean() }).parse(await c.req.json())
+    lib.ml.setEnabled(body.enabled)
+    if (body.enabled) void lib.ml.ensureStarted().then(() => lib.kickIndexer())
+    return c.json(lib.ml.status())
+  })
+  app.post('/api/ml/download/:pack', (c) => {
+    const pack = c.req.param('pack')
+    lib.ml.download(pack).then(() => lib.kickIndexer()).catch(() => undefined)
+    return c.json({ ok: true })
+  })
+  app.delete('/api/ml/download', (c) => {
+    lib.ml.cancelDownload()
+    return c.json({ ok: true })
+  })
+
+  app.get('/api/persons', (c) => c.json(lib.ml.persons(c.req.query('all') === '1')))
+  app.patch('/api/persons/:id', async (c) => {
+    const body = z.object({ name: z.string().max(100).nullable().optional(), hidden: z.boolean().optional() }).parse(await c.req.json())
+    if (body.name !== undefined) lib.ml.renamePerson(idParam(c), body.name)
+    if (body.hidden !== undefined) lib.ml.hidePerson(idParam(c), body.hidden)
+    return c.json({ ok: true })
+  })
+  app.post('/api/persons/merge', async (c) => {
+    const body = z.object({ into: z.number().int(), from: z.array(z.number().int()).min(1) }).parse(await c.req.json())
+    lib.ml.mergePersons(body.into, body.from)
+    return c.json({ ok: true })
+  })
+  app.post('/api/persons/:id/cover', async (c) => {
+    const body = z.object({ faceId: z.number().int() }).parse(await c.req.json())
+    lib.ml.setCover(idParam(c), body.faceId)
+    return c.json({ ok: true })
+  })
+  app.get('/api/assets/:id/faces', (c) => c.json(lib.ml.facesOf(idParam(c))))
+  app.post('/api/faces/:id/move', async (c) => {
+    const body = z.object({ personId: z.number().int().nullable() }).parse(await c.req.json())
+    lib.ml.moveFace(idParam(c), body.personId)
+    return c.json({ ok: true })
+  })
+  app.post('/api/faces/:id/person', async (c) => {
+    const body = z.object({ name: z.string().min(1).max(100) }).parse(await c.req.json())
+    return c.json({ personId: lib.ml.createPersonFromFace(idParam(c), body.name) })
+  })
+  app.get('/api/face/:id', async (c) => {
+    const file = await lib.ml.faceThumb(idParam(c), async (assetId) => {
+      const r = lib.assets.raw(assetId)
+      return r ? decodeInput(r) : null
+    })
+    return file ? sendFile(c, file, { type: 'image/webp', cache: 'private, max-age=86400' }) : c.body(null, 404)
+  })
+  app.get('/api/categories', (c) => {
+    const rows = lib.db.prepare(`SELECT c.label, count(*) AS n, max(a.id) AS cover FROM categories c JOIN assets a ON a.id = c.asset_id
+        WHERE a.hidden = 0 AND a.missing_at IS NULL AND a.trashed_at IS NULL GROUP BY c.label ORDER BY n DESC`).all() as Array<{ label: string; n: number; cover: number }>
+    return c.json(rows.map((r) => ({ id: r.label, label: CATEGORIES.find((x) => x.id === r.label)?.label ?? r.label, count: r.n, coverId: r.cover })))
+  })
+  app.get('/api/places', (c) => {
+    const rows = lib.db.prepare(`SELECT place_city AS city, place_admin AS admin, place_country AS country, place_cc AS cc, count(*) AS n,
+        avg(lat) AS lat, avg(lon) AS lon, max(id) AS cover
+      FROM assets WHERE place_city IS NOT NULL AND hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL
+      GROUP BY place_city, place_cc ORDER BY n DESC`).all() as Array<{ city: string; admin: string | null; country: string | null; cc: string | null; n: number; lat: number; lon: number; cover: number }>
+    return c.json(rows.map((r) => {
+      const cv = lib.assets.raw(r.cover)
+      return { city: r.city, admin: r.admin, country: r.country, cc: r.cc, count: r.n, lat: r.lat, lon: r.lon, coverId: r.cover, coverV: cv ? thumbKey(cv) : '' }
+    }))
+  })
+  app.get('/api/places/points', (c) => {
+    const rows = lib.db.prepare(`SELECT id, lat, lon, thumb_v, qhash, kind FROM assets WHERE lat IS NOT NULL AND hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL`).all() as Row[]
+    return c.json({ type: 'FeatureCollection', features: rows.map((r) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] }, properties: { id: r.id, v: thumbKey(r), kind: r.kind } })) })
+  })
+  /** Map tile proxy with on-disk cache (OpenStreetMap usage policy requires an identifying user agent). */
+  app.get('/api/tiles/:z/:x/:y', async (c) => {
+    const z = parseInt(c.req.param('z'), 10)
+    const x = parseInt(c.req.param('x'), 10)
+    const y = parseInt(c.req.param('y').replace(/\.png$/, ''), 10)
+    if (!Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y) || z < 0 || z > 19 || x < 0 || y < 0 || x >= 2 ** z || y >= 2 ** z) return c.body(null, 400)
+    const file = lib.tilePath(z, x, y)
+    if (!existsSync(file)) {
+      try {
+        const res = await fetch(`https://tile.openstreetmap.org/${z}/${x}/${y}.png`, { headers: { 'User-Agent': 'MyPhotos/0.1 (personal photo library; contact via github)' } })
+        if (!res.ok) return c.body(null, 502)
+        const buf = Buffer.from(await res.arrayBuffer())
+        await mkdir(dirname(file), { recursive: true })
+        await writeFile(file, buf)
+      } catch {
+        return c.body(null, 502)
+      }
+    }
+    return sendFile(c, file, { type: 'image/png', cache: 'private, max-age=604800' })
+  })
+
+  app.get('/api/similar/:id', (c) => c.json(lib.ml.similar(idParam(c))))
 
   // ------------------------------------------------------------ cleanup
   app.get('/api/cleanup', (c) => c.json(lib.cleanupReport()))
@@ -296,7 +427,7 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
         return sendFile(c, file, { cache: rel.startsWith('assets') ? IMMUTABLE : undefined })
       }
       const res = await sendFile(c, join(dir, 'index.html'))
-      res.headers.set('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+      res.headers.set('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob: https://tile.openstreetmap.org; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' blob:; worker-src 'self' blob:; child-src blob:; connect-src 'self' https://tile.openstreetmap.org; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
       return res
     })
   }

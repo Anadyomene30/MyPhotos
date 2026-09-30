@@ -26,7 +26,7 @@ export const GAP = 2
 export const SIDE_PADDING = 20
 
 export function groupKey(day: string, grouping: Grouping): string {
-  if (day === 'unknown') return day
+  if (day === 'unknown' || day === 'search') return day
   return grouping === 'day' ? day : grouping === 'month' ? day.slice(0, 7) : day.slice(0, 4)
 }
 
