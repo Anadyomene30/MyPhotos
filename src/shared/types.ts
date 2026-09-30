@@ -15,6 +15,9 @@ export interface AssetTile {
   edited: boolean
   /** number of edited copies stacked under this item */
   versions: number
+  /** focal point 0..1 for smart cropping (faces or saliency) */
+  fx: number
+  fy: number
   /** cache key of the thumbnail: changes with the file content or a regeneration */
   v: string
 }

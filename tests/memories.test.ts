@@ -40,7 +40,7 @@ describe.runIf(existsSync(LIB))('memories on the fixture library', () => {
     await lib.addSource(LIB)
     await lib.rescanAll()
     await lib.kickIndexer()
-    await lib.ensureMemories()
+    await lib.ensureMemories(true)
   }, 240000)
   afterAll(() => {
     lib.close()

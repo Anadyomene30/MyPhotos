@@ -22,9 +22,10 @@ import { MlService } from './ml/service'
 import { rebuildMoments } from './organize/moments'
 import { paginate, proposeMemories, syncMemories } from './organize/memories'
 import { enrichWithClaude } from './organize/claudeTitles'
+import { applyMovePlan, buildMovePlan, type MovePlan } from './organize/folders'
 import { thumbKey, toTile } from './repo/assets'
 import { Geocoder } from './geo'
-import { analyzeImage } from './media/analyze'
+import { analyzeImage, focalPoint } from './media/analyze'
 import { ThumbStore, type ThumbSize } from './media/thumbs'
 import { limiter, throttle } from './util'
 import { runExport, runFfmpeg, type ExportRunner } from './export/exporter'
@@ -383,12 +384,15 @@ export class Library extends EventEmitter {
   async indexAnalysis(row: Row): Promise<boolean> {
     const id = row.id as number
     try {
-      const a = await analyzeImage(this.thumbs.pathFor(id, 'grid'))
+      const thumb = this.thumbs.pathFor(id, 'grid')
+      const [a, focal] = await Promise.all([analyzeImage(thumb), focalPoint(thumb).catch(() => ({ x: 0.5, y: 0.5 }))])
       const mp = ((row.width as number | null) ?? 0) * ((row.height as number | null) ?? 0) / 1e6
       this.db.prepare(`UPDATE assets SET phash = ?, ph0 = ?, ph1 = ?, ph2 = ?, ph3 = ?, sharpness = ?, brightness = ?, clip_dark = ?, clip_bright = ?,
-          contrast = ?, quality = ?, analyze_state = 1 WHERE id = ?`)
+          contrast = ?, quality = ?, analyze_state = 1,
+          focal_x = CASE WHEN ml_state = 1 AND focal_x IS NOT NULL THEN focal_x ELSE ? END,
+          focal_y = CASE WHEN ml_state = 1 AND focal_y IS NOT NULL THEN focal_y ELSE ? END WHERE id = ?`)
         .run(a.phash, a.bands[0], a.bands[1], a.bands[2], a.bands[3], a.sharpness, a.brightness, a.clipDark, a.clipBright, a.contrast,
-          qualityScore(a.sharpness, a.brightness, a.clipDark, a.clipBright, mp), id)
+          qualityScore(a.sharpness, a.brightness, a.clipDark, a.clipBright, mp), focal.x, focal.y, id)
       return true
     } catch {
       this.db.prepare('UPDATE assets SET analyze_state = 2 WHERE id = ?').run(id)
@@ -457,10 +461,24 @@ export class Library extends EventEmitter {
   }
 
   /** Propose and store memories; runs after moments when the library changed. */
-  async ensureMemories(): Promise<void> {
-    this.ensureMoments()
+  private memoriesAt = 0
+  private memoriesRunning: Promise<void> | null = null
+
+  /** Propose memories at most once a minute while the library keeps changing (indexing). */
+  async ensureMemories(force = false): Promise<void> {
+    if (this.memoriesRunning) return this.memoriesRunning
     if (this.memoriesVersion === this.version) return
+    if (!force && Date.now() - this.memoriesAt < 60000 && this.memoriesVersion !== -1) return
+    this.memoriesRunning = this.buildMemories().finally(() => {
+      this.memoriesRunning = null
+    })
+    return this.memoriesRunning
+  }
+
+  private async buildMemories(): Promise<void> {
+    this.ensureMoments()
     this.memoriesVersion = this.version
+    this.memoriesAt = Date.now()
     const drafts = proposeMemories(this.db)
     const created = await syncMemories(this.db, drafts, (id) => this.thumbs.pathFor(id, 'grid'))
     if (created) this.emitChanged()
@@ -487,7 +505,7 @@ export class Library extends EventEmitter {
     if (!r) return null
     const s = this.memoryRow(r)
     const ids = (JSON.parse(r.asset_ids as string) as number[])
-    const rows = this.db.prepare(`SELECT id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v, qhash, (edit IS NOT NULL) AS edited, 0 AS versions, quality, favorite AS fav
+    const rows = this.db.prepare(`SELECT id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v, qhash, focal_x, focal_y, (edit IS NOT NULL) AS edited, 0 AS versions, quality, favorite AS fav
         FROM assets WHERE id IN (SELECT value FROM json_each(?)) AND missing_at IS NULL AND trashed_at IS NULL`).all(JSON.stringify(ids)) as Row[]
     const byId = new Map(rows.map((x) => [x.id as number, x]))
     const live = ids.filter((i) => byId.has(i))
@@ -554,6 +572,37 @@ export class Library extends EventEmitter {
     let out = join(this.creationsDir, `${safe}.pdf`)
     for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${safe} (${i}).pdf`)
     return this.opts.printPdf(`${this.opts.appUrl()}&print=memory:${id}&format=${format}`, out, format)
+  }
+
+  /** Preview of the folder arrangement for one source (nothing is moved). */
+  movePlan(sourceId: number): MovePlan & { sourcePath: string } {
+    this.ensureMoments()
+    const src = this.sources().find((s) => s.id === sourceId)
+    if (!src) throw new Error('Dossier introuvable')
+    return { ...buildMovePlan(this.db, sourceId), sourcePath: src.path }
+  }
+
+  /** Move the files of a source into Year/Month Moment folders. Explicit user action, progress as a job. */
+  startMove(sourceId: number): string {
+    const plan = this.movePlan(sourceId)
+    const jobId = `move-${++this.exportSeq}`
+    const group: JobGroupState = { id: jobId, label: 'Rangement des fichiers', total: plan.items.length, done: 0, failed: 0 }
+    this.progress.set(jobId, group)
+    this.emitJobs()
+    void applyMovePlan(this.db, plan.items, (done) => {
+      group.done = done
+      this.emitJobs()
+    })
+      .then((r) => {
+        group.failed = r.failed.length
+        this.send({ type: 'creation-done', ok: r.failed.length === 0, assetId: null, error: r.failed.length ? `${r.failed.length} fichier(s) non déplacé(s) : ${r.failed[0]!.error}` : undefined, sources: [] })
+      })
+      .finally(() => {
+        this.progress.delete(jobId)
+        this.emitJobs()
+        this.emitChanged()
+      })
+    return jobId
   }
 
   setting(key: string): string | null {

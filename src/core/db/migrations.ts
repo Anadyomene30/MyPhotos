@@ -254,5 +254,10 @@ export const migrations: string[] = [
     album_id INTEGER
   );
   CREATE INDEX memories_kind ON memories(kind);
+  `,
+  /* 12 — focal point for smart cropping (faces first, then visual saliency) */ `
+  ALTER TABLE assets ADD COLUMN focal_x REAL;
+  ALTER TABLE assets ADD COLUMN focal_y REAL;
+  UPDATE assets SET analyze_state = 0 WHERE analyze_state = 1;
   `
 ]

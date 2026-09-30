@@ -9,14 +9,27 @@ import { confirm } from '@/components/Confirm'
 import { promptText } from '@/components/Prompt'
 import { useUi } from '@/store'
 import type { AssetTile, MemoryDetail, MemoryPage } from '@shared/types'
+import { justify } from '@shared/edit/justify'
 
 /** Editorial pages of a memory: every page keeps a square-ish book format so PDF export matches the screen. */
 function Page({ page, tiles, m, onOpen, printMode }: { page: MemoryPage; tiles: Map<number, AssetTile>; m: MemoryDetail; onOpen(id: number): void; printMode: boolean }) {
-  const img = (id: number, cls = ''): React.JSX.Element => {
+  /** Photo in a frame. Full-bleed frames crop around the focal point (faces, or the most detailed area). */
+  const img = (id: number, cls = '', slotRatio = 1, fill = false): React.JSX.Element => {
     const t = tiles.get(id)
+    const r = t?.ratio ?? 1.5
+    const cover = fill || Math.abs(Math.log(r / slotRatio)) < 0.35
     return (
-      <button onClick={() => onOpen(id)} className={clsx('block h-full w-full overflow-hidden bg-black/20', cls)}>
-        {t && <img src={media.preview(id, t.v)} alt="" className="h-full w-full object-cover" draggable={false} loading={printMode ? 'eager' : 'lazy'} />}
+      <button onClick={() => onOpen(id)} className={clsx('block h-full w-full overflow-hidden', cls)} style={{ background: cover ? 'rgba(0,0,0,0.2)' : m.theme.bg }}>
+        {t && (
+          <img
+            src={media.preview(id, t.v)}
+            alt=""
+            className={clsx('h-full w-full', cover ? 'object-cover' : 'object-contain')}
+            style={{ objectPosition: `${t.fx * 100}% ${t.fy * 100}%` }}
+            draggable={false}
+            loading={printMode ? 'eager' : 'lazy'}
+          />
+        )}
       </button>
     )
   }
@@ -25,7 +38,7 @@ function Page({ page, tiles, m, onOpen, printMode }: { page: MemoryPage; tiles: 
     case 'cover':
       return (
         <div className="relative h-full w-full">
-          {img(page.ids[0]!)}
+          {img(page.ids[0]!, '', 1, true)}
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
           <div className="pointer-events-none absolute right-[8%] bottom-[9%] left-[8%] text-white">
             <div className="mb-3 h-1 w-14 rounded-full" style={{ background: m.theme.accent }} />
@@ -43,36 +56,30 @@ function Page({ page, tiles, m, onOpen, printMode }: { page: MemoryPage; tiles: 
         </div>
       )
     case 'hero':
-      return <div className="h-full w-full p-[5%]" style={{ background: m.theme.bg }}>{img(page.ids[0]!, 'rounded-[3px] shadow-2xl')}</div>
     case 'duo':
-      return (
-        <div className="grid h-full w-full grid-cols-2 gap-[3%] p-[5%]" style={{ background: m.theme.bg }}>
-          {page.ids.map((id) => <div key={id}>{img(id, 'rounded-[3px] shadow-xl')}</div>)}
-        </div>
-      )
     case 'trio':
+    case 'grid': {
+      // justified layout: every photo keeps its own proportions, nothing is cropped
+      const ratios = page.ids.map((i) => tiles.get(i)?.ratio ?? 1.5)
+      const rects = justify(ratios, { x: 0.06, y: 0.06, w: 0.88, h: 0.88 }, page.ids.length > 1 ? 0.022 : 0)
       return (
-        <div className="grid h-full w-full grid-cols-3 grid-rows-2 gap-[3%] p-[5%]" style={{ background: m.theme.bg }}>
-          <div className="col-span-2 row-span-2">{img(page.ids[0]!, 'rounded-[3px] shadow-xl')}</div>
-          <div>{img(page.ids[1]!, 'rounded-[3px] shadow-xl')}</div>
-          <div>{img(page.ids[2]!, 'rounded-[3px] shadow-xl')}</div>
+        <div className="relative h-full w-full" style={{ background: m.theme.bg }}>
+          {page.ids.map((id, k) => {
+            const r = rects[k]!
+            return (
+              <div key={id} className="absolute" style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}>
+                {img(id, 'rounded-[3px] shadow-xl', ratios[k]!, true)}
+              </div>
+            )
+          })}
         </div>
       )
-    case 'grid':
-      return (
-        <div className="grid h-full w-full grid-cols-6 grid-rows-2 gap-[2.5%] p-[5%]" style={{ background: m.theme.bg }}>
-          <div className="col-span-3 row-span-2">{img(page.ids[0]!, 'rounded-[3px] shadow-xl')}</div>
-          <div className="col-span-3">{img(page.ids[1]!, 'rounded-[3px] shadow-xl')}</div>
-          <div>{img(page.ids[2]!, 'rounded-[3px] shadow-xl')}</div>
-          <div>{img(page.ids[3]!, 'rounded-[3px] shadow-xl')}</div>
-          <div>{img(page.ids[4]!, 'rounded-[3px] shadow-xl')}</div>
-        </div>
-      )
+    }
     case 'end':
       return (
         <div className="relative flex h-full w-full flex-col items-center justify-center gap-[4%] text-center" style={{ background: m.theme.accent, color: light ? '#fff' : '#111' }}>
           <div className="flex gap-[2%] px-[15%]">
-            {page.ids.map((id) => <div key={id} className="aspect-square w-[22%] overflow-hidden rounded-full shadow-lg">{img(id)}</div>)}
+            {page.ids.map((id) => <div key={id} className="aspect-square w-[22%] overflow-hidden rounded-full shadow-lg">{img(id, '', 1, true)}</div>)}
           </div>
           <p className="font-display text-[clamp(16px,2vw,26px)] font-semibold">{m.count} photos · MyPhotos</p>
         </div>

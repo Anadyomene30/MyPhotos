@@ -50,7 +50,7 @@ function orderedFrom(q: TimelineQuery): string {
   return q.kind === 'photo' || q.kind === 'video' ? 'assets INDEXED BY assets_kind_timeline' : 'assets INDEXED BY assets_timeline'
 }
 
-const TILE_COLS = 'assets.id, assets.kind, assets.ratio, assets.taken_at, assets.duration, assets.is_live, assets.favorite, assets.is_raw, assets.thumb_v, assets.qhash, (assets.edit IS NOT NULL) AS edited, (SELECT count(*) FROM assets v WHERE v.version_of = assets.id AND v.trashed_at IS NULL) AS versions'
+const TILE_COLS = 'assets.id, assets.kind, assets.ratio, assets.taken_at, assets.duration, assets.is_live, assets.favorite, assets.is_raw, assets.thumb_v, assets.qhash, assets.focal_x, assets.focal_y, (assets.edit IS NOT NULL) AS edited, (SELECT count(*) FROM assets v WHERE v.version_of = assets.id AND v.trashed_at IS NULL) AS versions'
 
 /** Thumbnail cache key: content fingerprint + regeneration counter, so a reused id never shows a stale image. */
 export function thumbKey(r: Row): string {
@@ -69,6 +69,8 @@ export function toTile(r: Row): AssetTile {
     raw: r.is_raw === 1,
     edited: r.edited === 1 || Boolean(r.edit),
     versions: (r.versions as number | undefined) ?? 0,
+    fx: (r.focal_x as number | null) ?? 0.5,
+    fy: (r.focal_y as number | null) ?? 0.5,
     v: thumbKey(r)
   }
 }

@@ -200,7 +200,18 @@ export class MlService {
             for (const c of classify(sims, this.categoryIndex)) insC.run(id, c.id, c.score)
           }
         }
-        this.db.prepare('UPDATE assets SET ml_state = 1 WHERE id = ?').run(id)
+        // faces define the focal point: area-weighted centre, kept a little above centre for headroom
+        const good = faces.filter((f) => f.score >= 0.7)
+        if (good.length) {
+          let wsum = 0, fx = 0, fy = 0
+          for (const f of good) {
+            const wgt = f.w * f.h
+            wsum += wgt
+            fx += (f.x + f.w / 2) * wgt
+            fy += (f.y + f.h / 2) * wgt
+          }
+          this.db.prepare('UPDATE assets SET focal_x = ?, focal_y = ?, ml_state = 1 WHERE id = ?').run(Math.min(0.95, Math.max(0.05, fx / wsum)), Math.min(0.95, Math.max(0.05, fy / wsum)), id)
+        } else this.db.prepare('UPDATE assets SET ml_state = 1 WHERE id = ?').run(id)
       })
       this.refreshSearchText([id])
       return true

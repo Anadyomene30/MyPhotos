@@ -9,6 +9,7 @@ import { useAddSource } from '@/features/onboarding/Welcome'
 import { plural } from '@/lib/format'
 import { IntelligenceSettings } from './Intelligence'
 import { CloudSettings } from './Cloud'
+import { OrganizeSettings } from './Organize'
 
 export function Settings() {
   const open = useUi((s) => s.settingsOpen)
@@ -88,6 +89,7 @@ export function Settings() {
           </section>
           <IntelligenceSettings />
           <CloudSettings />
+          <OrganizeSettings />
           <section className="flex items-center justify-between">
             <h3 className="text-[13px] font-semibold">Apparence</h3>
             <Segmented<Theme>

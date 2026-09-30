@@ -71,6 +71,8 @@ export function select(cands: Cand[], n: number, opts: { lambda?: number; timeSp
   while (chosen.length < n && pool.size) {
     let best: { c: Cand; v: number; e: (typeof scored)[number] } | null = null
     for (const e of pool) {
+      // near-identical frames (bursts, re-saves) never appear twice
+      if (chosen.some((k) => (e.c.clip && k.clip ? dot(e.c.clip, k.clip) > 0.93 : false) || (e.c.phash && k.phash ? hamming(e.c.phash, k.phash) <= 8 : false))) continue
       let maxSim = 0
       let nearTime = 0
       for (const k of chosen) {
@@ -87,44 +89,56 @@ export function select(cands: Cand[], n: number, opts: { lambda?: number; timeSp
   return chosen.sort((a, b) => a.takenAt - b.takenAt)
 }
 
-/** Editorial pagination: alternate hero, duo, trio and grid pages, orientation-aware. */
+/**
+ * Editorial pagination, orientation-aware: portraits pair up in columns, landscapes take hero
+ * and wide slots, so frames rarely need to crop much. Photos keep their chronological order
+ * except for small local swaps that make a page work.
+ */
 export function paginate(items: Array<{ id: number; ratio: number; score: number }>, title: string, sub: string | null): MemoryPage[] {
   const pages: MemoryPage[] = []
   if (!items.length) return pages
-  const sorted = [...items]
-  const heroes = new Set([...sorted].sort((a, b) => b.score - a.score).slice(0, Math.max(1, Math.ceil(items.length / 8))).map((i) => i.id))
-  pages.push({ type: 'cover', ids: [sorted[0]!.id] })
-  pages.push({ type: 'title', text: title, ...(sub ? { sub } : {}) })
-  let i = 0
-  let rhythm = 0
-  while (i < sorted.length) {
-    const it = sorted[i]!
-    if (heroes.has(it.id) && rhythm !== 1) {
-      pages.push({ type: 'hero', ids: [it.id] })
-      i += 1
-      rhythm = 1
-      continue
+  const rest = [...items]
+  const heroes = new Set([...items].sort((a, b) => b.score - a.score).slice(0, Math.max(1, Math.ceil(items.length / 8))).map((i) => i.id))
+  const isPortrait = (x: { ratio: number }): boolean => x.ratio < 0.9
+  const take = (pred: (x: { ratio: number; id: number }) => boolean, n: number, window = 4): Array<{ id: number; ratio: number; score: number }> => {
+    const out: Array<{ id: number; ratio: number; score: number }> = []
+    for (let k = 0; k < rest.length && out.length < n && k < window + n; k++) {
+      if (pred(rest[k]!)) out.push(rest[k]!)
     }
-    const remaining = sorted.length - i
-    const portraitPair = remaining >= 2 && sorted[i]!.ratio < 1 && sorted[i + 1]!.ratio < 1
-    if (portraitPair || (remaining >= 2 && rhythm === 1)) {
-      pages.push({ type: 'duo', ids: [sorted[i]!.id, sorted[i + 1]!.id] })
-      i += 2
+    for (const o of out) rest.splice(rest.indexOf(o), 1)
+    return out
+  }
+  pages.push({ type: 'cover', ids: [items[0]!.id] })
+  pages.push({ type: 'title', text: title, ...(sub ? { sub } : {}) })
+  let rhythm = 0
+  while (rest.length) {
+    const head = rest[0]!
+    const portraitsAhead = rest.slice(0, 4).filter(isPortrait).length
+    if (heroes.has(head.id) && rhythm !== 1) {
+      pages.push({ type: 'hero', ids: [rest.shift()!.id] })
+      rhythm = 1
+    } else if (portraitsAhead >= 2 && rhythm !== 2) {
+      pages.push({ type: 'duo', ids: take(isPortrait, 2).map((x) => x.id) })
       rhythm = 2
-    } else if (remaining >= 5 && rhythm !== 3) {
-      pages.push({ type: 'grid', ids: sorted.slice(i, i + 5).map((x) => x.id) })
-      i += 5
+    } else if (rest.length >= 5 && rhythm !== 3) {
+      const big = take((x) => !isPortrait(x), 1, 2)
+      const small = rest.splice(0, big.length ? 4 : 5)
+      pages.push({ type: 'grid', ids: [...big, ...small].map((x) => x.id) })
       rhythm = 3
-    } else if (remaining >= 3) {
-      pages.push({ type: 'trio', ids: sorted.slice(i, i + 3).map((x) => x.id) })
-      i += 3
+    } else if (rest.length >= 3 && rhythm !== 4) {
+      const big = take((x) => !isPortrait(x), 1, 2)
+      const small = rest.splice(0, big.length ? 2 : 3)
+      pages.push({ type: 'trio', ids: [...big, ...small].map((x) => x.id) })
       rhythm = 4
+    } else if (rest.length >= 2) {
+      pages.push({ type: 'duo', ids: rest.splice(0, 2).map((x) => x.id) })
+      rhythm = 2
     } else {
-      pages.push(remaining === 2 ? { type: 'duo', ids: [sorted[i]!.id, sorted[i + 1]!.id] } : { type: 'hero', ids: [sorted[i]!.id] })
-      i = sorted.length
+      pages.push({ type: 'hero', ids: [rest.shift()!.id] })
+      rhythm = 1
     }
   }
-  pages.push({ type: 'end', ids: sorted.slice(-3).map((x) => x.id) })
+  pages.push({ type: 'end', ids: items.slice(-3).map((x) => x.id) })
   return pages
 }
 

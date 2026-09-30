@@ -75,3 +75,23 @@ describe('photo pipeline', () => {
     expect(autoEnhance(dark, 64, 48, 3).exposure!).toBeGreaterThan(0.3)
   })
 })
+
+import { justify } from '@shared/edit/justify'
+
+describe('justified page layout', () => {
+  it('keeps every aspect ratio, stays inside the box and fills it well', () => {
+    const box = { x: 0.05, y: 0.05, w: 0.9, h: 0.9 }
+    for (const ratios of [[1.5, 1.5, 0.75, 0.75, 1.33], [0.75, 0.75], [1.78, 1.5, 1.33], [1.5]]) {
+      const rects = justify(ratios, box, 0.02)
+      rects.forEach((r, i) => {
+        expect(r.w / r.h).toBeCloseTo(ratios[i]!, 5)
+        expect(r.x).toBeGreaterThanOrEqual(box.x - 1e-9)
+        expect(r.y).toBeGreaterThanOrEqual(box.y - 1e-9)
+        expect(r.x + r.w).toBeLessThanOrEqual(box.x + box.w + 1e-9)
+        expect(r.y + r.h).toBeLessThanOrEqual(box.y + box.h + 1e-9)
+      })
+      const area = rects.reduce((a, r) => a + r.w * r.h, 0)
+      expect(area / (box.w * box.h)).toBeGreaterThan(ratios.length === 1 ? 0.6 : 0.55)
+    }
+  })
+})

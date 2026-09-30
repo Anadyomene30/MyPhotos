@@ -239,8 +239,11 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ ok: true })
   })
   app.get('/api/memories', async (c) => {
-    await lib.ensureMemories()
-    return c.json(lib.memories())
+    const list = lib.memories()
+    // first visit waits for the proposals; afterwards they refresh in the background
+    if (!list.length) await lib.ensureMemories(true)
+    else void lib.ensureMemories()
+    return c.json(list.length ? list : lib.memories())
   })
   app.get('/api/memories/:id', (c) => {
     const m = lib.memory(idParam(c))
@@ -270,6 +273,21 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
       if (!m) return c.json({ error: 'not found' }, 404)
       const file = await lib.printMemoryPdf(m.id, m.title, body.format)
       return c.json({ file })
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+  app.get('/api/organize/plan/:id', (c) => {
+    try {
+      const p = lib.movePlan(idParam(c))
+      return c.json({ count: p.items.length, alreadyTidy: p.alreadyTidy, skipped: p.skipped, sample: p.sample, sourcePath: p.sourcePath })
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+  app.post('/api/organize/apply/:id', (c) => {
+    try {
+      return c.json({ jobId: lib.startMove(idParam(c)) })
     } catch (e) {
       return c.json({ error: (e as Error).message }, 400)
     }

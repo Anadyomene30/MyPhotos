@@ -56,6 +56,26 @@ export function phashFromGrey32(px: Uint8Array): { hex: string; bands: [number, 
   return { hex, bands }
 }
 
+/**
+ * Saliency-based focal point (0..1) using libvips' attention strategy: crop a thin vertical band
+ * to find the interesting x, a thin horizontal band for y.
+ */
+export async function focalPoint(file: string): Promise<{ x: number; y: number }> {
+  const meta = await sharp(file).metadata()
+  const w = meta.width ?? 0
+  const h = meta.height ?? 0
+  if (!w || !h) return { x: 0.5, y: 0.5 }
+  const bw = Math.max(8, Math.round(w * 0.2))
+  const bh = Math.max(8, Math.round(h * 0.2))
+  const [tall, wide] = await Promise.all([
+    sharp(file).resize({ width: bw, height: h, fit: 'cover', position: sharp.strategy.attention }).toBuffer({ resolveWithObject: true }),
+    sharp(file).resize({ width: w, height: bh, fit: 'cover', position: sharp.strategy.attention }).toBuffer({ resolveWithObject: true })
+  ])
+  const x = (-(tall.info.cropOffsetLeft ?? 0) + bw / 2) / w
+  const y = (-(wide.info.cropOffsetTop ?? 0) + bh / 2) / h
+  return { x: Math.min(0.95, Math.max(0.05, x)), y: Math.min(0.95, Math.max(0.05, y)) }
+}
+
 export async function analyzeImage(file: string): Promise<ImageAnalysis> {
   const base = sharp(file, { failOn: 'none' }).greyscale()
   const [small, mid] = await Promise.all([

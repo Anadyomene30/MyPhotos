@@ -39,6 +39,7 @@ export const Tile = memo(function Tile({ tile, index, size, selected, compact }:
           draggable={false}
           decoding="async"
           onLoad={() => setLoaded(true)}
+          style={{ objectPosition: `${tile.fx * 100}% ${tile.fy * 100}%` }}
           className={clsx('thumb pointer-events-none h-full w-full object-cover', loaded && 'loaded')}
         />
       )}
