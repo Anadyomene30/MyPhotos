@@ -100,6 +100,15 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ ok: true })
   })
 
+  app.post('/api/trash/empty', async (c) => {
+    const body = z.object({ ids: z.array(z.number().int()).optional() }).parse(await c.req.json().catch(() => ({})))
+    try {
+      return c.json(await lib.emptyTrash(body.ids))
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+
   const IMMUTABLE = 'private, max-age=31536000, immutable'
 
   app.get('/api/thumb/:id', async (c) => {
@@ -137,7 +146,9 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
       if (rel && file.startsWith(dir + sep) && existsSync(file)) {
         return sendFile(c, file, { cache: rel.startsWith('assets') ? IMMUTABLE : undefined })
       }
-      return sendFile(c, join(dir, 'index.html'))
+      const res = await sendFile(c, join(dir, 'index.html'))
+      res.headers.set('Content-Security-Policy', "default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+      return res
     })
   }
 

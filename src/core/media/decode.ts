@@ -40,7 +40,11 @@ export async function openImage(input: DecodeInput): Promise<Sharp> {
     const seek = input.duration ? Math.min(1, input.duration * 0.1) : 0
     return sharp(await decodeFrame(input.path, { seek }), opts)
   }
-  if (SHARP_EXTS.has(input.ext)) return sharp(input.path, { ...opts, pages: 1 }).rotate()
+  if (SHARP_EXTS.has(input.ext)) {
+    // Large 16-bit TIFFs exceed libtiff's default memory guard; local library files are trusted.
+    const tiff = input.ext === 'tif' || input.ext === 'tiff'
+    return sharp(input.path, { ...opts, pages: 1, unlimited: tiff }).rotate()
+  }
   if (HEIF_EXTS.has(input.ext)) return sharp(await decodeFrame(input.path), opts)
   if (RAW_EXTS.has(input.ext)) {
     const preview = await extractThumbnail(input.path)

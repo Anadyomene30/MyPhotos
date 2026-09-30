@@ -8,7 +8,7 @@
   "main": "./out/main/index.js",
   "author": "Dimitri Sourzac",
   "scripts": {
-    "dev": "electron-vite dev",
+    "dev": "electron-vite dev -w",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "serve": "node out/main/backend.js",

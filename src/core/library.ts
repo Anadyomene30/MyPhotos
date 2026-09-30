@@ -19,6 +19,8 @@ export interface LibraryOptions {
   /** disable background indexing (tests) */
   autoIndex?: boolean
   watch?: boolean
+  /** Move files to the OS trash; returns the paths that failed. Provided by the Electron host. */
+  moveToSystemTrash?: (paths: string[]) => Promise<string[]>
 }
 
 type Stage = 'meta' | 'thumb'
@@ -52,8 +54,19 @@ export class Library extends EventEmitter {
   }
 
   async start(): Promise<void> {
+    this.retryFailuresAfterUpgrade()
     for (const s of this.sources()) this.watcher?.add(s.path)
     await this.rescanAll()
+  }
+
+  /** Bump when decoders or metadata readers improve: failed items and weak dates get a second chance. */
+  private retryFailuresAfterUpgrade(): void {
+    const INDEX_VERSION = 2
+    const row = this.db.prepare("SELECT value FROM settings WHERE key = 'index_version'").get() as { value: string } | undefined
+    if (Number(row?.value ?? 0) >= INDEX_VERSION) return
+    this.db.exec(`UPDATE assets SET meta_state = 0 WHERE meta_state = 2 OR date_source IN ('mtime', 'filename');
+      UPDATE assets SET thumb_state = 0 WHERE thumb_state = 2;`)
+    this.db.prepare("INSERT INTO settings (key, value) VALUES ('index_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(INDEX_VERSION))
   }
 
   close(): void {
@@ -216,7 +229,7 @@ export class Library extends EventEmitter {
   async indexMeta(row: Row): Promise<boolean> {
     const id = row.id as number
     try {
-      const m = await readMetadata(row.path as string, row.name as string, row.ext as string, row.kind as AssetKind, row.mtime as number)
+      const m = await readMetadata(row.path as string, row.name as string, row.ext as string, row.kind as AssetKind, row.mtime as number, row.rel_dir as string)
       const qhash = await quickHash(row.path as string, row.size as number)
       let ratio: number | null = null
       if (m.width && m.height) ratio = m.orientation && m.orientation >= 5 ? m.height / m.width : m.width / m.height
@@ -278,6 +291,27 @@ export class Library extends EventEmitter {
   setTrashed(ids: number[], trashed: boolean): void {
     transaction(this.db, () => this.assets.setTrashed(ids, trashed))
     this.emitChanged()
+  }
+
+  /**
+   * Permanently remove items from the internal trash: files go to the operating system trash
+   * (recoverable there), then rows are deleted. Only items already in the internal trash are affected.
+   */
+  async emptyTrash(ids?: number[]): Promise<{ removed: number; failed: number }> {
+    if (!this.opts.moveToSystemTrash) throw new Error('Action disponible uniquement dans l’application de bureau')
+    const rows = (ids?.length
+      ? this.db.prepare(`SELECT id, path, live_video FROM assets WHERE trashed_at IS NOT NULL AND id IN (${ids.map(() => '?').join(',')})`).all(...ids)
+      : this.db.prepare('SELECT id, path, live_video FROM assets WHERE trashed_at IS NOT NULL').all()) as Array<{ id: number; path: string; live_video: string | null }>
+    if (!rows.length) return { removed: 0, failed: 0 }
+    const paths = rows.flatMap((r) => (r.live_video ? [r.path, r.live_video] : [r.path]))
+    const failed = new Set(await this.opts.moveToSystemTrash(paths))
+    const done = rows.filter((r) => !failed.has(r.path))
+    transaction(this.db, () => {
+      const del = this.db.prepare('DELETE FROM assets WHERE id = ? OR (path = ? AND hidden = 1)')
+      for (const r of done) del.run(r.id, r.live_video ?? '')
+    })
+    this.emitChanged()
+    return { removed: done.length, failed: rows.length - done.length }
   }
 }
 

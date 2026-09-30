@@ -8,7 +8,7 @@ export interface MediaMetadata {
   takenAt: number
   tzOffset: number | null
   day: string
-  dateSource: 'exif' | 'video' | 'filename' | 'mtime'
+  dateSource: 'exif' | 'video' | 'filename' | 'folder' | 'mtime'
   width: number | null
   height: number | null
   orientation: number | null
@@ -95,6 +95,43 @@ export function dateFromFilename(name: string): WallClock | null {
   return null
 }
 
+/**
+ * Date hinted by the folder path ("2019/2019-03", "2018-12-24 Noël", "Vacances 2017"), deepest segment first.
+ * Returns the covered period so the file date can be kept when it falls inside it.
+ */
+export function periodFromPath(relDir: string): { start: number; end: number } | null {
+  const segs = relDir.split(/[\\/]/).filter(Boolean).reverse()
+  for (const seg of segs) {
+    let m = /(?:^|[^\d])((?:19|20)\d{2})[-_.](\d{2})[-_.](\d{2})(?:[^\d]|$)/.exec(seg)
+    if (m && +m[2]! >= 1 && +m[2]! <= 12 && +m[3]! >= 1 && +m[3]! <= 31) {
+      const start = new Date(+m[1]!, +m[2]! - 1, +m[3]!).getTime()
+      return { start, end: new Date(+m[1]!, +m[2]! - 1, +m[3]! + 1).getTime() }
+    }
+    m = /(?:^|[^\d])((?:19|20)\d{2})[-_.](\d{2})(?:[^\d]|$)/.exec(seg)
+    if (m && +m[2]! >= 1 && +m[2]! <= 12) {
+      return { start: new Date(+m[1]!, +m[2]! - 1, 1).getTime(), end: new Date(+m[1]!, +m[2]!, 1).getTime() }
+    }
+    m = /(?:^|[^\d])((?:19|20)\d{2})(?:[^\d]|$)/.exec(seg)
+    if (m) return { start: new Date(+m[1]!, 0, 1).getTime(), end: new Date(+m[1]! + 1, 0, 1).getTime() }
+  }
+  return null
+}
+
+/** Best date without embedded metadata: file name, then folder period, then modification time. */
+export function fallbackDate(name: string, relDir: string, mtime: number): { takenAt: number; day: string; source: 'filename' | 'folder' | 'mtime' } {
+  const w = dateFromFilename(name)
+  if (w) {
+    const r = resolveWall(w, null)
+    return { takenAt: r.takenAt, day: r.day, source: 'filename' }
+  }
+  const p = periodFromPath(relDir)
+  if (p && (mtime < p.start || mtime >= p.end)) {
+    const t = p.start + 12 * 3600000
+    return { takenAt: t, day: localDay(t), source: 'folder' }
+  }
+  return { takenAt: mtime, day: localDay(mtime), source: 'mtime' }
+}
+
 function gpsToDecimal(v: unknown, ref: unknown): number | null {
   let n: number | null = null
   if (typeof v === 'number') n = v
@@ -110,14 +147,13 @@ const num = (v: unknown): number | null => {
   return v === null || v === undefined || !Number.isFinite(n) ? null : n
 }
 
-function base(name: string, mtime: number): MediaMetadata {
-  const fromName = dateFromFilename(name)
-  const resolvedName = fromName ? resolveWall(fromName, null) : null
+function base(name: string, relDir: string, mtime: number): MediaMetadata {
+  const f = fallbackDate(name, relDir, mtime)
   return {
-    takenAt: resolvedName?.takenAt ?? mtime,
+    takenAt: f.takenAt,
     tzOffset: null,
-    day: resolvedName?.day ?? localDay(mtime),
-    dateSource: resolvedName ? 'filename' : 'mtime',
+    day: f.day,
+    dateSource: f.source,
     width: null, height: null, orientation: null, duration: null,
     lat: null, lon: null, make: null, model: null, lens: null,
     iso: null, fnumber: null, exposure: null, focal: null,
@@ -163,8 +199,8 @@ async function parseExif(file: string, deep: boolean): Promise<Record<string, un
   return full && full.length <= 300 * 1024 * 1024 ? ((await attempt(full)) ?? tags) : tags
 }
 
-export async function readImageMetadata(file: string, name: string, ext: string, mtime: number): Promise<MediaMetadata> {
-  const meta = base(name, mtime)
+export async function readImageMetadata(file: string, name: string, ext: string, mtime: number, relDir = ''): Promise<MediaMetadata> {
+  const meta = base(name, relDir, mtime)
   let tags: Record<string, unknown> | undefined
   if (SHARP_EXTS.has(ext) || HEIF_EXTS.has(ext) || RAW_EXTS.has(ext)) tags = await parseExif(file, HEIF_EXTS.has(ext) || RAW_EXTS.has(ext))
   if (tags) {
@@ -199,8 +235,8 @@ export async function readImageMetadata(file: string, name: string, ext: string,
   return meta
 }
 
-export async function readVideoMetadata(file: string, name: string, mtime: number): Promise<MediaMetadata> {
-  const meta = base(name, mtime)
+export async function readVideoMetadata(file: string, name: string, mtime: number, relDir = ''): Promise<MediaMetadata> {
+  const meta = base(name, relDir, mtime)
   let probe: FfprobeResult
   try {
     probe = await ffprobe(file)
@@ -248,6 +284,6 @@ export async function readVideoMetadata(file: string, name: string, mtime: numbe
   return meta
 }
 
-export async function readMetadata(file: string, name: string, ext: string, kind: AssetKind, mtime: number): Promise<MediaMetadata> {
-  return kind === 'video' ? readVideoMetadata(file, name, mtime) : readImageMetadata(file, name, ext, mtime)
+export async function readMetadata(file: string, name: string, ext: string, kind: AssetKind, mtime: number, relDir = ''): Promise<MediaMetadata> {
+  return kind === 'video' ? readVideoMetadata(file, name, mtime, relDir) : readImageMetadata(file, name, ext, mtime, relDir)
 }

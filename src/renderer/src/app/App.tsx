@@ -9,6 +9,7 @@ import { Viewer } from '@/features/viewer/Viewer'
 import { Welcome } from '@/features/onboarding/Welcome'
 import { Settings } from '@/features/settings/Settings'
 import { Toasts } from '@/components/Toasts'
+import { ConfirmHost } from '@/components/Confirm'
 
 function useTheme(): void {
   const theme = useUi((s) => s.theme)
@@ -59,6 +60,7 @@ export function App() {
       {viewerOpen && <Viewer />}
       <Settings />
       <Toasts />
+      <ConfirmHost />
     </div>
   )
 }

@@ -73,5 +73,9 @@ export const migrations: string[] = [
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
+  `,
+  /* 2 — covering index so library counts never scan the wide assets table */ `
+  CREATE INDEX assets_counts ON assets(kind, is_live, is_screenshot, favorite, is_raw)
+    WHERE hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL;
   `
 ]

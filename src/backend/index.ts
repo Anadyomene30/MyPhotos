@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { serve } from '@hono/node-server'
 import { Library } from '@core/library'
 import { createApp } from '../server/app'
+import { hostCall, notifyParent } from './host'
 
 /**
  * Backend entry. Runs inside an Electron utilityProcess (production) or as a plain Node process
@@ -14,7 +15,7 @@ const token = process.env.MYPHOTOS_TOKEN ?? randomBytes(24).toString('hex')
 const preferredPort = parseInt(process.env.MYPHOTOS_PORT ?? '47800', 10)
 const rendererDir = process.env.MYPHOTOS_RENDERER_DIR ?? resolve(import.meta.dirname, '../renderer')
 
-const lib = new Library({ dataDir })
+const lib = new Library({ dataDir, moveToSystemTrash: (paths) => hostCall<string[]>('trash', paths) })
 const app = createApp(lib, { token, rendererDir, devOrigin: process.env.MYPHOTOS_DEV_ORIGIN })
 
 function listen(port: number): Promise<number> {
@@ -25,8 +26,7 @@ function listen(port: number): Promise<number> {
 }
 
 const port = await listen(preferredPort)
-const parent = (process as unknown as { parentPort?: { postMessage(m: unknown): void } }).parentPort
-if (parent) parent.postMessage({ type: 'ready', port, token })
+if ((process as unknown as { parentPort?: unknown }).parentPort) notifyParent({ type: 'ready', port, token })
 else console.log(`MyPhotos backend on http://127.0.0.1:${port}/?t=${token}  (data: ${dataDir})`)
 
 const shutdown = (): void => {

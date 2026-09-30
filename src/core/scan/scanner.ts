@@ -3,7 +3,7 @@ import { basename, dirname, relative, sep } from 'node:path'
 import { fdir } from 'fdir'
 import { transaction, type Db } from '../db'
 import { extOf, kindOf, RAW_EXTS, stemOf, looksLikeScreenshot } from '../media/kinds'
-import { dateFromFilename, localDay } from '../media/metadata'
+import { fallbackDate } from '../media/metadata'
 import { limiter } from '../util'
 
 const IGNORED_DIRS = new Set(['@eaDir', '$RECYCLE.BIN', 'System Volume Information', '.thumbnails', 'node_modules', '#recycle', '.Trashes', '.Spotlight-V100', '.fseventsd'])
@@ -44,13 +44,9 @@ interface ExistingRow {
   missing_at: number | null
 }
 
-export function initialDate(name: string, mtime: number): { takenAt: number; day: string } {
-  const w = dateFromFilename(name)
-  if (w) {
-    const t = new Date(w.y, w.mo - 1, w.d, w.h, w.mi, w.s).getTime()
-    return { takenAt: t, day: localDay(t) }
-  }
-  return { takenAt: mtime, day: localDay(mtime) }
+export function initialDate(name: string, relDir: string, mtime: number): { takenAt: number; day: string; source: string } {
+  const f = fallbackDate(name, relDir, mtime)
+  return { takenAt: f.takenAt, day: f.day, source: f.source }
 }
 
 /** Walk a source folder and reconcile the assets table with what is on disk. Never touches the files. */
@@ -102,8 +98,8 @@ export async function scanSource(db: Db, sourceId: number, root: string, onProgr
       const ext = extOf(name)
       const kind = kindOf(ext)!
       const rel = relative(root, dirname(f.path)).split(sep).join('/')
-      const d = initialDate(name, f.mtime)
-      ins.run(sourceId, f.path, rel, name, stemOf(name), ext, kind, f.size, f.mtime, d.takenAt, d.day, 'mtime',
+      const d = initialDate(name, rel, f.mtime)
+      ins.run(sourceId, f.path, rel, name, stemOf(name), ext, kind, f.size, f.mtime, d.takenAt, d.day, d.source,
         RAW_EXTS.has(ext) ? 1 : 0, looksLikeScreenshot(name, ext, false) ? 1 : 0, now)
     }
     const upd = db.prepare('UPDATE assets SET size = ?, mtime = ?, meta_state = 0, thumb_state = 0, thumb_v = thumb_v + 1 WHERE id = ?')
@@ -183,8 +179,8 @@ export async function applyChanges(db: Db, sourceId: number, root: string, paths
         const name = basename(path)
         const ext = extOf(name)
         const rel = relative(root, dirname(path)).split(sep).join('/')
-        const d = initialDate(name, st.mtime)
-        ins.run(sourceId, path, rel, name, stemOf(name), ext, kindOf(ext)!, st.size, st.mtime, d.takenAt, d.day, 'mtime',
+        const d = initialDate(name, rel, st.mtime)
+        ins.run(sourceId, path, rel, name, stemOf(name), ext, kindOf(ext)!, st.size, st.mtime, d.takenAt, d.day, d.source,
           RAW_EXTS.has(ext) ? 1 : 0, looksLikeScreenshot(name, ext, false) ? 1 : 0, now)
         changes++
       } else if (prev.size !== st.size || prev.mtime !== st.mtime) {

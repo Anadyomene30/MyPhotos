@@ -27,6 +27,12 @@ export function filterWhere(q: TimelineQuery): { sql: string; params: Array<stri
   return { sql: parts.join(' AND '), params }
 }
 
+/** Pin the ordered partial indexes: the planner otherwise prefers the counts index and sorts 200k rows. */
+function orderedFrom(q: TimelineQuery): string {
+  if (q.filter === 'trash') return 'assets'
+  return q.kind === 'photo' || q.kind === 'video' ? 'assets INDEXED BY assets_kind_timeline' : 'assets INDEXED BY assets_timeline'
+}
+
 const TILE_COLS = 'id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v'
 
 export function toTile(r: Row): AssetTile {
@@ -52,21 +58,21 @@ export class AssetRepo {
   buckets(q: TimelineQuery): DayBucket[] {
     const w = filterWhere(q)
     return this.stmts
-      .get(`SELECT day, count(*) AS count FROM assets WHERE ${w.sql} GROUP BY day ORDER BY day DESC`)
+      .get(`SELECT day, count(*) AS count FROM ${orderedFrom(q)} WHERE ${w.sql} GROUP BY day ORDER BY day DESC`)
       .all(...w.params) as unknown as DayBucket[]
   }
 
   page(q: TimelineQuery, offset: number, limit: number): AssetTile[] {
     const w = filterWhere(q)
     const rows = this.stmts
-      .get(`SELECT ${TILE_COLS} FROM assets WHERE ${w.sql} ORDER BY ${ORDER} LIMIT ? OFFSET ?`)
+      .get(`SELECT ${TILE_COLS} FROM ${orderedFrom(q)} WHERE ${w.sql} ORDER BY ${ORDER} LIMIT ? OFFSET ?`)
       .all(...w.params, limit, offset) as Row[]
     return rows.map(toTile)
   }
 
   ids(q: TimelineQuery): number[] {
     const w = filterWhere(q)
-    return (this.stmts.get(`SELECT id FROM assets WHERE ${w.sql} ORDER BY ${ORDER}`).all(...w.params) as Array<{ id: number }>).map((r) => r.id)
+    return (this.stmts.get(`SELECT id FROM ${orderedFrom(q)} WHERE ${w.sql} ORDER BY ${ORDER}`).all(...w.params) as Array<{ id: number }>).map((r) => r.id)
   }
 
   /** Position of an asset inside a filtered timeline, used to open the viewer at the right index. */
@@ -75,28 +81,30 @@ export class AssetRepo {
     if (!row) return null
     const w = filterWhere(q)
     const r = this.stmts
-      .get(`SELECT count(*) AS n FROM assets WHERE ${w.sql} AND (day > ? OR (day = ? AND (taken_at > ? OR (taken_at = ? AND id > ?))))`)
+      .get(`SELECT count(*) AS n FROM ${orderedFrom(q)} WHERE ${w.sql} AND (day > ? OR (day = ? AND (taken_at > ? OR (taken_at = ? AND id > ?))))`)
       .get(...w.params, row.day as string, row.day as string, row.taken_at as number, row.taken_at as number, id) as { n: number }
     return r.n
   }
 
   counts(): LibraryCounts {
-    const r = this.stmts
-      .get(`SELECT
-        count(*) FILTER (WHERE ${VISIBLE}) AS all_,
-        count(*) FILTER (WHERE ${VISIBLE} AND kind = 'photo') AS photos,
-        count(*) FILTER (WHERE ${VISIBLE} AND kind = 'video') AS videos,
-        count(*) FILTER (WHERE ${VISIBLE} AND is_live = 1) AS live,
-        count(*) FILTER (WHERE ${VISIBLE} AND is_screenshot = 1) AS screenshots,
-        count(*) FILTER (WHERE ${VISIBLE} AND favorite = 1) AS favorites,
-        count(*) FILTER (WHERE ${VISIBLE} AND is_raw = 1) AS raw,
-        count(*) FILTER (WHERE hidden = 0 AND missing_at IS NULL AND trashed_at IS NOT NULL) AS trash
-        FROM assets`)
-      .get() as Record<string, number>
-    return {
-      all: r.all_ ?? 0, photos: r.photos ?? 0, videos: r.videos ?? 0, live: r.live ?? 0,
-      screenshots: r.screenshots ?? 0, favorites: r.favorites ?? 0, raw: r.raw ?? 0, trash: r.trash ?? 0
+    // Index-only scan of the partial counts index, plus the small trash index.
+    const rows = this.stmts
+      .get(`SELECT kind, is_live, is_screenshot, favorite, is_raw, count(*) AS n
+        FROM assets INDEXED BY assets_counts WHERE ${VISIBLE}
+        GROUP BY kind, is_live, is_screenshot, favorite, is_raw`)
+      .all() as Array<{ kind: string; is_live: number; is_screenshot: number; favorite: number; is_raw: number; n: number }>
+    const trash = this.stmts.get('SELECT count(*) AS n FROM assets WHERE trashed_at IS NOT NULL AND hidden = 0 AND missing_at IS NULL').get() as { n: number }
+    const c: LibraryCounts = { all: 0, photos: 0, videos: 0, live: 0, screenshots: 0, favorites: 0, raw: 0, trash: trash.n }
+    for (const r of rows) {
+      c.all += r.n
+      if (r.kind === 'photo') c.photos += r.n
+      else c.videos += r.n
+      if (r.is_live) c.live += r.n
+      if (r.is_screenshot) c.screenshots += r.n
+      if (r.favorite) c.favorites += r.n
+      if (r.is_raw) c.raw += r.n
     }
+    return c
   }
 
   years(): Array<{ year: number; count: number }> {

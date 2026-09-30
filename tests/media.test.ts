@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
-import { dateFromFilename, parseDateString, readImageMetadata, readVideoMetadata } from '@core/media/metadata'
+import { dateFromFilename, fallbackDate, periodFromPath, parseDateString, readImageMetadata, readVideoMetadata } from '@core/media/metadata'
 import { openImage } from '@core/media/decode'
 import { looksLikeScreenshot } from '@core/media/kinds'
 
@@ -22,6 +22,15 @@ describe('date parsing', () => {
     expect(dateFromFilename('Capture d’écran 2024-03-02 à 10.12.33.png')).toMatchObject({ y: 2024, mo: 3, d: 2, h: 10, mi: 12, s: 33 })
     expect(dateFromFilename('WhatsApp Image 2022-12-24 at 19.45.10.jpeg')).toMatchObject({ h: 19, mi: 45 })
     expect(dateFromFilename('IMG_1234.JPG')).toBeNull()
+  })
+  it('uses the folder period when the file date disagrees', () => {
+    expect(periodFromPath('2019/2019-03')).toEqual({ start: new Date(2019, 2, 1).getTime(), end: new Date(2019, 3, 1).getTime() })
+    expect(periodFromPath('Albums/2018-12-24 Noël')?.start).toBe(new Date(2018, 11, 24).getTime())
+    expect(periodFromPath('Vacances 2017')?.start).toBe(new Date(2017, 0, 1).getTime())
+    expect(periodFromPath('Divers')).toBeNull()
+    const inside = new Date(2019, 2, 31, 18).getTime()
+    expect(fallbackDate('IMG_1.JPG', '2019/2019-03', inside)).toMatchObject({ takenAt: inside, source: 'mtime' })
+    expect(fallbackDate('IMG_1.JPG', '2019/2019-03', new Date(2023, 5, 1).getTime())).toMatchObject({ day: '2019-03-01', source: 'folder' })
   })
   it('detects screenshots', () => {
     expect(looksLikeScreenshot('Capture d’écran 2024-03-02 à 10.12.33.png', 'png', false)).toBe(true)

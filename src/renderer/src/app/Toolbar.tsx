@@ -6,6 +6,8 @@ import { useUi, ZOOM_LEVELS, type Grouping } from '@/store'
 import { useScrollLabel } from '@/features/library/scrollLabel'
 import { trashWithUndo } from '@/features/library/Timeline'
 import { count, plural } from '@/lib/format'
+import { Button } from '@/components/ui'
+import { emptyTrash } from '@/features/library/trash'
 import type { KindFilter, LibraryFilter } from '@shared/types'
 
 const TITLES: Record<LibraryFilter, string> = {
@@ -63,9 +65,16 @@ export function Toolbar() {
       {n > 0 && (
         <div className="flex items-center gap-1">
           {section === 'trash' ? (
-            <IconButton label="Restaurer" onClick={() => void trashWithUndo([...selection], true).then(clearSelection)}>
-              <RotateCcw className="size-[17px]" />
-            </IconButton>
+            <>
+              <IconButton label="Restaurer" onClick={() => void trashWithUndo([...selection], true).then(clearSelection)}>
+                <RotateCcw className="size-[17px]" />
+              </IconButton>
+              {window.desktop && (
+                <IconButton label="Supprimer définitivement" onClick={() => void emptyTrash([...selection]).then(clearSelection)}>
+                  <Trash2 className="size-[17px] text-red-500" />
+                </IconButton>
+              )}
+            </>
           ) : (
             <>
               <IconButton label="Ajouter aux favoris (.)" onClick={() => void patchAssets([...selection], { favorite: true })}>
@@ -78,6 +87,12 @@ export function Toolbar() {
           )}
           <div className="mx-1 h-5 w-px bg-line" />
         </div>
+      )}
+
+      {n === 0 && section === 'trash' && window.desktop && (counts?.trash ?? 0) > 0 && (
+        <Button variant="danger" className="py-1 text-[12.5px]" onClick={() => void emptyTrash()}>
+          Vider la corbeille
+        </Button>
       )}
 
       <Segmented<Grouping>

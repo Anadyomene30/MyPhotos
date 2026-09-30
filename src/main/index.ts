@@ -29,8 +29,9 @@ function startBackend(): Promise<BackendInfo> {
   })
   backend = child
   const info = new Promise<BackendInfo>((resolve, reject) => {
-    child.on('message', (m: { type?: string; port?: number; token?: string }) => {
+    child.on('message', (m: { type?: string; port?: number; token?: string; id?: number; method?: string; args?: unknown }) => {
       if (m?.type === 'ready' && m.port && m.token) resolve({ port: m.port, token: m.token })
+      if (m?.type === 'host-call' && typeof m.id === 'number') void handleHostCall(child, m.id, m.method ?? '', m.args)
     })
     child.once('exit', (code) => {
       reject(new Error(`backend exited early (${code})`))
@@ -42,6 +43,27 @@ function startBackend(): Promise<BackendInfo> {
     })
   })
   return info
+}
+
+/** Privileged operations requested by the backend process. */
+async function handleHostCall(child: UtilityProcess, id: number, method: string, args: unknown): Promise<void> {
+  try {
+    let result: unknown
+    if (method === 'trash' && Array.isArray(args)) {
+      const failed: string[] = []
+      for (const p of args) {
+        try {
+          await shell.trashItem(String(p))
+        } catch {
+          failed.push(String(p))
+        }
+      }
+      result = failed
+    } else throw new Error(`unknown host method ${method}`)
+    child.postMessage({ type: 'host-reply', id, ok: true, result })
+  } catch (e) {
+    child.postMessage({ type: 'host-reply', id, ok: false, error: (e as Error).message })
+  }
 }
 
 async function loadApp(win: BrowserWindow): Promise<void> {
@@ -77,6 +99,13 @@ function createWindow(): BrowserWindow {
     }
   })
   win.once('ready-to-show', () => win.show())
+  if (isDev) {
+    win.webContents.on('did-finish-load', () => console.log('[renderer] loaded', win.webContents.getURL().split('?')[0]))
+    win.webContents.on('console-message', (e) => {
+      if (e.level === 'error' || e.level === 'warning') console.log(`[renderer ${e.level}] ${e.message}`)
+    })
+    win.webContents.on('render-process-gone', (_e, d) => console.log('[renderer] gone', d.reason))
+  }
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url) && !url.startsWith('http://127.0.0.1')) void shell.openExternal(url)
     return { action: 'deny' }
