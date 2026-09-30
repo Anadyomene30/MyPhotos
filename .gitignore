@@ -1,0 +1,8 @@
+node_modules/
+out/
+dist/
+.devdata/
+*.log
+.DS_Store
+resources/ffmpeg/*/ffmpeg*
+resources/ffmpeg/*/ffprobe*

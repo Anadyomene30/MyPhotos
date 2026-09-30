@@ -1,0 +1,206 @@
+import { stat } from 'node:fs/promises'
+import { basename, dirname, relative, sep } from 'node:path'
+import { fdir } from 'fdir'
+import { transaction, type Db } from '../db'
+import { extOf, kindOf, RAW_EXTS, stemOf, looksLikeScreenshot } from '../media/kinds'
+import { dateFromFilename, localDay } from '../media/metadata'
+import { limiter } from '../util'
+
+const IGNORED_DIRS = new Set(['@eaDir', '$RECYCLE.BIN', 'System Volume Information', '.thumbnails', 'node_modules', '#recycle', '.Trashes', '.Spotlight-V100', '.fseventsd'])
+
+export function isIgnoredDir(name: string): boolean {
+  return name.startsWith('.') || IGNORED_DIRS.has(name) || name.endsWith('.photoslibrary') || name.endsWith('.photolibrary') || name.endsWith('.app')
+}
+
+export function isCandidateFile(path: string): boolean {
+  const name = basename(path)
+  if (name.startsWith('.') || name.startsWith('~')) return false
+  return kindOf(extOf(name)) !== null
+}
+
+export async function listMediaFiles(root: string): Promise<string[]> {
+  return new fdir()
+    .withFullPaths()
+    .withErrors()
+    .exclude((dirName) => isIgnoredDir(dirName))
+    .filter((path, isDirectory) => !isDirectory && isCandidateFile(path))
+    .crawl(root)
+    .withPromise()
+    .catch(() => [] as string[])
+}
+
+export interface ScanResult {
+  added: number
+  changed: number
+  missing: number
+  total: number
+}
+
+interface ExistingRow {
+  id: number
+  path: string
+  size: number
+  mtime: number
+  missing_at: number | null
+}
+
+export function initialDate(name: string, mtime: number): { takenAt: number; day: string } {
+  const w = dateFromFilename(name)
+  if (w) {
+    const t = new Date(w.y, w.mo - 1, w.d, w.h, w.mi, w.s).getTime()
+    return { takenAt: t, day: localDay(t) }
+  }
+  return { takenAt: mtime, day: localDay(mtime) }
+}
+
+/** Walk a source folder and reconcile the assets table with what is on disk. Never touches the files. */
+export async function scanSource(db: Db, sourceId: number, root: string, onProgress?: (n: number) => void): Promise<ScanResult> {
+  const files = await listMediaFiles(root)
+  const existing = new Map<string, ExistingRow>()
+  for (const r of db.prepare('SELECT id, path, size, mtime, missing_at FROM assets WHERE source_id = ?').all(sourceId) as unknown as ExistingRow[]) {
+    existing.set(r.path, r)
+  }
+
+  const statLimit = limiter(64)
+  const seen = new Set<string>()
+  const toInsert: Array<{ path: string; size: number; mtime: number }> = []
+  const toUpdate: Array<{ id: number; size: number; mtime: number }> = []
+  const reappeared: number[] = []
+  let n = 0
+
+  await Promise.all(
+    files.map((path) =>
+      statLimit(async () => {
+        try {
+          const st = await stat(path)
+          if (!st.isFile() || st.size === 0) return
+          seen.add(path)
+          const mtime = Math.round(st.mtimeMs)
+          const prev = existing.get(path)
+          if (!prev) toInsert.push({ path, size: st.size, mtime })
+          else {
+            if (prev.size !== st.size || prev.mtime !== mtime) toUpdate.push({ id: prev.id, size: st.size, mtime })
+            if (prev.missing_at !== null) reappeared.push(prev.id)
+          }
+        } catch {
+          /* unreadable file: ignore */
+        }
+        if (++n % 500 === 0) onProgress?.(n)
+      })
+    )
+  )
+
+  const now = Date.now()
+  const missing = [...existing.values()].filter((r) => !seen.has(r.path) && r.missing_at === null)
+
+  transaction(db, () => {
+    const ins = db.prepare(`INSERT INTO assets
+      (source_id, path, rel_dir, name, stem, ext, kind, size, mtime, taken_at, day, date_source, is_raw, is_screenshot, added_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    for (const f of toInsert) {
+      const name = basename(f.path)
+      const ext = extOf(name)
+      const kind = kindOf(ext)!
+      const rel = relative(root, dirname(f.path)).split(sep).join('/')
+      const d = initialDate(name, f.mtime)
+      ins.run(sourceId, f.path, rel, name, stemOf(name), ext, kind, f.size, f.mtime, d.takenAt, d.day, 'mtime',
+        RAW_EXTS.has(ext) ? 1 : 0, looksLikeScreenshot(name, ext, false) ? 1 : 0, now)
+    }
+    const upd = db.prepare('UPDATE assets SET size = ?, mtime = ?, meta_state = 0, thumb_state = 0, thumb_v = thumb_v + 1 WHERE id = ?')
+    for (const f of toUpdate) upd.run(f.size, f.mtime, f.id)
+    const back = db.prepare('UPDATE assets SET missing_at = NULL WHERE id = ?')
+    for (const id of reappeared) back.run(id)
+    const gone = db.prepare('UPDATE assets SET missing_at = ? WHERE id = ?')
+    for (const r of missing) gone.run(now, r.id)
+    pairLivePhotos(db, sourceId)
+  })
+
+  return { added: toInsert.length, changed: toUpdate.length, missing: missing.length, total: seen.size }
+}
+
+/**
+ * Pair photo + short video sharing the same folder and file stem (IMG_1234.HEIC + IMG_1234.MOV).
+ * The video becomes hidden and is played from the photo. Videos longer than 6 s are never treated as Live Photos.
+ */
+export function pairLivePhotos(db: Db, sourceId?: number): void {
+  const scope = sourceId === undefined ? '' : 'AND v.source_id = ?'
+  const args = sourceId === undefined ? [] : [sourceId]
+  db.prepare(`UPDATE assets SET hidden = 1 WHERE id IN (
+      SELECT v.id FROM assets v JOIN assets p
+        ON p.source_id = v.source_id AND p.rel_dir = v.rel_dir AND p.stem = v.stem AND p.kind = 'photo' AND p.missing_at IS NULL
+      WHERE v.kind = 'video' AND v.ext IN ('mov', 'mp4') AND v.hidden = 0 AND (v.duration IS NULL OR v.duration <= 6) ${scope})`).run(...args)
+  db.prepare(`UPDATE assets SET hidden = 0 WHERE kind = 'video' AND hidden = 1 AND duration > 6 ${sourceId === undefined ? '' : 'AND source_id = ?'}`).run(...args)
+  db.prepare(`UPDATE assets SET is_live = 0, live_video = NULL WHERE is_live = 1 ${sourceId === undefined ? '' : 'AND source_id = ?'}`).run(...args)
+  db.prepare(`UPDATE assets AS p SET is_live = 1, live_video = v.path
+      FROM assets v
+      WHERE v.source_id = p.source_id AND v.rel_dir = p.rel_dir AND v.stem = p.stem AND v.kind = 'video' AND v.hidden = 1 AND v.missing_at IS NULL
+        AND p.kind = 'photo' ${sourceId === undefined ? '' : 'AND p.source_id = ?'}`).run(...args)
+}
+
+/** Apply a batch of filesystem change notifications incrementally, without a full rescan. */
+export async function applyChanges(db: Db, sourceId: number, root: string, paths: string[]): Promise<number> {
+  const files = new Map<string, { size: number; mtime: number } | null>()
+  const goneDirs: string[] = []
+  for (const p of paths) {
+    try {
+      const st = await stat(p)
+      if (st.isDirectory()) {
+        if (isIgnoredDir(basename(p))) continue
+        for (const f of await listMediaFiles(p)) {
+          try {
+            const fst = await stat(f)
+            files.set(f, { size: fst.size, mtime: Math.round(fst.mtimeMs) })
+          } catch {
+            /* ignore */
+          }
+        }
+      } else if (st.isFile() && isCandidateFile(p) && st.size > 0) {
+        files.set(p, { size: st.size, mtime: Math.round(st.mtimeMs) })
+      }
+    } catch {
+      if (isCandidateFile(p)) files.set(p, null)
+      else goneDirs.push(p)
+    }
+  }
+  if (files.size === 0 && goneDirs.length === 0) return 0
+  const now = Date.now()
+  let changes = 0
+  transaction(db, () => {
+    const get = db.prepare('SELECT id, size, mtime, missing_at FROM assets WHERE path = ?')
+    const ins = db.prepare(`INSERT INTO assets
+      (source_id, path, rel_dir, name, stem, ext, kind, size, mtime, taken_at, day, date_source, is_raw, is_screenshot, added_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    const upd = db.prepare('UPDATE assets SET size = ?, mtime = ?, missing_at = NULL, meta_state = 0, thumb_state = 0, thumb_v = thumb_v + 1 WHERE id = ?')
+    const back = db.prepare('UPDATE assets SET missing_at = NULL WHERE id = ?')
+    const gone = db.prepare('UPDATE assets SET missing_at = ? WHERE id = ? AND missing_at IS NULL')
+    for (const [path, st] of files) {
+      const prev = get.get(path) as unknown as ExistingRow | undefined
+      if (!st) {
+        if (prev) changes += Number(gone.run(now, prev.id).changes)
+        continue
+      }
+      if (!prev) {
+        const name = basename(path)
+        const ext = extOf(name)
+        const rel = relative(root, dirname(path)).split(sep).join('/')
+        const d = initialDate(name, st.mtime)
+        ins.run(sourceId, path, rel, name, stemOf(name), ext, kindOf(ext)!, st.size, st.mtime, d.takenAt, d.day, 'mtime',
+          RAW_EXTS.has(ext) ? 1 : 0, looksLikeScreenshot(name, ext, false) ? 1 : 0, now)
+        changes++
+      } else if (prev.size !== st.size || prev.mtime !== st.mtime) {
+        upd.run(st.size, st.mtime, prev.id)
+        changes++
+      } else if (prev.missing_at !== null) {
+        back.run(prev.id)
+        changes++
+      }
+    }
+    const goneUnder = db.prepare("UPDATE assets SET missing_at = ? WHERE source_id = ? AND missing_at IS NULL AND (path LIKE ? ESCAPE '\\')")
+    for (const dir of goneDirs) {
+      const prefix = (dir.endsWith(sep) ? dir : dir + sep).replace(/[\\%_]/g, (c) => '\\' + c)
+      changes += Number(goneUnder.run(now, sourceId, prefix + '%').changes)
+    }
+    if (changes) pairLivePhotos(db, sourceId)
+  })
+  return changes
+}
