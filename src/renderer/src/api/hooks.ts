@@ -24,6 +24,11 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
           else
             ui.toast('Création terminée', e.assetId ? { label: 'Voir', run: () => void openAsset(e.assetId!) } : undefined)
         }
+        if (e.type === 'retro-done' && !e.preview) {
+          const ui = useUi.getState()
+          if (!e.ok) ui.toast(`Vidéo impossible : ${e.error ?? 'erreur inconnue'}`)
+          else ui.toast('Vidéo souvenir prête', e.assetId ? { label: 'Voir', run: () => void openAsset(e.assetId!) } : undefined)
+        }
         if (e.type === 'export-done') {
           const r = e.result
           const ui = useUi.getState()

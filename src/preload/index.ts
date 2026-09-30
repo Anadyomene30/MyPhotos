@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 const desktop = {
   platform: process.platform,
   pickFolder: (): Promise<string | null> => ipcRenderer.invoke('pick-folder'),
+  pickFile: (kind: 'audio' | 'any'): Promise<string | null> => ipcRenderer.invoke('pick-file', kind),
   reveal: (path: string): Promise<void> => ipcRenderer.invoke('reveal', path),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url)
 }

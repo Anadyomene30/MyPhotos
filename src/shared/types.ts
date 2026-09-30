@@ -163,6 +163,7 @@ export type ServerEvent =
   | { type: 'export-done'; result: ExportResult }
   | { type: 'creation-done'; ok: boolean; assetId: number | null; error?: string; sources: number[] }
   | { type: 'ml-status'; status: MlStatus }
+  | { type: 'retro-done'; ok: boolean; assetId: number | null; preview: boolean; file: string | null; error?: string }
 
 export type PhotoFormat = 'original' | 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff'
 export type VideoFormat = 'original' | 'mp4-h264' | 'mp4-hevc' | 'webm' | 'mov-prores' | 'gif'
@@ -343,4 +344,21 @@ export interface MemoryDetail extends MemorySummary {
   assetIds: number[]
   pages: MemoryPage[]
   tiles: AssetTile[]
+}
+
+export interface RetroOptions {
+  source: { type: 'all' } | { type: 'year'; value: number } | { type: 'album'; value: number } | { type: 'person'; value: number } | { type: 'ids'; value: number[] }
+  /** target length in seconds */
+  seconds: number
+  pace: 'gentle' | 'fast'
+  format: '16:9' | '9:16' | '1:1'
+  resolution: 720 | 1080 | 2160
+  /** absolute path of an audio file on the library computer */
+  music?: string | null
+  title?: string | null
+  subtitle?: string | null
+  titleCards: boolean
+  includeVideos: boolean
+  /** quick low-resolution render */
+  preview?: boolean
 }

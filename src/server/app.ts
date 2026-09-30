@@ -414,6 +414,34 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     }
   })
 
+  const retroSchema = z.object({
+    source: z.union([
+      z.object({ type: z.literal('all') }),
+      z.object({ type: z.enum(['year', 'album', 'person']), value: z.number().int() }),
+      z.object({ type: z.literal('ids'), value: z.array(z.number().int()).min(1).max(5000) })
+    ]),
+    seconds: z.number().min(15).max(1800),
+    pace: z.enum(['gentle', 'fast']),
+    format: z.enum(['16:9', '9:16', '1:1']),
+    resolution: z.union([z.literal(720), z.literal(1080), z.literal(2160)]),
+    music: z.string().max(2000).nullable().optional(),
+    title: z.string().max(120).nullable().optional(),
+    subtitle: z.string().max(160).nullable().optional(),
+    titleCards: z.boolean(),
+    includeVideos: z.boolean(),
+    preview: z.boolean().optional()
+  })
+  app.post('/api/retrospective', async (c) => {
+    const body = retroSchema.parse(await c.req.json())
+    if (body.music && !existsSync(body.music)) return c.json({ error: 'Fichier musical introuvable' }, 400)
+    return c.json({ jobId: lib.startRetrospective(body) })
+  })
+  app.get('/api/retrospective/preview', (c) => {
+    const f = c.req.query('file')
+    if (!f || !f.startsWith(join(lib.dataDir, 'cache', 'previews'))) return c.body(null, 404)
+    return sendFile(c, f, { type: 'video/mp4' })
+  })
+
   app.post('/api/fusion', async (c) => {
     const body = z.object({ ids: z.array(z.number().int()).min(2).max(15) }).parse(await c.req.json())
     try {

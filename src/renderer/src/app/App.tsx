@@ -18,6 +18,7 @@ import { PeoplePage } from '@/features/people/PeoplePage'
 import { PlacesPage } from '@/features/places/PlacesPage'
 import { MemoriesPage } from '@/features/memories/MemoriesPage'
 import { MemoryBook } from '@/features/memories/MemoryBook'
+import { RetroDialog } from '@/features/retro/RetroDialog'
 import { Editor } from '@/features/editor/Editor'
 import { VideoEditor } from '@/features/editor/VideoEditor'
 
@@ -97,6 +98,7 @@ function MainApp() {
       <SmartAlbumEditor />
       <ExportDialog />
       <Editor />
+      <RetroDialog />
       <VideoEditor />
     </div>
   )

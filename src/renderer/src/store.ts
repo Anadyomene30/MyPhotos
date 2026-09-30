@@ -55,6 +55,8 @@ interface UiState {
   setVideoEditorId(id: number | null): void
   memoryId: number | null
   openMemory(id: number | null): void
+  retro: { source: import('@shared/types').RetroOptions['source']; title?: string; subtitle?: string } | null
+  openRetro(v: UiState['retro']): void
   setSmartEditor(v: { albumId: number | null } | null): void
   setKind(k: KindFilter): void
   setGrouping(g: Grouping): void
@@ -102,6 +104,8 @@ export const useUi = create<UiState>((set, get) => ({
   videoEditorId: null,
   memoryId: null,
   openMemory: (memoryId) => set({ memoryId }),
+  retro: null,
+  openRetro: (retro) => set({ retro }),
   kind: 'all',
   grouping: saved.grouping ?? 'day',
   zoom: saved.zoom ?? DEFAULT_ZOOM.day,

@@ -1,5 +1,6 @@
 import clsx from 'clsx'
-import { Loader2, Pin, Sparkles } from 'lucide-react'
+import { Clapperboard, Loader2, Pin, Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui'
 import { media } from '@/api/client'
 import { useMemories } from '@/api/hooks'
 import { useUi } from '@/store'
@@ -42,7 +43,10 @@ export function MemoriesPage() {
       <header className={clsx('drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line pl-5', win ? 'pr-[150px]' : 'pr-4')}>
         <Sparkles className="size-[18px] text-accent" />
         <h1 className="font-display text-[15px] font-semibold tracking-tight">Souvenirs</h1>
-        <span className="text-[12px] text-muted">{memories ? plural(memories.length, 'souvenir composé', 'souvenirs composés') : ''}</span>
+        <span className="flex-1 text-[12px] text-muted">{memories ? plural(memories.length, 'souvenir composé', 'souvenirs composés') : ''}</span>
+        <Button variant="primary" className="no-drag py-1 text-[12.5px]" onClick={() => useUi.getState().openRetro({ source: { type: 'all' } })}>
+          <Clapperboard className="size-4" /> Créer une vidéo souvenir
+        </Button>
       </header>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 pb-10">
         {isLoading && <Loader2 className="mx-auto mt-10 size-6 animate-spin text-faint" />}

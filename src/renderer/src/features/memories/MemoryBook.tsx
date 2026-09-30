@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { useQueryClient } from '@tanstack/react-query'
-import { BookOpen, FolderHeart, Loader2, Pencil, Pin, RefreshCw, Sparkles, Trash2, Wand2, X } from 'lucide-react'
+import { BookOpen, Clapperboard, FolderHeart, Loader2, Pencil, Pin, RefreshCw, Sparkles, Trash2, Wand2, X } from 'lucide-react'
 import { api, media } from '@/api/client'
 import { memoriesApi, useMemory } from '@/api/hooks'
 import { Button, IconButton } from '@/components/ui'
@@ -187,6 +187,9 @@ export function MemoryBook({ id, printMode = false }: { id: number; printMode?: 
           </IconButton>
           <IconButton label="Ne plus proposer" onClick={() => void confirm({ title: 'Retirer ce souvenir ?', message: 'Il ne sera plus proposé. Vos photos ne sont pas touchées.', confirmLabel: 'Retirer', danger: true }).then((ok) => { if (ok) void run('dismiss', () => memoriesApi.update(m.id, { dismissed: true })).then(close) })}>
             <Trash2 className="size-[18px]" />
+          </IconButton>
+          <IconButton label="Créer une vidéo" onClick={() => useUi.getState().openRetro({ source: { type: 'ids', value: m.assetIds }, title: m.title, subtitle: m.subtitle ?? undefined })}>
+            <Clapperboard className="size-[18px]" />
           </IconButton>
           <div className="mx-1 h-5 w-px bg-white/20" />
           <Button variant="secondary" className="no-drag bg-white/12 text-white hover:bg-white/20" onClick={() => void run('album', () => memoriesApi.saveAlbum(m.id), 'Album créé à partir du souvenir')}>

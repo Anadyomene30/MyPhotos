@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useRef, useState } from 'react'
-import { FolderMinus, Share, Heart, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
+import { Clapperboard, FolderMinus, Share, Heart, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
 import { IconButton, Segmented } from '@/components/ui'
 import { albumsApi, patchAssets, useAlbums, useCategories, useLibraryState, usePersons } from '@/api/hooks'
 import { SearchBar } from './SearchBar'
@@ -123,6 +123,11 @@ export function Toolbar() {
                 <Share className="size-[17px]" />
               </IconButton>
               <AddToAlbumButton ids={[...selection]} />
+              {n >= 4 && (
+                <IconButton label="Créer une vidéo avec la sélection" onClick={() => useUi.getState().openRetro({ source: { type: 'ids', value: [...selection].slice(0, 5000) } })}>
+                  <Clapperboard className="size-[17px]" />
+                </IconButton>
+              )}
               {n >= 2 && n <= 15 && (
                 <IconButton label="Fusionner les expositions (HDR)" onClick={() => void startFusion([...selection]).then(() => useUi.getState().toast('Fusion en cours…'), (e: Error) => useUi.getState().toast(e.message))}>
                   <Wand2 className="size-[17px]" />

@@ -151,6 +151,11 @@ ipcMain.handle('pick-folder', async () => {
   })
   return r.canceled ? null : (r.filePaths[0] ?? null)
 })
+ipcMain.handle('pick-file', async (_e, kind: string) => {
+  const filters = kind === 'audio' ? [{ name: 'Musique', extensions: ['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'aiff'] }] : []
+  const r = await dialog.showOpenDialog(mainWindow!, { title: kind === 'audio' ? 'Choisir une musique' : 'Choisir un fichier', properties: ['openFile'], filters })
+  return r.canceled ? null : (r.filePaths[0] ?? null)
+})
 ipcMain.handle('reveal', (_e, path: string) => {
   if (typeof path === 'string') shell.showItemInFolder(path)
 })

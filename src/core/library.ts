@@ -30,12 +30,13 @@ import { ThumbStore, type ThumbSize } from './media/thumbs'
 import { limiter, throttle } from './util'
 import { runExport, runFfmpeg, type ExportRunner } from './export/exporter'
 import { planVideoEdit } from './edit/videoRender'
+import { renderRetrospective } from './export/retrospective'
 import type { VideoEdit } from '@shared/edit/video'
 import { tmpdir } from 'node:os'
 import { rm as rmAsync } from 'node:fs/promises'
 import { isAbsolute, relative as relPath } from 'node:path'
 import type { DecodeInput } from './media/decode'
-import type { AssetKind, CleanupReport, ExportOptions, MemoryDetail, MemorySummary, MemoryTheme, MomentSummary, SearchHit, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
+import type { AssetKind, CleanupReport, ExportOptions, RetroOptions, MemoryDetail, MemorySummary, MemoryTheme, MomentSummary, SearchHit, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
 
 export interface LibraryOptions {
   dataDir: string
@@ -668,6 +669,10 @@ export class Library extends EventEmitter {
     this.emitChanged()
   }
 
+  get dataDir(): string {
+    return this.opts.dataDir
+  }
+
   tilePath(z: number, x: number, y: number): string {
     return join(this.opts.dataDir, 'cache', 'tiles', String(z), String(x), `${y}.png`)
   }
@@ -780,6 +785,52 @@ export class Library extends EventEmitter {
     this.db.prepare('UPDATE assets SET version_of = NULL, hidden = 0 WHERE id = ?').run(id)
     this.db.prepare("DELETE FROM creations WHERE path = (SELECT path FROM assets WHERE id = ?) AND kind = 'edit-copy'").run(id)
     this.emitChanged()
+  }
+
+  /** Render a retrospective video into the creations folder. */
+  startRetrospective(opts: RetroOptions): string {
+    const jobId = `retro-${++this.exportSeq}`
+    const group: JobGroupState = { id: jobId, label: opts.preview ? 'Aperçu de la vidéo souvenir' : 'Vidéo souvenir', total: 100, done: 0, failed: 0, progress: 0, cancellable: true }
+    this.progress.set(jobId, group)
+    this.emitJobs()
+    const ctrl = new AbortController()
+    this.exports.set(jobId, { result: Promise.resolve(null as never), cancel: () => ctrl.abort() })
+    void (async () => {
+      let out = ''
+      try {
+        const sourceId = await this.ensureCreationsSource()
+        const base = (opts.title?.trim() || 'Rétrospective').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 80)
+        const dir = opts.preview ? join(this.opts.dataDir, 'cache', 'previews') : this.creationsDir
+        await mkdirAsync(dir, { recursive: true })
+        out = join(dir, `${base}${opts.preview ? ' (aperçu)' : ''}.mp4`)
+        for (let i = 2; !opts.preview && existsSync(out); i++) out = join(dir, `${base} ${i}.mp4`)
+        await renderRetrospective(this.db, opts, out, (f) => {
+          group.progress = f
+          group.done = Math.round(f * 100)
+          this.emitJobs()
+        }, ctrl.signal)
+        let assetId: number | null = null
+        if (!opts.preview) {
+          this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'retrospective', '[]', Date.now())
+          await applyChanges(this.db, sourceId, this.creationsDir, [out])
+          const r = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(out) as Row | undefined
+          if (r) {
+            await this.indexMeta(r)
+            await this.indexThumb(this.assets.raw(r.id as number)!)
+            assetId = r.id as number
+          }
+          this.emitChanged()
+        }
+        this.send({ type: 'retro-done', ok: true, assetId, preview: opts.preview === true, file: out })
+      } catch (e) {
+        this.send({ type: 'retro-done', ok: false, assetId: null, preview: opts.preview === true, file: null, error: ctrl.signal.aborted ? 'annulé' : (e as Error).message })
+      } finally {
+        this.exports.delete(jobId)
+        this.progress.delete(jobId)
+        this.emitJobs()
+      }
+    })()
+    return jobId
   }
 
   /** Render an edited copy of a video into the creations folder; the original is only read. */
