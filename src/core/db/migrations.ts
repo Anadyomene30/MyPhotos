@@ -117,5 +117,14 @@ export const migrations: string[] = [
   /* 6 — RAW + JPEG pairs shown as one item (the RAW file rides along like a Live Photo video) */ `
   ALTER TABLE assets ADD COLUMN raw_companion TEXT;
   UPDATE assets SET meta_state = 0 WHERE width IS NULL AND kind = 'photo' AND ext IN ('tif', 'tiff', 'png', 'webp', 'gif', 'avif', 'jpg', 'jpeg');
+  `,
+  /* 7 — sub-second capture times and creations (derived photos such as HDR fusions) */ `
+  UPDATE assets SET meta_state = 0 WHERE kind = 'photo' AND date_source = 'exif';
+  CREATE TABLE creations (
+    path TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    sources TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
   `
 ]

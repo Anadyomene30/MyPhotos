@@ -24,6 +24,7 @@ function startBackend(): Promise<BackendInfo> {
       MYPHOTOS_DATA: join(app.getPath('userData'), 'library'),
       MYPHOTOS_RESOURCES: resources,
       MYPHOTOS_RENDERER_DIR: join(here, '../renderer'),
+      MYPHOTOS_CREATIONS: join(app.getPath('pictures'), 'MyPhotos Créations'),
       ...(isDev ? { MYPHOTOS_DEV_ORIGIN: new URL(process.env.ELECTRON_RENDERER_URL!).origin } : {})
     }
   })

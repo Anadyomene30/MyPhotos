@@ -37,7 +37,12 @@ function orderedFrom(q: TimelineQuery): string {
   return q.kind === 'photo' || q.kind === 'video' ? 'assets INDEXED BY assets_kind_timeline' : 'assets INDEXED BY assets_timeline'
 }
 
-const TILE_COLS = 'id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v'
+const TILE_COLS = 'id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v, qhash'
+
+/** Thumbnail cache key: content fingerprint + regeneration counter, so a reused id never shows a stale image. */
+export function thumbKey(r: Row): string {
+  return `${String(r.qhash ?? 'x').slice(0, 10)}${r.thumb_v as number}`
+}
 
 export function toTile(r: Row): AssetTile {
   return {
@@ -49,7 +54,7 @@ export function toTile(r: Row): AssetTile {
     live: r.is_live === 1,
     favorite: r.favorite === 1,
     raw: r.is_raw === 1,
-    v: r.thumb_v as number
+    v: thumbKey(r)
   }
 }
 

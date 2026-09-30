@@ -10,6 +10,9 @@ import { applyChanges, pairLivePhotos, scanSource } from './scan/scanner'
 import { FolderWatcher } from './scan/watcher'
 import { readMetadata } from './media/metadata'
 import { fullHash, quickHash } from './media/hash'
+import { fuseInWorker } from './edit/runInWorker'
+import { mkdir as mkdirAsync } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import sharp from 'sharp'
 import { SHARP_EXTS } from './media/kinds'
 import { buildCleanupReport } from './cleanup'
@@ -28,6 +31,8 @@ export interface LibraryOptions {
   watch?: boolean
   /** Move files to the OS trash; returns the paths that failed. Provided by the Electron host. */
   moveToSystemTrash?: (paths: string[]) => Promise<string[]>
+  /** folder where MyPhotos writes the photos it creates (HDR fusions, edits saved as copies) */
+  creationsDir?: string
 }
 
 type Stage = 'meta' | 'thumb' | 'analyze'
@@ -332,7 +337,7 @@ export class Library extends EventEmitter {
 
   cleanupReport(): CleanupReport {
     if (this.cleanupCache && this.cleanupCache.version === this.version) return this.cleanupCache
-    this.cleanupCache = buildCleanupReport(this.db, this.version)
+    this.cleanupCache = buildCleanupReport(this.db, this.version, undefined, this.creationsSourceId())
     return this.cleanupCache
   }
 
@@ -378,6 +383,86 @@ export class Library extends EventEmitter {
     this.db.prepare('INSERT OR IGNORE INTO cleanup_ignored (signature, kind, created_at) VALUES (?, ?, ?)').run(signature, kind, Date.now())
     this.cleanupCache = null
     this.emitChanged()
+  }
+
+  // ---------------------------------------------------------------- creations
+
+  get creationsDir(): string {
+    return resolve(this.opts.creationsDir ?? join(this.opts.dataDir, 'Créations'))
+  }
+
+  creationsSourceId(): number | null {
+    return (this.db.prepare('SELECT id FROM sources WHERE path = ?').get(this.creationsDir) as { id: number } | undefined)?.id ?? null
+  }
+
+  private async ensureCreationsSource(): Promise<number> {
+    await mkdirAsync(this.creationsDir, { recursive: true })
+    const existing = this.creationsSourceId()
+    if (existing !== null) return existing
+    this.db.prepare('INSERT INTO sources (path, added_at) VALUES (?, ?)').run(this.creationsDir, Date.now())
+    this.watcher?.add(this.creationsDir)
+    return this.creationsSourceId()!
+  }
+
+  /**
+   * Fuse an exposure bracket into one well-exposed photo, written to the creations folder.
+   * Sources are only read. Returns immediately; a 'creation-done' event reports the result.
+   */
+  startFusion(ids: number[]): string {
+    const rows = ids.map((id) => this.assets.raw(id)).filter((r): r is Row => Boolean(r) && r!.kind === 'photo')
+    if (rows.length < 2) throw new Error('Choisissez au moins deux photos de la même scène')
+    const jobId = `fusion-${++this.exportSeq}`
+    const group: JobGroupState = { id: jobId, label: 'Fusion des expositions', total: 1, done: 0, failed: 0 }
+    this.progress.set(jobId, group)
+    this.emitJobs()
+    void (async () => {
+      let assetId: number | null = null
+      try {
+        const sourceId = await this.ensureCreationsSource()
+        const ref = [...rows].sort((a, b) => (a.exposure as number) - (b.exposure as number))[Math.floor(rows.length / 2)]!
+        const stem = String(ref.name).replace(/\.[^.]+$/, '')
+        let out = join(this.creationsDir, `${stem} HDR.jpg`)
+        for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} HDR ${i}.jpg`)
+        const tz = ref.tz_offset as number | null
+        const d = new Date((ref.taken_at as number) + (tz ?? 0) * 60000)
+        const p2 = (n: number): string => String(n).padStart(2, '0')
+        const get = tz !== null ? { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes(), s: d.getUTCSeconds() } : { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate(), h: d.getHours(), mi: d.getMinutes(), s: d.getSeconds() }
+        const exifDate = `${get.y}:${p2(get.m)}:${p2(get.d)} ${p2(get.h)}:${p2(get.mi)}:${p2(get.s)}`
+        const ifd2: Record<string, string> = { DateTimeOriginal: exifDate, UserComment: 'MyPhotos HDR' }
+        if (tz !== null) ifd2.OffsetTimeOriginal = `${tz >= 0 ? '+' : '-'}${p2(Math.floor(Math.abs(tz) / 60))}:${p2(Math.abs(tz) % 60)}`
+        const ifd0: Record<string, string> = { Software: 'MyPhotos' }
+        if (ref.make) ifd0.Make = String(ref.make)
+        if (ref.model) ifd0.Model = String(ref.model)
+        const ifd3: Record<string, string> = {}
+        if (typeof ref.lat === 'number' && typeof ref.lon === 'number') {
+          const dms = (v: number): string => { const a = Math.abs(v); const dd = Math.floor(a); const mm = Math.floor((a - dd) * 60); return `${dd}/1 ${mm}/1 ${Math.round(((a - dd) * 60 - mm) * 6000)}/100` }
+          Object.assign(ifd3, { GPSLatitudeRef: ref.lat >= 0 ? 'N' : 'S', GPSLatitude: dms(ref.lat), GPSLongitudeRef: ref.lon >= 0 ? 'E' : 'W', GPSLongitude: dms(ref.lon) })
+        }
+        await fuseInWorker({ inputs: rows.map(decodeInput), output: out, maxSize: 4096, align: true, exif: { IFD0: ifd0, IFD2: ifd2, ...(Object.keys(ifd3).length ? { IFD3: ifd3 } : {}) } })
+        this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'hdr', JSON.stringify(ids), Date.now())
+        await applyChanges(this.db, sourceId, this.creationsDir, [out])
+        const row = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(out) as Row | undefined
+        if (row) {
+          await this.indexMeta(row)
+          const fresh = this.assets.raw(row.id as number)!
+          await this.indexThumb(fresh)
+          await this.indexAnalysis(this.assets.raw(row.id as number)!)
+          // keep the fusion in the same albums as its sources
+          this.db.prepare(`INSERT OR IGNORE INTO album_assets (album_id, asset_id, added_at)
+            SELECT DISTINCT album_id, ?, ? FROM album_assets WHERE asset_id IN (SELECT value FROM json_each(?))`).run(row.id as number, Date.now(), JSON.stringify(ids))
+          assetId = row.id as number
+        }
+        this.cleanupCache = null
+        this.emitChanged()
+        this.send({ type: 'creation-done', ok: true, assetId, sources: ids })
+      } catch (e) {
+        this.send({ type: 'creation-done', ok: false, assetId: null, error: (e as Error).message, sources: ids })
+      } finally {
+        this.progress.delete(jobId)
+        this.emitJobs()
+      }
+    })()
+    return jobId
   }
 
   // ---------------------------------------------------------------- export

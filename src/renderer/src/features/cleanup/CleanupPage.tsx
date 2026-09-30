@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { BrushCleaning, Copy, Layers, Loader2, Sparkles, Trash2 } from 'lucide-react'
+import { Aperture, BrushCleaning, Copy, Layers, Loader2, Sparkles, Trash2 } from 'lucide-react'
+import { BracketList } from './BracketList'
 import { media } from '@/api/client'
 import { Button } from '@/components/ui'
 import { confirm } from '@/components/Confirm'
@@ -11,7 +12,7 @@ import { GroupCard } from './GroupCard'
 import { GroupReview } from './GroupReview'
 import type { CleanupGroup, CleanupReport, SuggestionCategory } from '@shared/types'
 
-type Tab = 'exact' | 'visual' | 'similar' | 'suggestions'
+type Tab = 'brackets' | 'exact' | 'visual' | 'similar' | 'suggestions'
 
 export function CleanupPage() {
   const { data: report, isLoading } = useCleanupReport()
@@ -40,6 +41,8 @@ export function CleanupPage() {
           <div className="min-h-0 flex-1">
             {active === 'suggestions' ? (
               <Suggestions categories={report.suggestions} />
+            ) : active === 'brackets' ? (
+              <BracketList groups={report.brackets} />
             ) : (
               <GroupList key={active} mode={active} groups={report[active]} />
             )}
@@ -55,13 +58,14 @@ function SummaryCards({ report, active, onSelect }: { report: CleanupReport; act
   const sugBytes = report.suggestions.reduce((a, c) => a + c.bytes, 0)
   const sugCount = report.suggestions.reduce((a, c) => a + c.items.length, 0)
   const cards: Array<{ id: Tab; icon: React.ReactNode; title: string; value: string; sub: string }> = [
+    { id: 'brackets', icon: <Aperture className="size-4" />, title: 'Bracketing', value: count(report.brackets.length), sub: report.brackets.length ? 'séries à fusionner en HDR' : 'Aucune série' },
     { id: 'exact', icon: <Copy className="size-4" />, title: 'Doublons exacts', value: count(report.exact.length), sub: report.exact.length ? `${bytes(sum(report.exact))} récupérables` : 'Aucun fichier en double' },
     { id: 'visual', icon: <Layers className="size-4" />, title: 'Mêmes images', value: count(report.visual.length), sub: report.visual.length ? `autre format ou taille · ${bytes(sum(report.visual))}` : 'Aucune version en double' },
     { id: 'similar', icon: <Sparkles className="size-4" />, title: 'Photos similaires', value: count(report.similar.length), sub: report.similar.length ? 'rafales : garder la meilleure' : 'Aucune rafale' },
     { id: 'suggestions', icon: <Trash2 className="size-4" />, title: 'À trier', value: count(sugCount), sub: sugCount ? `${bytes(sugBytes)} au total` : 'Rien à signaler' }
   ]
   return (
-    <div className="grid shrink-0 grid-cols-4 gap-3 px-5 pt-4 pb-3">
+    <div className="grid shrink-0 grid-cols-5 gap-3 px-5 pt-4 pb-3">
       {cards.map((c) => (
         <button
           key={c.id}

@@ -64,8 +64,8 @@ export const qs = (o: Record<string, string | number | undefined | null>): strin
 }
 
 export const media = {
-  thumb: (id: number, v = 0): string => `${apiBase}/api/thumb/${id}?t=${token}&v=${v}`,
-  preview: (id: number, v = 0): string => `${apiBase}/api/preview/${id}?t=${token}&v=${v}`,
+  thumb: (id: number, v: string | number = 0): string => `${apiBase}/api/thumb/${id}?t=${token}&v=${v}`,
+  preview: (id: number, v: string | number = 0): string => `${apiBase}/api/preview/${id}?t=${token}&v=${v}`,
   original: (id: number): string => `${apiBase}/api/original/${id}?t=${token}`,
   download: (id: number): string => `${apiBase}/api/original/${id}?t=${token}&download=1`,
   live: (id: number): string => `${apiBase}/api/live/${id}?t=${token}`

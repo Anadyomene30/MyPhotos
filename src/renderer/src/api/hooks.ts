@@ -16,6 +16,12 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
       onServerEvent((e) => {
         if (e.type === 'jobs') setJobs(e.jobs)
         if (e.type === 'scan') setScanning(e.scanning)
+        if (e.type === 'creation-done') {
+          const ui = useUi.getState()
+          if (!e.ok) ui.toast(`Fusion impossible : ${e.error ?? 'erreur inconnue'}`)
+          else
+            ui.toast('Photo HDR créée', e.assetId ? { label: 'Voir', run: () => void openAsset(e.assetId!) } : undefined)
+        }
         if (e.type === 'export-done') {
           const r = e.result
           const ui = useUi.getState()
@@ -111,4 +117,13 @@ export const albumsApi = {
   remove: (id: number) => api(`/api/albums/${id}`, { method: 'DELETE' }),
   add: (id: number, ids: number[]) => api<{ added: number }>(`/api/albums/${id}/assets`, { method: 'POST', json: { ids } }),
   removeAssets: (id: number, ids: number[]) => api<{ removed: number }>(`/api/albums/${id}/assets`, { method: 'DELETE', json: { ids } })
+}
+
+/** Show one asset in the viewer, from the whole library timeline. */
+export async function openAsset(id: number): Promise<void> {
+  const ui = useUi.getState()
+  ui.setSection('all')
+  ui.setKind('all')
+  const { index } = await api<{ index: number | null }>(`/api/timeline/index/${id}`)
+  if (index !== null) useUi.getState().openViewer(index)
 }

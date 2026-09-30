@@ -1,9 +1,10 @@
 import clsx from 'clsx'
 import { useRef, useState } from 'react'
-import { FolderMinus, Share, Heart, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
+import { FolderMinus, Share, Heart, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
 import { IconButton, Segmented } from '@/components/ui'
 import { albumsApi, patchAssets, useAlbums, useLibraryState } from '@/api/hooks'
 import { AddToAlbumButton } from '@/features/albums/AddToAlbumMenu'
+import { startFusion } from '@/features/cleanup/BracketList'
 import { MenuItem, MenuSeparator, Popover } from '@/components/Popover'
 import { promptText } from '@/components/Prompt'
 import { confirm } from '@/components/Confirm'
@@ -92,6 +93,11 @@ export function Toolbar() {
                 <Share className="size-[17px]" />
               </IconButton>
               <AddToAlbumButton ids={[...selection]} />
+              {n >= 2 && n <= 15 && (
+                <IconButton label="Fusionner les expositions (HDR)" onClick={() => void startFusion([...selection]).then(() => useUi.getState().toast('Fusion en cours…'), (e: Error) => useUi.getState().toast(e.message))}>
+                  <Wand2 className="size-[17px]" />
+                </IconButton>
+              )}
               {album?.kind === 'manual' && (
                 <IconButton
                   label="Retirer de l’album"

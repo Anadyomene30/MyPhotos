@@ -89,7 +89,8 @@ export class AlbumRepo {
       .prepare(`SELECT count(*) AS n, (SELECT id FROM assets WHERE ${VISIBLE} AND (${cond.sql}) ORDER BY day DESC, taken_at DESC LIMIT 1) AS latest FROM assets WHERE ${VISIBLE} AND (${cond.sql})`)
       .get(...cond.params, ...cond.params) as { n: number; latest: number | null }
     const coverId = r.cover_id ?? stats.latest
-    const coverV = coverId ? ((this.db.prepare('SELECT thumb_v FROM assets WHERE id = ?').get(coverId) as { thumb_v: number } | undefined)?.thumb_v ?? 0) : 0
+    const cover = coverId ? (this.db.prepare('SELECT thumb_v, qhash FROM assets WHERE id = ?').get(coverId) as { thumb_v: number; qhash: string | null } | undefined) : undefined
+    const coverV = cover ? `${String(cover.qhash ?? 'x').slice(0, 10)}${cover.thumb_v}` : ''
     return {
       id: r.id,
       name: r.name,

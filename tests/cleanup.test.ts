@@ -54,6 +54,34 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
     }
   })
 
+  it('detects the exposure bracket and fuses it into a new photo', async () => {
+    const r = lib.cleanupReport()
+    expect(r.brackets.length).toBe(1)
+    const g = r.brackets[0]!
+    expect(g.items.map((i) => i.name).sort()).toEqual(['IMG_3402.JPG', 'IMG_3403.JPG', 'IMG_3404.JPG'])
+    expect(r.similar.some((s) => s.items.some((i) => i.name === 'IMG_3403.JPG'))).toBe(false)
+    const done = new Promise<{ ok: boolean; assetId: number | null; error?: string }>((resolve) => {
+      const on = (e: { type: string }): void => {
+        if (e.type === 'creation-done') {
+          lib.off('event', on)
+          resolve(e as never)
+        }
+      }
+      lib.on('event', on)
+    })
+    lib.startFusion(g.items.map((i) => i.id))
+    const res = await done
+    expect(res.error).toBeUndefined()
+    expect(res.ok).toBe(true)
+    const d = lib.assets.detail(res.assetId!)!
+    expect(d.name).toBe('IMG_3403 HDR.jpg')
+    expect(d.day).toBe('2019-05-12')
+    expect(d.path.startsWith(lib.creationsDir)).toBe(true)
+    // the fusion is not reported as a duplicate of its sources
+    expect(lib.cleanupReport().brackets.length).toBe(1)
+    expect(lib.cleanupReport().visual.some((v) => v.items.some((i) => i.id === res.assetId))).toBe(false)
+  }, 120000)
+
   it('verifies bytes before trashing copies and supports ignoring groups', async () => {
     const r = lib.cleanupReport()
     const g = r.exact[0]!

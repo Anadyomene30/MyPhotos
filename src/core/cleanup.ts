@@ -29,6 +29,10 @@ interface Rec {
   qhash: string | null
   make: string | null
   model: string | null
+  exposure: number | null
+  fnumber: number | null
+  iso: number | null
+  source_id: number
   favorite: number
   is_screenshot: number
   is_live: number
@@ -45,7 +49,7 @@ const ORIGINAL_FORMATS = new Set(['heic', 'heif', 'cr2', 'cr3', 'nef', 'arw', 'd
 function toItem(r: Rec): CleanupItem {
   return {
     id: r.id, name: r.name, relDir: r.rel_dir, ext: r.ext, kind: r.kind, size: r.size, takenAt: r.taken_at,
-    width: r.width, height: r.height, duration: r.duration, quality: r.quality, favorite: r.favorite === 1, v: r.thumb_v
+    width: r.width, height: r.height, duration: r.duration, quality: r.quality, favorite: r.favorite === 1, v: `${String(r.qhash ?? 'x').slice(0, 10)}${r.thumb_v}`
   }
 }
 
@@ -153,14 +157,18 @@ export interface CleanupThresholds {
 
 export const DEFAULT_THRESHOLDS: CleanupThresholds = { visualHamming: 3, burstHamming: 14, burstWindowSec: 20 }
 
-export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds = DEFAULT_THRESHOLDS): CleanupReport {
+export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds = DEFAULT_THRESHOLDS, creationsSource: number | null = null): CleanupReport {
   const rows = db
     .prepare(`SELECT a.id, a.name, a.rel_dir, a.ext, a.kind, a.size, a.taken_at, a.date_source, a.width, a.height, a.duration, a.quality,
-        a.sharpness, a.brightness, a.clip_dark, a.clip_bright, a.contrast, a.phash, a.ph0, a.ph1, a.ph2, a.ph3, a.qhash, a.make, a.model,
+        a.sharpness, a.brightness, a.clip_dark, a.clip_bright, a.contrast, a.phash, a.ph0, a.ph1, a.ph2, a.ph3, a.qhash, a.make, a.model, a.exposure, a.fnumber, a.iso, a.source_id,
         a.favorite, a.is_screenshot, a.is_live, a.thumb_v, a.added_at,
         EXISTS (SELECT 1 FROM album_assets aa WHERE aa.asset_id = a.id) AS in_album
       FROM assets a WHERE ${VISIBLE}`)
     .all() as unknown as Rec[]
+  if (creationsSource !== null) {
+    // derived photos (HDR fusions) are not duplicates of their sources
+    for (let i = rows.length - 1; i >= 0; i--) if (rows[i]!.source_id === creationsSource) rows.splice(i, 1)
+  }
   const ignored = new Set((db.prepare('SELECT signature FROM cleanup_ignored').all() as Array<{ signature: string }>).map((r) => r.signature))
   const byId = new Map(rows.map((r) => [r.id, r]))
 
@@ -185,6 +193,8 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
   // 2. photos by time for bursts; unreliable dates (file times) are skipped
   const photos = rows.filter((r) => r.kind === 'photo' && r.phash && !lowEntropy(r.phash))
   const timed = photos.filter((r) => r.date_source !== 'mtime' && r.date_source !== 'folder').sort((a, b) => a.taken_at - b.taken_at)
+  const bracketGroups = detectBrackets(timed)
+  const inBracket = new Set(bracketGroups.flat().map((r) => r.id))
   const burstUF = new UnionFind()
   const winMs = t.burstWindowSec * 1000
   for (let i = 0; i < timed.length; i++) {
@@ -192,6 +202,7 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
     for (let j = i + 1; j < timed.length && j < i + 40; j++) {
       const b = timed[j]!
       if (b.taken_at - a.taken_at > winMs) break
+      if (inBracket.has(a.id) || inBracket.has(b.id)) continue
       if (a.qhash && a.qhash === b.qhash) continue
       const d = hamming(a.phash!, b.phash!)
       // same picture saved in another format or size is a visual duplicate, not a burst
@@ -246,6 +257,21 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
     if (!ignored.has(grp.key)) similar.push(grp)
   }
 
+  const brackets: CleanupGroup[] = []
+  for (const g of bracketGroups) {
+    const byExp = [...g].sort((a, b) => a.exposure! - b.exposure!)
+    const mid = byExp[Math.floor(byExp.length / 2)]!
+    const ev = Math.log2(byExp[byExp.length - 1]!.exposure! / byExp[0]!.exposure!)
+    const grp: CleanupGroup = {
+      key: signature(g.map((r) => r.id)),
+      items: byExp.map(toItem),
+      keepId: mid.id,
+      reasons: [`${g.length} expositions · ${ev.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} IL d’écart`, [mid.make, mid.model?.replace(mid.make ?? '', '').trim()].filter(Boolean).join(' ')].filter(Boolean),
+      reclaimable: 0
+    }
+    if (!ignored.has(grp.key)) brackets.push(grp)
+  }
+
   // 4. suggestions: never favorites or album members
   const now = Date.now()
   const eligible = rows.filter((r) => !r.favorite && !r.in_album && !ignored.has(`item:${r.id}`))
@@ -265,6 +291,7 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
   const byReclaim = (a: CleanupGroup, b: CleanupGroup): number => b.reclaimable - a.reclaimable
   return {
     exact: exact.sort(byReclaim),
+    brackets: brackets.sort((a, b) => b.items[0]!.takenAt - a.items[0]!.takenAt),
     visual: visual.sort(byReclaim),
     similar: similar.sort((a, b) => b.items[0]!.takenAt - a.items[0]!.takenAt),
     suggestions,
@@ -272,4 +299,42 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
     total: rows.length,
     version
   }
+}
+
+/**
+ * Exposure brackets: consecutive frames from the same camera and aperture/ISO, a few seconds apart,
+ * each with a different shutter speed, same framing, and at least 1.5 EV between extremes.
+ */
+function detectBrackets(timed: Rec[]): Rec[][] {
+  const out: Rec[][] = []
+  let cur: Rec[] = []
+  const close = (): void => {
+    if (cur.length >= 2) {
+      const exps = cur.map((r) => r.exposure!)
+      const ev = Math.log2(Math.max(...exps) / Math.min(...exps))
+      if ((cur.length >= 3 && ev >= 1.5) || (cur.length === 2 && ev >= 2)) out.push(cur)
+    }
+    cur = []
+  }
+  for (const r of timed) {
+    if (!r.exposure || r.exposure <= 0 || !r.model) {
+      close()
+      continue
+    }
+    const prev = cur[cur.length - 1]
+    const fits =
+      prev &&
+      r.taken_at - prev.taken_at <= 2500 &&
+      r.model === prev.model &&
+      r.fnumber === prev.fnumber &&
+      r.iso === prev.iso &&
+      r.width === prev.width &&
+      !cur.some((c) => Math.abs(Math.log2(c.exposure! / r.exposure!)) < 0.2) &&
+      // over- and under-exposed frames lose structure: rely on timing when frames are very close
+      (r.taken_at - prev.taken_at <= 1500 || hamming(prev.phash!, r.phash!) <= 22)
+    if (!fits) close()
+    cur.push(r)
+  }
+  close()
+  return out
 }

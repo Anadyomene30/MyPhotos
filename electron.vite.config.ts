@@ -15,7 +15,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('src/main/index.ts'),
-          backend: resolve('src/backend/index.ts')
+          backend: resolve('src/backend/index.ts'),
+          'fusion-worker': resolve('src/core/edit/fusion-worker.ts')
         }
       }
     }

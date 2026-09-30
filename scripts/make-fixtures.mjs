@@ -109,6 +109,25 @@ for (let v = 0; v < 4; v++) {
     '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-metadata', `creation_time=${d.toISOString()}`, join(out, 'Vidéos', `VID_${2000 + v}.mp4`)])
 }
 
+// exposure bracket: 3 frames within the same second, shutter 1/800, 1/200, 1/50
+mkdirSync(join(out, 'Bracketing'), { recursive: true })
+{
+  const w = 1200, h = 800
+  const texture = Buffer.alloc(w * h * 3)
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const sky = y < h * 0.55
+    const v = sky ? 0.75 + 0.2 * Math.sin(x * 0.02 + y * 0.01) : 0.12 + 0.08 * Math.sin(x * 0.09) * Math.cos(y * 0.07)
+    const i = (y * w + x) * 3
+    texture[i] = Math.round(v * (sky ? 190 : 120)); texture[i + 1] = Math.round(v * (sky ? 215 : 150)); texture[i + 2] = Math.round(v * (sky ? 255 : 90))
+  }
+  for (const [k, [gain, exp]] of [[0.35, '1/800'], [1, '1/200'], [3, '1/50']].entries()) {
+    const buf = Buffer.from(texture.map((v) => Math.min(255, Math.round(v * gain))))
+    await sharp(buf, { raw: { width: w, height: h, channels: 3 } }).jpeg({ quality: 90 })
+      .withExif({ IFD0: { Make: 'Canon', Model: 'Canon EOS 6D' }, IFD2: { DateTimeOriginal: '2019:05:12 10:32:21', SubSecTimeOriginal: String(19 + k * 22), ExposureTime: exp, FNumber: '63/10', ISOSpeedRatings: '100' } })
+      .toFile(join(out, 'Bracketing', `IMG_${3402 + k}.JPG`))
+  }
+}
+
 // a file without EXIF: date from filename
 await sharp({ create: { width: 800, height: 600, channels: 3, background: '#3b82f6' } }).jpeg().toFile(join(out, 'Divers', 'WhatsApp Image 2022-12-24 at 19.45.10.jpeg'))
 // a file without any date clue: mtime

@@ -206,6 +206,9 @@ export async function readImageMetadata(file: string, name: string, ext: string,
   if (tags) {
     const dateStr = str(tags.DateTimeOriginal) ?? str(tags.CreateDate) ?? str(tags.DateTimeDigitized) ?? str(tags.ModifyDate)
     const parsed = dateStr ? parseDateString(dateStr) : null
+    // sub-second precision orders burst and bracket frames shot within the same second
+    const subsec = str(tags.SubSecTimeOriginal) ?? (typeof tags.SubSecTimeOriginal === 'number' ? String(tags.SubSecTimeOriginal) : null)
+    if (parsed && subsec && /^\d+$/.test(subsec) && parsed.wall.ms === 0) parsed.wall.ms = Math.round(Number(`0.${subsec}`) * 1000)
     if (parsed) {
       const offset = parsed.offset ?? parseOffset(str(tags.OffsetTimeOriginal) ?? str(tags.OffsetTime) ?? '')
       const r = resolveWall(parsed.wall, offset)

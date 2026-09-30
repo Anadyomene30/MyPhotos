@@ -15,7 +15,7 @@ const token = process.env.MYPHOTOS_TOKEN ?? randomBytes(24).toString('hex')
 const preferredPort = parseInt(process.env.MYPHOTOS_PORT ?? '47800', 10)
 const rendererDir = process.env.MYPHOTOS_RENDERER_DIR ?? resolve(import.meta.dirname, '../renderer')
 
-const lib = new Library({ dataDir, moveToSystemTrash: (paths) => hostCall<string[]>('trash', paths) })
+const lib = new Library({ dataDir, creationsDir: process.env.MYPHOTOS_CREATIONS, moveToSystemTrash: (paths) => hostCall<string[]>('trash', paths) })
 const app = createApp(lib, { token, rendererDir, devOrigin: process.env.MYPHOTOS_DEV_ORIGIN })
 
 function listen(port: number): Promise<number> {

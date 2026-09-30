@@ -175,6 +175,15 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ ok: true })
   })
 
+  app.post('/api/fusion', async (c) => {
+    const body = z.object({ ids: z.array(z.number().int()).min(2).max(15) }).parse(await c.req.json())
+    try {
+      return c.json({ jobId: lib.startFusion(body.ids) })
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+
   // ------------------------------------------------------------ export
   const exportSchema = z.object({
     ids: z.array(z.number().int()).min(1).max(200000),

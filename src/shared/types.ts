@@ -11,8 +11,8 @@ export interface AssetTile {
   live: boolean
   favorite: boolean
   raw: boolean
-  /** bumps when the thumbnail changes, used for cache busting */
-  v: number
+  /** cache key of the thumbnail: changes with the file content or a regeneration */
+  v: string
 }
 
 export interface AssetDetail extends AssetTile {
@@ -84,7 +84,7 @@ export interface Album {
   rules: SmartRules | null
   count: number
   coverId: number | null
-  coverV: number
+  coverV: string
   createdAt: number
   updatedAt: number
 }
@@ -137,6 +137,7 @@ export type ServerEvent =
   | { type: 'library-changed'; version: number }
   | { type: 'scan'; scanning: boolean }
   | { type: 'export-done'; result: ExportResult }
+  | { type: 'creation-done'; ok: boolean; assetId: number | null; error?: string; sources: number[] }
 
 export type PhotoFormat = 'original' | 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff'
 export type VideoFormat = 'original' | 'mp4-h264' | 'mp4-hevc' | 'webm' | 'mov-prores' | 'gif'
@@ -179,7 +180,7 @@ export interface CleanupItem {
   duration: number | null
   quality: number | null
   favorite: boolean
-  v: number
+  v: string
 }
 
 export interface CleanupGroup {
@@ -205,6 +206,8 @@ export interface SuggestionCategory {
 
 export interface CleanupReport {
   exact: CleanupGroup[]
+  /** exposure bracketing series that can be fused into one well-exposed photo */
+  brackets: CleanupGroup[]
   visual: CleanupGroup[]
   similar: CleanupGroup[]
   suggestions: SuggestionCategory[]
