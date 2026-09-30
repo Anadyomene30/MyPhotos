@@ -36,6 +36,8 @@ export interface AssetDetail extends AssetTile {
   screenshot: boolean
   rating: number
   hasLiveVideo: boolean
+  /** path of the RAW file paired with this JPEG/HEIC */
+  rawCompanion: string | null
   /** true when the browser can display the original file directly */
   webNative: boolean
   trashedAt: number | null
@@ -149,6 +151,8 @@ export interface ExportOptions {
   pattern?: string
   folders: 'flat' | 'year' | 'yearMonth'
   includeLiveVideo: boolean
+  /** also copy the RAW file paired with a JPEG */
+  includeRaw?: boolean
   setFileDates: boolean
 }
 
@@ -160,4 +164,51 @@ export interface ExportResult {
   destination: string
   cancelled: boolean
   errors: string[]
+}
+
+export interface CleanupItem {
+  id: number
+  name: string
+  relDir: string
+  ext: string
+  kind: AssetKind
+  size: number
+  takenAt: number
+  width: number | null
+  height: number | null
+  duration: number | null
+  quality: number | null
+  favorite: boolean
+  v: number
+}
+
+export interface CleanupGroup {
+  /** stable signature (sorted ids) used to ignore a group */
+  key: string
+  items: CleanupItem[]
+  keepId: number
+  /** why the suggested item is the one to keep */
+  reasons: string[]
+  /** bytes freed by removing every item except keepId */
+  reclaimable: number
+}
+
+export type SuggestionKind = 'screenshots' | 'blurry' | 'dark' | 'overexposed' | 'shortVideos' | 'largeVideos'
+
+export interface SuggestionCategory {
+  id: SuggestionKind
+  title: string
+  description: string
+  items: CleanupItem[]
+  bytes: number
+}
+
+export interface CleanupReport {
+  exact: CleanupGroup[]
+  visual: CleanupGroup[]
+  similar: CleanupGroup[]
+  suggestions: SuggestionCategory[]
+  analyzed: number
+  total: number
+  version: number
 }

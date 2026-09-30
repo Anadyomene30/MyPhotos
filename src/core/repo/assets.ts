@@ -155,6 +155,7 @@ export class AssetRepo {
       screenshot: r.is_screenshot === 1,
       rating: r.rating as number,
       hasLiveVideo: Boolean(r.live_video),
+      rawCompanion: (r.raw_companion as string | null) ?? null,
       webNative: isWebNative(kind, ext),
       trashedAt: r.trashed_at as number | null
     }

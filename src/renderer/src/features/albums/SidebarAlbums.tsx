@@ -13,6 +13,7 @@ import { addToAlbumWithToast } from './AddToAlbumMenu'
 export function SidebarAlbums() {
   const { data: albums } = useAlbums()
   const albumId = useUi((s) => s.albumId)
+  const page = useUi((s) => s.page)
   const openAlbum = useUi((s) => s.openAlbum)
   const setSmartEditor = useUi((s) => s.setSmartEditor)
   const [dropTarget, setDropTarget] = useState<number | null>(null)
@@ -55,7 +56,7 @@ export function SidebarAlbums() {
       </div>
       <div className="space-y-px">
         {(albums ?? []).map((a) => {
-          const active = albumId === a.id
+          const active = page === 'library' && albumId === a.id
           const droppable = a.kind === 'manual'
           return (
             <button

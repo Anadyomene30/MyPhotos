@@ -225,6 +225,10 @@ export function ExportDialog() {
                   </label>
                 )}
                 <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={Boolean(s.includeRaw)} onChange={(e) => update({ includeRaw: e.target.checked })} className="accent-[var(--accent)]" />
+                  Joindre le fichier RAW des photos RAW + JPEG
+                </label>
+                <label className="flex items-center gap-2">
                   <input type="checkbox" checked={s.setFileDates} onChange={(e) => update({ setFileDates: e.target.checked })} className="accent-[var(--accent)]" />
                   Dater les fichiers à la date de prise de vue
                 </label>

@@ -14,7 +14,11 @@ export interface Toast {
   action?: { label: string; run: () => void }
 }
 
+export type Page = 'library' | 'cleanup'
+
 interface UiState {
+  page: Page
+  openPage(p: Page): void
   section: LibraryFilter
   /** active album, shown with the library filters applied inside it */
   albumId: number | null
@@ -62,6 +66,8 @@ const saved = (() => {
 let toastId = 0
 
 export const useUi = create<UiState>((set, get) => ({
+  page: 'library',
+  openPage: (page) => set({ page, selection: new Set(), anchor: null, viewerIndex: null }),
   section: 'all',
   albumId: null,
   smartEditor: null,
@@ -77,8 +83,8 @@ export const useUi = create<UiState>((set, get) => ({
   theme: saved.theme ?? 'system',
   version: 0,
   toasts: [],
-  setSection: (section) => set({ section, albumId: null, selection: new Set(), anchor: null, viewerIndex: null }),
-  openAlbum: (albumId) => set({ section: 'all', albumId, selection: new Set(), anchor: null, viewerIndex: null }),
+  setSection: (section) => set({ page: 'library', section, albumId: null, selection: new Set(), anchor: null, viewerIndex: null }),
+  openAlbum: (albumId) => set({ page: 'library', section: 'all', albumId, selection: new Set(), anchor: null, viewerIndex: null }),
   setSmartEditor: (smartEditor) => set({ smartEditor }),
   setExportIds: (exportIds) => set({ exportIds }),
   setKind: (kind) => set({ kind, selection: new Set(), anchor: null }),

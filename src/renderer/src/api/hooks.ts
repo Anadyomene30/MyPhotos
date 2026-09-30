@@ -34,6 +34,7 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
           void qc.invalidateQueries({ queryKey: ['years'] })
           void qc.invalidateQueries({ queryKey: ['asset'] })
           void qc.invalidateQueries({ queryKey: ['albums'] })
+          void qc.invalidateQueries({ queryKey: ['cleanup'] })
         }
       }),
     [qc, bump]

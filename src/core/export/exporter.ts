@@ -151,6 +151,10 @@ export function runExport(jobId: string, rows: Row[], opts: ExportOptions, onPro
             out = alloc.allocate(dir, base, PHOTO_EXT[opts.photo.format], join)
             await exportPhoto(row, out, opts)
           }
+          if (opts.includeRaw && row.raw_companion) {
+            const rp = String(row.raw_companion)
+            await copyFile(rp, alloc.allocate(dir, base, extOf(rp) || 'raw', join))
+          }
           if (opts.includeLiveVideo && row.live_video) {
             const lv = String(row.live_video)
             const liveOut = alloc.allocate(dir, base, extOf(lv) || 'mov', join)

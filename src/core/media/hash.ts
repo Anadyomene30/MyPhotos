@@ -1,3 +1,5 @@
+import { createReadStream } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { open } from 'node:fs/promises'
 import xxhash from 'xxhash-wasm'
 
@@ -23,4 +25,15 @@ export async function quickHash(file: string, size: number): Promise<string> {
   } finally {
     await fh.close()
   }
+}
+
+/** Full-content SHA-256, streamed. Used to confirm exact duplicates before anything is removed. */
+export function fullHash(file: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const h = createHash('sha256')
+    createReadStream(file, { highWaterMark: 1024 * 1024 })
+      .on('data', (d) => h.update(d))
+      .on('error', reject)
+      .on('end', () => resolve(h.digest('hex')))
+  })
 }

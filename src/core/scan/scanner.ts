@@ -119,6 +119,7 @@ export async function scanSource(db: Db, sourceId: number, root: string, onProgr
  * The video becomes hidden and is played from the photo. Videos longer than 6 s are never treated as Live Photos.
  */
 export function pairLivePhotos(db: Db, sourceId?: number): void {
+  pairRawJpeg(db, sourceId)
   const scope = sourceId === undefined ? '' : 'AND v.source_id = ?'
   const args = sourceId === undefined ? [] : [sourceId]
   db.prepare(`UPDATE assets SET hidden = 1 WHERE id IN (
@@ -199,4 +200,30 @@ export async function applyChanges(db: Db, sourceId: number, root: string, paths
     if (changes) pairLivePhotos(db, sourceId)
   })
   return changes
+}
+
+const RAW_SQL = "('cr2', 'cr3', 'crw', 'nef', 'nrw', 'arw', 'srf', 'sr2', 'dng', 'raf', 'orf', 'rw2', 'pef', 'srw', '3fr', 'iiq', 'erf', 'kdc', 'mrw', 'x3f')"
+const JPEG_SQL = "('jpg', 'jpeg', 'jpe', 'heic', 'heif')"
+
+/**
+ * Cameras shooting RAW + JPEG write IMG_1234.CR2 next to IMG_1234.JPG. Show the JPEG, keep the RAW attached
+ * (exported, trashed and restored with it) instead of listing the same photo twice.
+ */
+export function pairRawJpeg(db: Db, sourceId?: number): void {
+  const scope = sourceId === undefined ? '' : 'AND r.source_id = ?'
+  const args = sourceId === undefined ? [] : [sourceId]
+  db.prepare(`UPDATE assets SET hidden = 1 WHERE id IN (
+      SELECT r.id FROM assets r JOIN assets j
+        ON j.source_id = r.source_id AND j.rel_dir = r.rel_dir AND j.stem = r.stem AND j.ext IN ${JPEG_SQL} AND j.missing_at IS NULL
+      WHERE r.ext IN ${RAW_SQL} AND r.hidden = 0 AND r.missing_at IS NULL ${scope})`).run(...args)
+  db.prepare(`UPDATE assets SET raw_companion = NULL, is_raw = 0 WHERE raw_companion IS NOT NULL ${sourceId === undefined ? '' : 'AND source_id = ?'}`).run(...args)
+  // is_raw on the JPEG means "this photo also has a RAW file" (filters and badges)
+  db.prepare(`UPDATE assets AS j SET raw_companion = r.path, is_raw = 1
+      FROM assets r
+      WHERE r.source_id = j.source_id AND r.rel_dir = j.rel_dir AND r.stem = j.stem AND r.ext IN ${RAW_SQL} AND r.hidden = 1 AND r.missing_at IS NULL
+        AND j.ext IN ${JPEG_SQL} ${sourceId === undefined ? '' : 'AND j.source_id = ?'}`).run(...args)
+  // a RAW whose JPEG disappeared becomes visible again
+  db.prepare(`UPDATE assets SET hidden = 0 WHERE ext IN ${RAW_SQL} AND hidden = 1 AND NOT EXISTS (
+      SELECT 1 FROM assets j WHERE j.source_id = assets.source_id AND j.rel_dir = assets.rel_dir AND j.stem = assets.stem AND j.ext IN ${JPEG_SQL} AND j.missing_at IS NULL)
+      ${sourceId === undefined ? '' : 'AND source_id = ?'}`).run(...args)
 }

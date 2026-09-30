@@ -9,13 +9,17 @@ import { AlbumRepo } from './repo/albums'
 import { applyChanges, pairLivePhotos, scanSource } from './scan/scanner'
 import { FolderWatcher } from './scan/watcher'
 import { readMetadata } from './media/metadata'
-import { quickHash } from './media/hash'
+import { fullHash, quickHash } from './media/hash'
+import sharp from 'sharp'
+import { SHARP_EXTS } from './media/kinds'
+import { buildCleanupReport } from './cleanup'
+import { analyzeImage } from './media/analyze'
 import { ThumbStore, type ThumbSize } from './media/thumbs'
 import { limiter, throttle } from './util'
 import { runExport, type ExportRunner } from './export/exporter'
 import { isAbsolute, relative as relPath } from 'node:path'
 import type { DecodeInput } from './media/decode'
-import type { AssetKind, ExportOptions, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
+import type { AssetKind, CleanupReport, ExportOptions, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
 
 export interface LibraryOptions {
   dataDir: string
@@ -26,11 +30,12 @@ export interface LibraryOptions {
   moveToSystemTrash?: (paths: string[]) => Promise<string[]>
 }
 
-type Stage = 'meta' | 'thumb'
+type Stage = 'meta' | 'thumb' | 'analyze'
 
 const STAGE_LABEL: Record<Stage, string> = {
   meta: 'Lecture des métadonnées',
-  thumb: 'Création des miniatures'
+  thumb: 'Création des miniatures',
+  analyze: 'Analyse des images'
 }
 
 export class Library extends EventEmitter {
@@ -183,6 +188,7 @@ export class Library extends EventEmitter {
         pairLivePhotos(this.db)
         this.emitChanged()
         await this.runStage('thumb')
+        await this.runStage('analyze')
       } while (this.indexAgain && !this.closed)
     })().finally(() => {
       this.indexing = null
@@ -190,21 +196,20 @@ export class Library extends EventEmitter {
     return this.indexing
   }
 
+  private static PENDING: Record<Stage, string> = {
+    meta: 'meta_state = 0 AND missing_at IS NULL',
+    thumb: 'thumb_state = 0 AND meta_state <> 0 AND hidden = 0 AND missing_at IS NULL',
+    analyze: 'analyze_state = 0 AND thumb_state = 1 AND hidden = 0 AND missing_at IS NULL'
+  }
+
   private pendingCount(stage: Stage): number {
-    const sql = stage === 'meta'
-      ? 'SELECT count(*) AS n FROM assets WHERE meta_state = 0 AND missing_at IS NULL'
-      : 'SELECT count(*) AS n FROM assets WHERE thumb_state = 0 AND meta_state <> 0 AND hidden = 0 AND missing_at IS NULL'
-    return (this.db.prepare(sql).get() as { n: number }).n
+    return (this.db.prepare(`SELECT count(*) AS n FROM assets WHERE ${Library.PENDING[stage]}`).get() as { n: number }).n
   }
 
   private async runStage(stage: Stage): Promise<void> {
-    const concurrency = stage === 'meta' ? Math.max(4, cpus().length) : Math.max(2, Math.floor(cpus().length / 2))
+    const concurrency = stage === 'thumb' ? Math.max(2, Math.floor(cpus().length / 2)) : Math.max(4, cpus().length)
     const run = limiter(concurrency)
-    const select = stage === 'meta'
-      ? this.db.prepare(`SELECT * FROM assets WHERE meta_state = 0 AND missing_at IS NULL
-          ORDER BY day DESC, taken_at DESC LIMIT 256`)
-      : this.db.prepare(`SELECT * FROM assets WHERE thumb_state = 0 AND meta_state <> 0 AND hidden = 0 AND missing_at IS NULL
-          ORDER BY day DESC, taken_at DESC LIMIT 256`)
+    const select = this.db.prepare(`SELECT * FROM assets WHERE ${Library.PENDING[stage]} ORDER BY day DESC, taken_at DESC LIMIT 256`)
     let done = 0
     let failed = 0
     const group: JobGroupState = { id: stage, label: STAGE_LABEL[stage], total: this.pendingCount(stage), done: 0, failed: 0 }
@@ -218,7 +223,7 @@ export class Library extends EventEmitter {
         await Promise.all(
           batch.map((row) =>
             run(async () => {
-              const ok = stage === 'meta' ? await this.indexMeta(row) : await this.indexThumb(row)
+              const ok = stage === 'meta' ? await this.indexMeta(row) : stage === 'thumb' ? await this.indexThumb(row) : await this.indexAnalysis(row)
               if (ok) done++
               else failed++
               group.done = done + failed
@@ -244,6 +249,16 @@ export class Library extends EventEmitter {
     try {
       const m = await readMetadata(row.path as string, row.name as string, row.ext as string, row.kind as AssetKind, row.mtime as number, row.rel_dir as string)
       const qhash = await quickHash(row.path as string, row.size as number)
+      if ((!m.width || !m.height) && row.kind === 'photo' && SHARP_EXTS.has(row.ext as string)) {
+        try {
+          const info = await sharp(row.path as string, { failOn: 'none', unlimited: true }).metadata()
+          m.width = info.width ?? null
+          m.height = info.height ?? null
+          m.orientation ??= info.orientation ?? null
+        } catch {
+          /* dimensions stay unknown */
+        }
+      }
       let ratio: number | null = null
       if (m.width && m.height) ratio = m.orientation && m.orientation >= 5 ? m.height / m.width : m.width / m.height
       this.db.prepare(`UPDATE assets SET taken_at = ?, tz_offset = ?, day = ?, date_source = ?, width = ?, height = ?, orientation = ?, ratio = ?,
@@ -271,9 +286,26 @@ export class Library extends EventEmitter {
     }
   }
 
+  /** Perceptual hash, sharpness and exposure from the grid thumbnail (never re-reads the original). */
+  async indexAnalysis(row: Row): Promise<boolean> {
+    const id = row.id as number
+    try {
+      const a = await analyzeImage(this.thumbs.pathFor(id, 'grid'))
+      const mp = ((row.width as number | null) ?? 0) * ((row.height as number | null) ?? 0) / 1e6
+      this.db.prepare(`UPDATE assets SET phash = ?, ph0 = ?, ph1 = ?, ph2 = ?, ph3 = ?, sharpness = ?, brightness = ?, clip_dark = ?, clip_bright = ?,
+          contrast = ?, quality = ?, analyze_state = 1 WHERE id = ?`)
+        .run(a.phash, a.bands[0], a.bands[1], a.bands[2], a.bands[3], a.sharpness, a.brightness, a.clipDark, a.clipBright, a.contrast,
+          qualityScore(a.sharpness, a.brightness, a.clipDark, a.clipBright, mp), id)
+      return true
+    } catch {
+      this.db.prepare('UPDATE assets SET analyze_state = 2 WHERE id = ?').run(id)
+      return false
+    }
+  }
+
   private markThumb(row: Row, ratio: number): void {
     const known = row.ratio as number | null
-    this.db.prepare('UPDATE assets SET thumb_state = 1, ratio = ? WHERE id = ?').run(known ?? ratio, row.id as number)
+    this.db.prepare('UPDATE assets SET thumb_state = 1, analyze_state = CASE WHEN thumb_state = 1 THEN analyze_state ELSE 0 END, ratio = ? WHERE id = ?').run(known ?? ratio, row.id as number)
   }
 
   /** Path to a thumbnail, generating it on demand (interactive priority). */
@@ -292,6 +324,60 @@ export class Library extends EventEmitter {
     } catch {
       return null
     }
+  }
+
+  // ---------------------------------------------------------------- cleanup
+
+  private cleanupCache: CleanupReport | null = null
+
+  cleanupReport(): CleanupReport {
+    if (this.cleanupCache && this.cleanupCache.version === this.version) return this.cleanupCache
+    this.cleanupCache = buildCleanupReport(this.db, this.version)
+    return this.cleanupCache
+  }
+
+  private async sha(id: number): Promise<string | null> {
+    const r = this.db.prepare('SELECT path, sha256, size, mtime FROM assets WHERE id = ?').get(id) as { path: string; sha256: string | null } | undefined
+    if (!r) return null
+    if (r.sha256) return r.sha256
+    try {
+      const h = await fullHash(r.path)
+      this.db.prepare('UPDATE assets SET sha256 = ? WHERE id = ?').run(h, id)
+      return h
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Resolve exact-duplicate groups: each copy is verified byte-for-byte (SHA-256) against the kept file,
+   * then moved to the internal trash. Unverified copies are left untouched.
+   */
+  async resolveExactDuplicates(groups: Array<{ keep: number; remove: number[] }>): Promise<{ trashed: number; skipped: number }> {
+    const verified: number[] = []
+    let skipped = 0
+    const run = limiter(4)
+    await Promise.all(
+      groups.map((g) =>
+        run(async () => {
+          const ref = await this.sha(g.keep)
+          for (const id of g.remove) {
+            if (id === g.keep) continue
+            const h = ref ? await this.sha(id) : null
+            if (ref && h === ref) verified.push(id)
+            else skipped++
+          }
+        })
+      )
+    )
+    if (verified.length) this.setTrashed(verified, true)
+    return { trashed: verified.length, skipped }
+  }
+
+  ignoreCleanup(signature: string, kind: string): void {
+    this.db.prepare('INSERT OR IGNORE INTO cleanup_ignored (signature, kind, created_at) VALUES (?, ?, ?)').run(signature, kind, Date.now())
+    this.cleanupCache = null
+    this.emitChanged()
   }
 
   // ---------------------------------------------------------------- export
@@ -357,19 +443,27 @@ export class Library extends EventEmitter {
   async emptyTrash(ids?: number[]): Promise<{ removed: number; failed: number }> {
     if (!this.opts.moveToSystemTrash) throw new Error('Action disponible uniquement dans l’application de bureau')
     const rows = (ids?.length
-      ? this.db.prepare(`SELECT id, path, live_video FROM assets WHERE trashed_at IS NOT NULL AND id IN (${ids.map(() => '?').join(',')})`).all(...ids)
-      : this.db.prepare('SELECT id, path, live_video FROM assets WHERE trashed_at IS NOT NULL').all()) as Array<{ id: number; path: string; live_video: string | null }>
+      ? this.db.prepare(`SELECT id, path, live_video, raw_companion FROM assets WHERE trashed_at IS NOT NULL AND id IN (${ids.map(() => '?').join(',')})`).all(...ids)
+      : this.db.prepare('SELECT id, path, live_video, raw_companion FROM assets WHERE trashed_at IS NOT NULL').all()) as Array<{ id: number; path: string; live_video: string | null; raw_companion: string | null }>
     if (!rows.length) return { removed: 0, failed: 0 }
-    const paths = rows.flatMap((r) => (r.live_video ? [r.path, r.live_video] : [r.path]))
+    const paths = rows.flatMap((r) => [r.path, ...(r.live_video ? [r.live_video] : []), ...(r.raw_companion ? [r.raw_companion] : [])])
     const failed = new Set(await this.opts.moveToSystemTrash(paths))
     const done = rows.filter((r) => !failed.has(r.path))
     transaction(this.db, () => {
-      const del = this.db.prepare('DELETE FROM assets WHERE id = ? OR (path = ? AND hidden = 1)')
-      for (const r of done) del.run(r.id, r.live_video ?? '')
+      const del = this.db.prepare('DELETE FROM assets WHERE id = ? OR (hidden = 1 AND path IN (?, ?))')
+      for (const r of done) del.run(r.id, r.live_video ?? '', r.raw_companion ?? '')
     })
     this.emitChanged()
     return { removed: done.length, failed: rows.length - done.length }
   }
+}
+
+/** 0..1 technical quality: sharpness dominates, then exposure, then resolution. */
+export function qualityScore(sharpness: number, brightness: number, clipDark: number, clipBright: number, megapixels: number): number {
+  const sharp = Math.max(0, Math.min(1, (Math.log10(sharpness + 1) - 1) / 2.2))
+  const exposure = Math.max(0, 1 - Math.abs(brightness - 0.47) * 1.6 - Math.max(0, clipDark - 0.05) * 2 - Math.max(0, clipBright - 0.03) * 3)
+  const res = Math.max(0, Math.min(1, Math.log2(Math.max(1, megapixels)) / 5))
+  return Math.round((sharp * 0.6 + exposure * 0.3 + res * 0.1) * 1000) / 1000
 }
 
 export function decodeInput(row: Row): DecodeInput {

@@ -163,6 +163,18 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
   })
   app.get('/api/assets/:id/albums', (c) => c.json(lib.albums.forAsset(idParam(c))))
 
+  // ------------------------------------------------------------ cleanup
+  app.get('/api/cleanup', (c) => c.json(lib.cleanupReport()))
+  app.post('/api/cleanup/exact', async (c) => {
+    const body = z.object({ groups: z.array(z.object({ keep: z.number().int(), remove: z.array(z.number().int()).min(1) })).min(1).max(50000) }).parse(await c.req.json())
+    return c.json(await lib.resolveExactDuplicates(body.groups))
+  })
+  app.post('/api/cleanup/ignore', async (c) => {
+    const body = z.object({ signature: z.string().min(1).max(100000), kind: z.string().max(40) }).parse(await c.req.json())
+    lib.ignoreCleanup(body.signature, body.kind)
+    return c.json({ ok: true })
+  })
+
   // ------------------------------------------------------------ export
   const exportSchema = z.object({
     ids: z.array(z.number().int()).min(1).max(200000),
@@ -174,6 +186,7 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     pattern: z.string().max(200).optional(),
     folders: z.enum(['flat', 'year', 'yearMonth']),
     includeLiveVideo: z.boolean(),
+    includeRaw: z.boolean().optional(),
     setFileDates: z.boolean()
   })
   app.post('/api/export', async (c) => {

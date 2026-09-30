@@ -31,7 +31,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'archive', title: 'Originaux', subtitle: 'Fichiers identiques, rangés par mois',
-    settings: { ...base, photo: { format: 'original', maxSize: null, quality: 95 }, video: { format: 'original', maxHeight: null, quality: 'high' }, metadata: 'all', naming: 'original', folders: 'yearMonth', includeLiveVideo: true }
+    settings: { ...base, photo: { format: 'original', maxSize: null, quality: 95 }, video: { format: 'original', maxHeight: null, quality: 'high' }, metadata: 'all', naming: 'original', folders: 'yearMonth', includeLiveVideo: true, includeRaw: true }
   },
   {
     id: 'edit', title: 'Montage', subtitle: 'Vidéos ProRes pour Final Cut, Premiere, DaVinci',

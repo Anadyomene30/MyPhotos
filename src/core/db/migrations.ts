@@ -96,5 +96,26 @@ export const migrations: string[] = [
     PRIMARY KEY (album_id, asset_id)
   ) WITHOUT ROWID;
   CREATE INDEX album_assets_asset ON album_assets(asset_id);
+  `,
+  /* 4 — image analysis for cleanup (perceptual hash, sharpness, exposure) */ `
+  ALTER TABLE assets ADD COLUMN sharpness REAL;
+  ALTER TABLE assets ADD COLUMN brightness REAL;
+  ALTER TABLE assets ADD COLUMN clip_dark REAL;
+  ALTER TABLE assets ADD COLUMN clip_bright REAL;
+  ALTER TABLE assets ADD COLUMN analyze_state INTEGER NOT NULL DEFAULT 0;
+  CREATE INDEX assets_analyze_state ON assets(analyze_state) WHERE analyze_state = 0;
+  CREATE TABLE cleanup_ignored (
+    signature TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  `,
+  /* 5 — contrast, to tell blurry photos from smooth scenes */ `
+  ALTER TABLE assets ADD COLUMN contrast REAL;
+  UPDATE assets SET analyze_state = 0 WHERE analyze_state = 1;
+  `,
+  /* 6 — RAW + JPEG pairs shown as one item (the RAW file rides along like a Live Photo video) */ `
+  ALTER TABLE assets ADD COLUMN raw_companion TEXT;
+  UPDATE assets SET meta_state = 0 WHERE width IS NULL AND kind = 'photo' AND ext IN ('tif', 'tiff', 'png', 'webp', 'gif', 'avif', 'jpg', 'jpeg');
   `
 ]

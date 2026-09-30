@@ -13,6 +13,7 @@ import { ConfirmHost } from '@/components/Confirm'
 import { PromptHost } from '@/components/Prompt'
 import { SmartAlbumEditor } from '@/features/albums/SmartAlbumEditor'
 import { ExportDialog } from '@/features/export/ExportDialog'
+import { CleanupPage } from '@/features/cleanup/CleanupPage'
 
 function useTheme(): void {
   const theme = useUi((s) => s.theme)
@@ -33,6 +34,7 @@ export function App() {
   const { jobs, scanning } = useServerEvents()
   const { data, isLoading, error } = useLibraryState()
   const viewerOpen = useUi((s) => s.viewerIndex !== null)
+  const page = useUi((s) => s.page)
 
   if (error) {
     return (
@@ -57,8 +59,14 @@ export function App() {
     <div className="flex h-full">
       <Sidebar jobs={jobs} scanning={scanning} />
       <main className="relative min-w-0 flex-1">
-        <Toolbar />
-        <Timeline />
+        {page === 'cleanup' ? (
+          <CleanupPage />
+        ) : (
+          <>
+            <Toolbar />
+            <Timeline />
+          </>
+        )}
       </main>
       {viewerOpen && <Viewer />}
       <Settings />

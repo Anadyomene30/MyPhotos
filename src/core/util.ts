@@ -42,3 +42,14 @@ export function throttle(fn: () => void, ms: number): () => void {
     }, ms)
   }
 }
+
+export function bytesLabel(n: number): string {
+  const units = ['o', 'Ko', 'Mo', 'Go', 'To']
+  let v = n
+  let i = 0
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024
+    i++
+  }
+  return `${Math.round(v * 10) / 10} ${units[i]}`
+}
