@@ -218,7 +218,12 @@ function useTimelineKeys(cache: TileCache, layout: Layout, scrollToRow: (i: numb
       const mod = e.metaKey || e.ctrlKey
       const selected = [...ui.selection]
 
+      if (ui.exportIds || ui.smartEditor || ui.settingsOpen) return
       if (e.key === 'Escape') ui.clearSelection()
+      else if (mod && e.key.toLowerCase() === 'e' && selected.length) {
+        e.preventDefault()
+        ui.setExportIds(selected)
+      }
       else if (mod && e.key.toLowerCase() === 'a') {
         e.preventDefault()
         const q = cache.query

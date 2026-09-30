@@ -1,12 +1,13 @@
 import clsx from 'clsx'
 import { useRef, useState } from 'react'
-import { FolderMinus, Heart, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
+import { FolderMinus, Share, Heart, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
 import { IconButton, Segmented } from '@/components/ui'
 import { albumsApi, patchAssets, useAlbums, useLibraryState } from '@/api/hooks'
 import { AddToAlbumButton } from '@/features/albums/AddToAlbumMenu'
 import { MenuItem, MenuSeparator, Popover } from '@/components/Popover'
 import { promptText } from '@/components/Prompt'
 import { confirm } from '@/components/Confirm'
+import { api } from '@/api/client'
 import { useUi, ZOOM_LEVELS, type Grouping } from '@/store'
 import { useScrollLabel } from '@/features/library/scrollLabel'
 import { trashWithUndo } from '@/features/library/Timeline'
@@ -87,6 +88,9 @@ export function Toolbar() {
             </>
           ) : (
             <>
+              <IconButton label="Exporter (⌘E)" onClick={() => useUi.getState().setExportIds([...selection])}>
+                <Share className="size-[17px]" />
+              </IconButton>
               <AddToAlbumButton ids={[...selection]} />
               {album?.kind === 'manual' && (
                 <IconButton
@@ -196,6 +200,15 @@ function AlbumMenu({ albumId, name, smart }: { albumId: number; name: string; sm
             Modifier les règles…
           </MenuItem>
         )}
+        <MenuItem
+          icon={<Share className="size-4" />}
+          onClick={() => {
+            close()
+            void api<number[]>(`/api/timeline/ids?album=${albumId}`).then((ids) => ids.length && useUi.getState().setExportIds(ids))
+          }}
+        >
+          Exporter l’album…
+        </MenuItem>
         <MenuSeparator />
         <MenuItem
           danger

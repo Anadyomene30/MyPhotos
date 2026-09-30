@@ -89,6 +89,16 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
   app.get('/api/timeline/index/:id', (c) => c.json({ index: lib.assets.indexOf(timelineQuery(c), idParam(c)) }))
   app.get('/api/years', (c) => c.json(lib.assets.years()))
 
+  app.post('/api/assets/summary', async (c) => {
+    const body = z.object({ ids: z.array(z.number().int()).max(200000) }).parse(await c.req.json())
+    const rows = lib.db
+      .prepare('SELECT kind, count(*) AS n, sum(is_live) AS live, sum(size) AS bytes FROM assets WHERE id IN (SELECT value FROM json_each(?)) GROUP BY kind')
+      .all(JSON.stringify(body.ids)) as Array<{ kind: string; n: number; live: number; bytes: number }>
+    const photo = rows.find((r) => r.kind === 'photo')
+    const video = rows.find((r) => r.kind === 'video')
+    return c.json({ photos: photo?.n ?? 0, videos: video?.n ?? 0, live: photo?.live ?? 0, bytes: rows.reduce((a, r) => a + (r.bytes ?? 0), 0) })
+  })
+
   app.get('/api/assets/:id', (c) => {
     const d = lib.assets.detail(idParam(c))
     return d ? c.json(d) : c.json({ error: 'not found' }, 404)
@@ -152,6 +162,32 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ removed })
   })
   app.get('/api/assets/:id/albums', (c) => c.json(lib.albums.forAsset(idParam(c))))
+
+  // ------------------------------------------------------------ export
+  const exportSchema = z.object({
+    ids: z.array(z.number().int()).min(1).max(200000),
+    destination: z.string().min(1),
+    photo: z.object({ format: z.enum(['original', 'jpeg', 'png', 'webp', 'avif', 'tiff']), maxSize: z.number().int().min(64).max(20000).nullable(), quality: z.number().min(1).max(100) }),
+    video: z.object({ format: z.enum(['original', 'mp4-h264', 'mp4-hevc', 'webm', 'mov-prores', 'gif']), maxHeight: z.number().int().min(144).max(4320).nullable(), quality: z.enum(['high', 'medium', 'small']) }),
+    metadata: z.enum(['all', 'noLocation', 'none']),
+    naming: z.enum(['original', 'date', 'custom']),
+    pattern: z.string().max(200).optional(),
+    folders: z.enum(['flat', 'year', 'yearMonth']),
+    includeLiveVideo: z.boolean(),
+    setFileDates: z.boolean()
+  })
+  app.post('/api/export', async (c) => {
+    const body = exportSchema.parse(await c.req.json())
+    try {
+      return c.json({ jobId: lib.startExport(body) })
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+  app.delete('/api/jobs/:id', (c) => {
+    lib.cancelJob(c.req.param('id'))
+    return c.json({ ok: true })
+  })
 
   app.post('/api/trash/empty', async (c) => {
     const body = z.object({ ids: z.array(z.number().int()).optional() }).parse(await c.req.json().catch(() => ({})))

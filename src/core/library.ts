@@ -12,8 +12,10 @@ import { readMetadata } from './media/metadata'
 import { quickHash } from './media/hash'
 import { ThumbStore, type ThumbSize } from './media/thumbs'
 import { limiter, throttle } from './util'
+import { runExport, type ExportRunner } from './export/exporter'
+import { isAbsolute, relative as relPath } from 'node:path'
 import type { DecodeInput } from './media/decode'
-import type { AssetKind, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
+import type { AssetKind, ExportOptions, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
 
 export interface LibraryOptions {
   dataDir: string
@@ -41,7 +43,9 @@ export class Library extends EventEmitter {
   private scanning = false
   private indexing: Promise<void> | null = null
   private indexAgain = false
-  private progress = new Map<Stage, JobGroupState>()
+  private progress = new Map<string, JobGroupState>()
+  private exports = new Map<string, ExportRunner>()
+  private exportSeq = 0
   private closed = false
   private emitChanged = throttle(() => this.send({ type: 'library-changed', version: ++this.version }), 1000)
   private emitJobs = throttle(() => this.send({ type: 'jobs', jobs: this.jobs() }), 400)
@@ -288,6 +292,50 @@ export class Library extends EventEmitter {
     } catch {
       return null
     }
+  }
+
+  // ---------------------------------------------------------------- export
+
+  /** Start an export job. Refuses destinations inside a library folder (exports would be re-imported). */
+  startExport(opts: ExportOptions): string {
+    if (!isAbsolute(opts.destination)) throw new Error('Choisissez un dossier de destination')
+    const dest = resolve(opts.destination)
+    for (const s of this.sources()) {
+      const rel = relPath(s.path, dest)
+      if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) throw new Error('Choisissez un dossier en dehors de la photothèque, sinon les fichiers exportés y seraient réimportés.')
+    }
+    const ids = [...new Set(opts.ids)]
+    const rows: Row[] = []
+    const get = this.db.prepare('SELECT * FROM assets WHERE id = ?')
+    for (const id of ids) {
+      const r = get.get(id) as Row | undefined
+      if (r && r.missing_at === null) rows.push(r)
+    }
+    rows.sort((a, b) => (a.taken_at as number) - (b.taken_at as number))
+    const jobId = `export-${++this.exportSeq}`
+    const n = rows.length
+    const group: JobGroupState = { id: jobId, label: `Export de ${n.toLocaleString('fr-FR')} élément${n > 1 ? 's' : ''}`, total: n, done: 0, failed: 0, progress: 0, cancellable: true }
+    this.progress.set(jobId, group)
+    this.emitJobs()
+    const runner = runExport(jobId, rows, { ...opts, destination: dest }, (doneUnits, totalUnits) => {
+      group.progress = totalUnits ? doneUnits / totalUnits : 1
+      group.done = Math.min(n, Math.round(group.progress * n))
+      this.emitJobs()
+    })
+    this.exports.set(jobId, runner)
+    void runner.result
+      .then((result) => this.send({ type: 'export-done', result }))
+      .catch((e: Error) => this.send({ type: 'export-done', result: { jobId, exported: 0, failed: n, skipped: 0, destination: dest, cancelled: false, errors: [e.message] } }))
+      .finally(() => {
+        this.exports.delete(jobId)
+        this.progress.delete(jobId)
+        this.emitJobs()
+      })
+    return jobId
+  }
+
+  cancelJob(jobId: string): void {
+    this.exports.get(jobId)?.cancel()
   }
 
   // ---------------------------------------------------------------- edits

@@ -106,6 +106,9 @@ export interface JobGroupState {
   total: number
   done: number
   failed: number
+  /** 0..1 when finer than done/total (video encoding) */
+  progress?: number
+  cancellable?: boolean
 }
 
 export interface LibraryCounts {
@@ -131,3 +134,30 @@ export type ServerEvent =
   | { type: 'jobs'; jobs: JobGroupState[] }
   | { type: 'library-changed'; version: number }
   | { type: 'scan'; scanning: boolean }
+  | { type: 'export-done'; result: ExportResult }
+
+export type PhotoFormat = 'original' | 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff'
+export type VideoFormat = 'original' | 'mp4-h264' | 'mp4-hevc' | 'webm' | 'mov-prores' | 'gif'
+
+export interface ExportOptions {
+  ids: number[]
+  destination: string
+  photo: { format: PhotoFormat; maxSize: number | null; quality: number }
+  video: { format: VideoFormat; maxHeight: number | null; quality: 'high' | 'medium' | 'small' }
+  metadata: 'all' | 'noLocation' | 'none'
+  naming: 'original' | 'date' | 'custom'
+  pattern?: string
+  folders: 'flat' | 'year' | 'yearMonth'
+  includeLiveVideo: boolean
+  setFileDates: boolean
+}
+
+export interface ExportResult {
+  jobId: string
+  exported: number
+  failed: number
+  skipped: number
+  destination: string
+  cancelled: boolean
+  errors: string[]
+}

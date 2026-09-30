@@ -1,4 +1,5 @@
-import { Loader2 } from 'lucide-react'
+import { Loader2, X } from 'lucide-react'
+import { api } from '@/api/client'
 import { count } from '@/lib/format'
 import type { JobGroupState } from '@shared/types'
 
@@ -13,13 +14,18 @@ export function JobsIndicator({ jobs, scanning }: { jobs: JobGroupState[]; scann
         </div>
       )}
       {jobs.map((j) => {
-        const pct = j.total ? Math.min(100, (j.done / j.total) * 100) : 0
+        const pct = j.progress !== undefined ? Math.min(100, j.progress * 100) : j.total ? Math.min(100, (j.done / j.total) * 100) : 0
         return (
           <div key={j.id}>
             <div className="mb-1 flex items-center justify-between gap-2 text-[11.5px]">
               <span className="truncate text-fg/80">{j.label}</span>
-              <span className="shrink-0 text-faint tabular-nums">
+              <span className="flex shrink-0 items-center gap-1 text-faint tabular-nums">
                 {count(j.done)} / {count(j.total)}
+                {j.cancellable && (
+                  <button onClick={() => void api(`/api/jobs/${j.id}`, { method: 'DELETE' })} className="rounded p-0.5 hover:bg-line hover:text-fg" aria-label="Annuler" title="Annuler">
+                    <X className="size-3" />
+                  </button>
+                )}
               </span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-line">

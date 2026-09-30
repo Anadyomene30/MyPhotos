@@ -16,6 +16,17 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
       onServerEvent((e) => {
         if (e.type === 'jobs') setJobs(e.jobs)
         if (e.type === 'scan') setScanning(e.scanning)
+        if (e.type === 'export-done') {
+          const r = e.result
+          const ui = useUi.getState()
+          const msg = r.cancelled
+            ? `Export annulé (${r.exported} exporté${r.exported > 1 ? 's' : ''})`
+            : r.failed
+              ? `${r.exported} exporté${r.exported > 1 ? 's' : ''}, ${r.failed} en échec`
+              : `${r.exported.toLocaleString('fr-FR')} élément${r.exported > 1 ? 's' : ''} exporté${r.exported > 1 ? 's' : ''}`
+          if (r.errors.length) console.warn('Export errors', r.errors)
+          ui.toast(msg, window.desktop ? { label: 'Afficher', run: () => void window.desktop?.reveal(r.destination) } : undefined)
+        }
         if (e.type === 'library-changed') {
           bump(e.version)
           void qc.invalidateQueries({ queryKey: ['state'] })

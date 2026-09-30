@@ -12,6 +12,7 @@ import { Toasts } from '@/components/Toasts'
 import { ConfirmHost } from '@/components/Confirm'
 import { PromptHost } from '@/components/Prompt'
 import { SmartAlbumEditor } from '@/features/albums/SmartAlbumEditor'
+import { ExportDialog } from '@/features/export/ExportDialog'
 
 function useTheme(): void {
   const theme = useUi((s) => s.theme)
@@ -65,6 +66,7 @@ export function App() {
       <ConfirmHost />
       <PromptHost />
       <SmartAlbumEditor />
+      <ExportDialog />
     </div>
   )
 }

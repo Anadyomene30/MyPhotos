@@ -33,6 +33,8 @@ interface UiState {
   setSection(s: LibraryFilter): void
   openAlbum(id: number): void
   smartEditor: { albumId: number | null } | null
+  exportIds: number[] | null
+  setExportIds(ids: number[] | null): void
   setSmartEditor(v: { albumId: number | null } | null): void
   setKind(k: KindFilter): void
   setGrouping(g: Grouping): void
@@ -63,6 +65,7 @@ export const useUi = create<UiState>((set, get) => ({
   section: 'all',
   albumId: null,
   smartEditor: null,
+  exportIds: null,
   kind: 'all',
   grouping: saved.grouping ?? 'day',
   zoom: saved.zoom ?? DEFAULT_ZOOM.day,
@@ -77,6 +80,7 @@ export const useUi = create<UiState>((set, get) => ({
   setSection: (section) => set({ section, albumId: null, selection: new Set(), anchor: null, viewerIndex: null }),
   openAlbum: (albumId) => set({ section: 'all', albumId, selection: new Set(), anchor: null, viewerIndex: null }),
   setSmartEditor: (smartEditor) => set({ smartEditor }),
+  setExportIds: (exportIds) => set({ exportIds }),
   setKind: (kind) => set({ kind, selection: new Set(), anchor: null }),
   setGrouping: (grouping) => set({ grouping, zoom: DEFAULT_ZOOM[grouping] }),
   setZoom: (zoom) => set({ zoom: Math.max(0, Math.min(ZOOM_LEVELS.length - 1, zoom)) }),

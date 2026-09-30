@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent, type WheelEvent as RWheelEvent } from 'react'
 import clsx from 'clsx'
-import { ChevronLeft, ChevronRight, Download, FolderOpen, Heart, Info, RotateCcw, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, FolderOpen, Heart, Info, RotateCcw, Share, Trash2 } from 'lucide-react'
 import { media } from '@/api/client'
 import { patchAssets, useAsset, useBuckets, useTileCache, useTimelineQuery } from '@/api/hooks'
 import { useUi } from '@/store'
@@ -60,6 +60,7 @@ export function Viewer() {
       if (e.key === 'Escape') closeViewer()
       else if (e.key === 'ArrowRight') go(1)
       else if (e.key === 'ArrowLeft') go(-1)
+      else if (useUi.getState().exportIds) return
       else if (e.key === 'i' || e.key === 'I') toggleInfo()
       else if (e.key === '.') toggleFavorite()
       else if (e.key === 'Backspace' || e.key === 'Delete') trash()
@@ -95,6 +96,11 @@ export function Viewer() {
             {!inTrash && (
               <IconButton label="Favori (.)" onClick={toggleFavorite}>
                 <Heart className={clsx('size-[18px]', tile?.favorite && 'fill-heart text-heart')} />
+              </IconButton>
+            )}
+            {tile && (
+              <IconButton label="Exporter" onClick={() => useUi.getState().setExportIds([tile.id])}>
+                <Share className="size-[18px]" />
               </IconButton>
             )}
             <IconButton label="Informations (i)" onClick={toggleInfo} active={infoOpen}>
