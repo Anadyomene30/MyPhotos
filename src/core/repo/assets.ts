@@ -38,7 +38,7 @@ function orderedFrom(q: TimelineQuery): string {
   return q.kind === 'photo' || q.kind === 'video' ? 'assets INDEXED BY assets_kind_timeline' : 'assets INDEXED BY assets_timeline'
 }
 
-const TILE_COLS = 'id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v, qhash, (edit IS NOT NULL) AS edited'
+const TILE_COLS = 'id, kind, ratio, taken_at, duration, is_live, favorite, is_raw, thumb_v, qhash, (edit IS NOT NULL) AS edited, (SELECT count(*) FROM assets v WHERE v.version_of = assets.id AND v.trashed_at IS NULL) AS versions'
 
 /** Thumbnail cache key: content fingerprint + regeneration counter, so a reused id never shows a stale image. */
 export function thumbKey(r: Row): string {
@@ -56,6 +56,7 @@ export function toTile(r: Row): AssetTile {
     favorite: r.favorite === 1,
     raw: r.is_raw === 1,
     edited: r.edited === 1 || Boolean(r.edit),
+    versions: (r.versions as number | undefined) ?? 0,
     v: thumbKey(r)
   }
 }
@@ -165,6 +166,10 @@ export class AssetRepo {
       rawCompanion: (r.raw_companion as string | null) ?? null,
       webNative: isWebNative(kind, ext) && !r.edit,
       edit: r.edit ? (JSON.parse(r.edit as string) as PhotoEdit) : null,
+      versionOf: (r.version_of as number | null) ?? null,
+      versionList: (this.stmts.get('SELECT id, name, added_at, thumb_v, qhash FROM assets WHERE version_of = ? AND trashed_at IS NULL AND missing_at IS NULL ORDER BY added_at').all(r.id as number) as Row[]).map((v) => ({
+        id: v.id as number, name: v.name as string, createdAt: v.added_at as number, v: thumbKey(v)
+      })),
       trashedAt: r.trashed_at as number | null
     }
   }

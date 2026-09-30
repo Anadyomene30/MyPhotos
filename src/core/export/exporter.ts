@@ -76,7 +76,7 @@ async function exportPhoto(row: Row, out: string, opts: ExportOptions): Promise<
   await img.toFile(out)
 }
 
-function runFfmpeg(args: string[], durationSec: number | null, onFraction: (f: number) => void, signal: AbortSignal): Promise<void> {
+export function runFfmpeg(args: string[], durationSec: number | null, onFraction: (f: number) => void, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(ffmpegPaths().ffmpeg, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
     let err = ''

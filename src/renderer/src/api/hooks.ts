@@ -18,9 +18,9 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
         if (e.type === 'scan') setScanning(e.scanning)
         if (e.type === 'creation-done') {
           const ui = useUi.getState()
-          if (!e.ok) ui.toast(`Fusion impossible : ${e.error ?? 'erreur inconnue'}`)
+          if (!e.ok) ui.toast(`Création impossible : ${e.error ?? 'erreur inconnue'}`)
           else
-            ui.toast('Photo HDR créée', e.assetId ? { label: 'Voir', run: () => void openAsset(e.assetId!) } : undefined)
+            ui.toast('Création terminée', e.assetId ? { label: 'Voir', run: () => void openAsset(e.assetId!) } : undefined)
         }
         if (e.type === 'export-done') {
           const r = e.result

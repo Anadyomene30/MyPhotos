@@ -124,6 +124,20 @@ function EditorInner({ id }: { id: number }) {
     }
   }, [edit, id, qc])
 
+  const saveCopy = useCallback(async () => {
+    if (!edit || isNeutral(edit)) return
+    setSaving(true)
+    try {
+      await api(`/api/assets/${id}/edited-copy`, { method: 'POST', json: { edit } })
+      useUi.getState().toast('Copie en cours d’enregistrement. Elle sera empilée avec l’original.')
+      close()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }, [edit, id])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if ((e.target as HTMLElement).closest('input[type=text], textarea')) return
@@ -187,7 +201,16 @@ function EditorInner({ id }: { id: number }) {
         >
           <RotateCcw className="size-3.5" /> Original
         </Button>
-        <Button variant="primary" className="no-drag" disabled={saving || !edit} onClick={() => void save()}>
+        <Button
+          variant="secondary"
+          className="no-drag bg-white/10 text-white hover:bg-white/16"
+          disabled={saving || !edit || isNeutral(edit)}
+          onClick={() => void saveCopy()}
+          title="Créer un nouveau fichier avec ces retouches, empilé sous l’original"
+        >
+          Enregistrer une copie
+        </Button>
+        <Button variant="primary" className="no-drag" disabled={saving || !edit} onClick={() => void save()} title="Appliquer à la photo (réversible à tout moment)">
           {saving && <Loader2 className="size-3.5 animate-spin" />} Terminé
         </Button>
       </div>

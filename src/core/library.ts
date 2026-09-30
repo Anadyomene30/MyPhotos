@@ -10,7 +10,7 @@ import { applyChanges, pairLivePhotos, scanSource } from './scan/scanner'
 import { FolderWatcher } from './scan/watcher'
 import { readMetadata } from './media/metadata'
 import { fullHash, quickHash } from './media/hash'
-import { fuseInWorker } from './edit/runInWorker'
+import { fuseInWorker, renderInWorker } from './edit/runInWorker'
 import { parseEdit } from './edit/render'
 import { normalizeEdit, isNeutral, type PhotoEdit } from '@shared/edit/types'
 import { mkdir as mkdirAsync } from 'node:fs/promises'
@@ -21,7 +21,11 @@ import { buildCleanupReport } from './cleanup'
 import { analyzeImage } from './media/analyze'
 import { ThumbStore, type ThumbSize } from './media/thumbs'
 import { limiter, throttle } from './util'
-import { runExport, type ExportRunner } from './export/exporter'
+import { runExport, runFfmpeg, type ExportRunner } from './export/exporter'
+import { planVideoEdit } from './edit/videoRender'
+import type { VideoEdit } from '@shared/edit/video'
+import { tmpdir } from 'node:os'
+import { rm as rmAsync } from 'node:fs/promises'
 import { isAbsolute, relative as relPath } from 'node:path'
 import type { DecodeInput } from './media/decode'
 import type { AssetKind, CleanupReport, ExportOptions, JobGroupState, LibraryState, ServerEvent, Source } from '@shared/types'
@@ -425,22 +429,8 @@ export class Library extends EventEmitter {
         const stem = String(ref.name).replace(/\.[^.]+$/, '')
         let out = join(this.creationsDir, `${stem} HDR.jpg`)
         for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} HDR ${i}.jpg`)
-        const tz = ref.tz_offset as number | null
-        const d = new Date((ref.taken_at as number) + (tz ?? 0) * 60000)
-        const p2 = (n: number): string => String(n).padStart(2, '0')
-        const get = tz !== null ? { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes(), s: d.getUTCSeconds() } : { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate(), h: d.getHours(), mi: d.getMinutes(), s: d.getSeconds() }
-        const exifDate = `${get.y}:${p2(get.m)}:${p2(get.d)} ${p2(get.h)}:${p2(get.mi)}:${p2(get.s)}`
-        const ifd2: Record<string, string> = { DateTimeOriginal: exifDate, UserComment: 'MyPhotos HDR' }
-        if (tz !== null) ifd2.OffsetTimeOriginal = `${tz >= 0 ? '+' : '-'}${p2(Math.floor(Math.abs(tz) / 60))}:${p2(Math.abs(tz) % 60)}`
-        const ifd0: Record<string, string> = { Software: 'MyPhotos' }
-        if (ref.make) ifd0.Make = String(ref.make)
-        if (ref.model) ifd0.Model = String(ref.model)
-        const ifd3: Record<string, string> = {}
-        if (typeof ref.lat === 'number' && typeof ref.lon === 'number') {
-          const dms = (v: number): string => { const a = Math.abs(v); const dd = Math.floor(a); const mm = Math.floor((a - dd) * 60); return `${dd}/1 ${mm}/1 ${Math.round(((a - dd) * 60 - mm) * 6000)}/100` }
-          Object.assign(ifd3, { GPSLatitudeRef: ref.lat >= 0 ? 'N' : 'S', GPSLatitude: dms(ref.lat), GPSLongitudeRef: ref.lon >= 0 ? 'E' : 'W', GPSLongitude: dms(ref.lon) })
-        }
-        await fuseInWorker({ inputs: rows.map(decodeInput), output: out, maxSize: 4096, align: true, exif: { IFD0: ifd0, IFD2: ifd2, ...(Object.keys(ifd3).length ? { IFD3: ifd3 } : {}) } })
+        const exif = exifFromRow(ref, 'MyPhotos HDR')
+        await fuseInWorker({ inputs: rows.map(decodeInput), output: out, maxSize: 4096, align: true, exif })
         this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'hdr', JSON.stringify(ids), Date.now())
         await applyChanges(this.db, sourceId, this.creationsDir, [out])
         const row = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(out) as Row | undefined
@@ -460,6 +450,101 @@ export class Library extends EventEmitter {
       } catch (e) {
         this.send({ type: 'creation-done', ok: false, assetId: null, error: (e as Error).message, sources: ids })
       } finally {
+        this.progress.delete(jobId)
+        this.emitJobs()
+      }
+    })()
+    return jobId
+  }
+
+  /**
+   * Save the edits as a new full-resolution JPEG, stacked under the original as a version
+   * (one item in the grid). The original file and its own settings are left untouched.
+   */
+  startEditedCopy(id: number, edit: PhotoEdit): string {
+    const row = this.assets.raw(id)
+    if (!row || row.kind !== 'photo') throw new Error('Photo introuvable')
+    const main = (row.version_of as number | null) ?? id
+    const jobId = `copy-${++this.exportSeq}`
+    this.progress.set(jobId, { id: jobId, label: 'Enregistrement de la copie', total: 1, done: 0, failed: 0 })
+    this.emitJobs()
+    void (async () => {
+      try {
+        const sourceId = await this.ensureCreationsSource()
+        const stem = String(row.name).replace(/\.[^.]+$/, '')
+        let out = join(this.creationsDir, `${stem} (copie modifiée).jpg`)
+        for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} (copie modifiée ${i}).jpg`)
+        await renderInWorker({ input: decodeInput(row), edit: normalizeEdit(edit), output: out, quality: 95, exif: exifFromRow(row, 'MyPhotos copie modifiée') })
+        this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'edit-copy', JSON.stringify([main]), Date.now())
+        await applyChanges(this.db, sourceId, this.creationsDir, [out])
+        const r = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(out) as Row | undefined
+        if (r) {
+          await this.indexMeta(r)
+          await this.indexThumb(this.assets.raw(r.id as number)!)
+        }
+        this.emitChanged()
+        this.send({ type: 'creation-done', ok: true, assetId: main, sources: [id] })
+      } catch (e) {
+        this.send({ type: 'creation-done', ok: false, assetId: null, error: (e as Error).message, sources: [id] })
+      } finally {
+        this.progress.delete(jobId)
+        this.emitJobs()
+      }
+    })()
+    return jobId
+  }
+
+  /** Turn a version back into a separate item of the grid. */
+  detachVersion(id: number): void {
+    this.db.prepare('UPDATE assets SET version_of = NULL, hidden = 0 WHERE id = ?').run(id)
+    this.db.prepare("DELETE FROM creations WHERE path = (SELECT path FROM assets WHERE id = ?) AND kind = 'edit-copy'").run(id)
+    this.emitChanged()
+  }
+
+  /** Render an edited copy of a video into the creations folder; the original is only read. */
+  startVideoEdit(id: number, edit: VideoEdit): string {
+    const row = this.assets.raw(id)
+    if (!row || row.kind !== 'video') throw new Error('Vidéo introuvable')
+    const jobId = `video-${++this.exportSeq}`
+    const group: JobGroupState = { id: jobId, label: `Montage de ${row.name as string}`, total: 1, done: 0, failed: 0, progress: 0, cancellable: true }
+    this.progress.set(jobId, group)
+    this.emitJobs()
+    const ctrl = new AbortController()
+    this.exports.set(jobId, { result: Promise.resolve(null as never), cancel: () => ctrl.abort() })
+    void (async () => {
+      const trf = join(tmpdir(), `myphotos-${jobId}-${process.pid}.trf`)
+      let out = ''
+      try {
+        const sourceId = await this.ensureCreationsSource()
+        const stem = String(row.name).replace(/\.[^.]+$/, '')
+        out = join(this.creationsDir, `${stem} (modifiée).mp4`)
+        for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} (modifiée ${i}).mp4`)
+        const plan = await planVideoEdit(row.path as string, out, edit, trf, new Date((row.taken_at as number) + edit.trim.start * 1000).toISOString())
+        const dur = (((edit.trim.end ?? (row.duration as number | null) ?? 0) - edit.trim.start) / edit.speed) || null
+        for (let p = 0; p < plan.passes.length; p++) {
+          const base = p / plan.passes.length
+          await runFfmpeg(plan.passes[p]!, dur, (f) => {
+            group.progress = base + f / plan.passes.length
+            this.emitJobs()
+          }, ctrl.signal)
+        }
+        await applyChanges(this.db, sourceId, this.creationsDir, [out])
+        const r = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(out) as Row | undefined
+        let assetId: number | null = null
+        if (r) {
+          await this.indexMeta(r)
+          await this.indexThumb(this.assets.raw(r.id as number)!)
+          assetId = r.id as number
+          this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'video-edit', JSON.stringify([id]), Date.now())
+        }
+        this.emitChanged()
+        this.send({ type: 'creation-done', ok: true, assetId, sources: [id] })
+      } catch (e) {
+        if (out) await rmAsync(out, { force: true }).catch(() => undefined)
+        this.send({ type: 'creation-done', ok: false, assetId: null, error: ctrl.signal.aborted ? 'annulé' : (e as Error).message, sources: [id] })
+      } finally {
+        await rmAsync(trf, { force: true }).catch(() => undefined)
+        this.exports.delete(jobId)
         this.progress.delete(jobId)
         this.emitJobs()
       }
@@ -544,7 +629,12 @@ export class Library extends EventEmitter {
   }
 
   setTrashed(ids: number[], trashed: boolean): void {
-    transaction(this.db, () => this.assets.setTrashed(ids, trashed))
+    transaction(this.db, () => {
+      this.assets.setTrashed(ids, trashed)
+      // versions follow their original
+      const v = this.db.prepare('UPDATE assets SET trashed_at = ? WHERE version_of = ?')
+      for (const id of ids) v.run(trashed ? Date.now() : null, id)
+    })
     this.emitChanged()
   }
 
@@ -568,6 +658,31 @@ export class Library extends EventEmitter {
     this.emitChanged()
     return { removed: done.length, failed: rows.length - done.length }
   }
+}
+
+/** Essential EXIF for files MyPhotos creates, copied from the source row. */
+export function exifFromRow(ref: Row, comment: string): { IFD0: Record<string, string>; IFD2: Record<string, string>; IFD3?: Record<string, string> } {
+  const tz = ref.tz_offset as number | null
+  const d = new Date((ref.taken_at as number) + (tz ?? 0) * 60000)
+  const p2 = (n: number): string => String(n).padStart(2, '0')
+  const g = tz !== null
+    ? { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate(), h: d.getUTCHours(), mi: d.getUTCMinutes(), s: d.getUTCSeconds() }
+    : { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate(), h: d.getHours(), mi: d.getMinutes(), s: d.getSeconds() }
+  const ifd2: Record<string, string> = { DateTimeOriginal: `${g.y}:${p2(g.m)}:${p2(g.d)} ${p2(g.h)}:${p2(g.mi)}:${p2(g.s)}`, UserComment: comment }
+  if (tz !== null) ifd2.OffsetTimeOriginal = `${tz >= 0 ? '+' : '-'}${p2(Math.floor(Math.abs(tz) / 60))}:${p2(Math.abs(tz) % 60)}`
+  const ifd0: Record<string, string> = { Software: 'MyPhotos' }
+  if (ref.make) ifd0.Make = String(ref.make)
+  if (ref.model) ifd0.Model = String(ref.model)
+  if (typeof ref.lat === 'number' && typeof ref.lon === 'number') {
+    const dms = (v: number): string => {
+      const a = Math.abs(v)
+      const dd = Math.floor(a)
+      const mm = Math.floor((a - dd) * 60)
+      return `${dd}/1 ${mm}/1 ${Math.round(((a - dd) * 60 - mm) * 6000)}/100`
+    }
+    return { IFD0: ifd0, IFD2: ifd2, IFD3: { GPSLatitudeRef: ref.lat >= 0 ? 'N' : 'S', GPSLatitude: dms(ref.lat), GPSLongitudeRef: ref.lon >= 0 ? 'E' : 'W', GPSLongitude: dms(ref.lon) } }
+  }
+  return { IFD0: ifd0, IFD2: ifd2 }
 }
 
 /** 0..1 technical quality: sharpness dominates, then exposure, then resolution. */

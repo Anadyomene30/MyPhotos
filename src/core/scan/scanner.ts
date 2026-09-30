@@ -120,6 +120,7 @@ export async function scanSource(db: Db, sourceId: number, root: string, onProgr
  */
 export function pairLivePhotos(db: Db, sourceId?: number): void {
   pairRawJpeg(db, sourceId)
+  linkVersions(db)
   const scope = sourceId === undefined ? '' : 'AND v.source_id = ?'
   const args = sourceId === undefined ? [] : [sourceId]
   db.prepare(`UPDATE assets SET hidden = 1 WHERE id IN (
@@ -226,4 +227,15 @@ export function pairRawJpeg(db: Db, sourceId?: number): void {
   db.prepare(`UPDATE assets SET hidden = 0 WHERE ext IN ${RAW_SQL} AND hidden = 1 AND NOT EXISTS (
       SELECT 1 FROM assets j WHERE j.source_id = assets.source_id AND j.rel_dir = assets.rel_dir AND j.stem = assets.stem AND j.ext IN ${JPEG_SQL} AND j.missing_at IS NULL)
       ${sourceId === undefined ? '' : 'AND source_id = ?'}`).run(...args)
+}
+
+/** Edited copies saved by MyPhotos are stacked under their original (hidden from the grid, shown as versions). */
+export function linkVersions(db: Db): void {
+  db.prepare(`UPDATE assets SET hidden = 1, version_of = (
+      SELECT o.id FROM creations c JOIN assets o ON o.id = json_extract(c.sources, '$[0]')
+      WHERE c.path = assets.path AND c.kind = 'edit-copy' AND o.missing_at IS NULL)
+    WHERE path IN (SELECT path FROM creations WHERE kind = 'edit-copy') AND version_of IS NULL`).run()
+  // the original disappeared: the copy becomes a regular item
+  db.prepare(`UPDATE assets SET hidden = 0, version_of = NULL WHERE version_of IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM assets o WHERE o.id = assets.version_of AND o.missing_at IS NULL)`).run()
 }

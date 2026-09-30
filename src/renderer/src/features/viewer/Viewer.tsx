@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as RPointerEvent, type WheelEvent as RWheelEvent } from 'react'
 import clsx from 'clsx'
-import { ChevronLeft, ChevronRight, Download, FolderOpen, Heart, Info, RotateCcw, Share, SlidersHorizontal, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, FolderOpen, Heart, Info, RotateCcw, Share, SlidersHorizontal, Trash2, Undo2, Unlink } from 'lucide-react'
+import { useState as useLocalState } from 'react'
+import { api } from '@/api/client'
 import { media } from '@/api/client'
 import { patchAssets, useAsset, useBuckets, useTileCache, useTimelineQuery } from '@/api/hooks'
 import { useUi } from '@/store'
@@ -22,6 +24,11 @@ export function Viewer() {
   const i = index ?? 0
   const tile = cache.get(i)
   const { data: detail } = useAsset(tile?.id)
+  const [versionId, setVersionId] = useLocalState<number | null>(null)
+  useEffect(() => setVersionId(null), [tile?.id])
+  const version = detail?.versionList.find((v) => v.id === versionId)
+  const shownTile = tile && version ? { ...tile, id: version.id, v: version.v, live: false } : tile
+  const { data: shownDetail } = useAsset(shownTile?.id)
 
   useEffect(() => {
     cache.ensure(Math.max(0, i - 6), Math.min(total - 1, i + 6))
@@ -101,9 +108,27 @@ export function Viewer() {
                 <Heart className={clsx('size-[18px]', tile?.favorite && 'fill-heart text-heart')} />
               </IconButton>
             )}
+            {detail?.edited && !version && (
+              <button
+                onClick={() => {
+                  const previous = detail.edit
+                  void api(`/api/assets/${detail.id}/edit`, { method: 'PUT', json: { edit: null } }).then(() =>
+                    useUi.getState().toast('Photo revenue à l’original', { label: 'Annuler', run: () => void api(`/api/assets/${detail.id}/edit`, { method: 'PUT', json: { edit: previous } }) })
+                  )
+                }}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-white/85 hover:bg-white/10"
+                title="Annuler toutes les retouches de cette photo"
+              >
+                <Undo2 className="size-4" /> Revenir à l’original
+              </button>
+            )}
             {tile && !inTrash && (
               <button
-                onClick={() => (tile.kind === 'photo' ? useUi.getState().setEditorId(tile.id) : useUi.getState().setVideoEditorId(tile.id))}
+                onClick={() => {
+                  const target = version ? version.id : tile.id
+                  if (tile.kind === 'photo') useUi.getState().setEditorId(target)
+                  else useUi.getState().setVideoEditorId(tile.id)
+                }}
                 className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-white/85 hover:bg-white/10"
                 title="Modifier (E)"
               >
@@ -136,14 +161,45 @@ export function Viewer() {
         </div>
 
         <div className="relative flex-1 overflow-hidden">
-          {tile && <Stage key={tile.id} tile={tile} detail={detail?.id === tile.id ? detail : undefined} />}
+          {shownTile && <Stage key={shownTile.id} tile={shownTile} detail={shownDetail?.id === shownTile.id ? shownDetail : undefined} />}
+          {detail && detail.versionList.length > 0 && (
+            <div className="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-black/55 p-1 backdrop-blur-xl">
+              <button onClick={() => setVersionId(null)} className={clsx('rounded-lg px-3 py-1.5 text-[12px] font-medium', !version ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
+                {detail.edited ? 'Photo (retouchée)' : 'Original'}
+              </button>
+              {detail.versionList.map((v, k) => (
+                <button key={v.id} onClick={() => setVersionId(v.id)} className={clsx('rounded-lg px-3 py-1.5 text-[12px] font-medium', version?.id === v.id ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
+                  Copie modifiée{detail.versionList.length > 1 ? ` ${k + 1}` : ''}
+                </button>
+              ))}
+              {version && (
+                <>
+                  <div className="mx-1 h-4 w-px bg-white/20" />
+                  <button
+                    title="Faire de cette copie un élément séparé de la photothèque"
+                    className="grid size-7 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+                    onClick={() => void api(`/api/assets/${version.id}/detach`, { method: 'POST' }).then(() => setVersionId(null))}
+                  >
+                    <Unlink className="size-3.5" />
+                  </button>
+                  <button
+                    title="Supprimer cette copie"
+                    className="grid size-7 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
+                    onClick={() => void trashWithUndo([version.id], false).then(() => setVersionId(null))}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           {i > 0 && (
             <NavButton side="left" onClick={() => go(-1)} />
           )}
           {i < total - 1 && <NavButton side="right" onClick={() => go(1)} />}
         </div>
       </div>
-      {infoOpen && detail && <InfoPanel detail={detail} />}
+      {infoOpen && (shownDetail ?? detail) && <InfoPanel detail={(shownDetail ?? detail)!} />}
     </div>
   )
 }

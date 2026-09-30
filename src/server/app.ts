@@ -7,6 +7,7 @@ import { z } from 'zod'
 import type { Library } from '@core/library'
 import type { LibraryFilter, ServerEvent, TimelineQuery } from '@shared/types'
 import { mimeFor, sendFile } from './files'
+import { NEUTRAL_VIDEO, type VideoEdit } from '@shared/edit/video'
 
 export interface AppOptions {
   token: string
@@ -112,6 +113,18 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
       return c.json({ error: (e as Error).message }, 400)
     }
   })
+  app.post('/api/assets/:id/edited-copy', async (c) => {
+    const body = (await c.req.json()) as { edit: unknown }
+    try {
+      return c.json({ jobId: lib.startEditedCopy(idParam(c), body.edit as never) })
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+  })
+  app.post('/api/assets/:id/detach', (c) => {
+    lib.detachVersion(idParam(c))
+    return c.json({ ok: true })
+  })
   /** Unedited, orientation-corrected source for the editor (never the edited render). */
   app.get('/api/source/:id', async (c) => {
     const d = lib.assets.raw(idParam(c))
@@ -189,6 +202,15 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     const body = z.object({ signature: z.string().min(1).max(100000), kind: z.string().max(40) }).parse(await c.req.json())
     lib.ignoreCleanup(body.signature, body.kind)
     return c.json({ ok: true })
+  })
+
+  app.post('/api/video-edit/:id', async (c) => {
+    const body = (await c.req.json()) as { edit: VideoEdit }
+    try {
+      return c.json({ jobId: lib.startVideoEdit(idParam(c), { ...NEUTRAL_VIDEO, ...body.edit }) })
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
   })
 
   app.post('/api/fusion', async (c) => {

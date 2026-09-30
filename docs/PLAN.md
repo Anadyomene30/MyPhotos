@@ -161,6 +161,15 @@ Raccourcis, animations, i18n EN, accessibilité, notarisation mac, installeur Wi
 
 ---
 
+### Ajouts demandés en cours de route (faits)
+- **Bracketing → HDR** : détection des séries (même appareil, ouverture et ISO, vitesses différentes, ≥ 1,5 IL), fusion Mertens avec alignement MTB dans un worker, résultat rangé dans « MyPhotos Créations » (source dédiée), onglet Bracketing du Nettoyage et action « Fusionner » sur une sélection.
+- **Éditeur photo non destructif** : pipeline TypeScript partagé (aperçu worker, vignettes, export), lumière, couleur, détails, effets, filtres, amélioration auto, recadrage/redressement/rotation/miroir. « Revenir à l’original » à tout moment ; « Enregistrer une copie » crée un fichier empilé sous l’original (versions, un seul élément dans la grille).
+- **Éditeur vidéo** : découpe, vitesse, rotation/miroir/format, couleur, netteté, débruitage, stabilisation, volume ; rendu ffmpeg dans « MyPhotos Créations ».
+- **RAW + JPEG** regroupés en un seul élément.
+
+### État d’avancement (2026-09-30)
+Phases 0, 1, 2, 3 terminées, plus les ajouts ci-dessus. Prochaine : phase 4 (IA locale : visages, recherche, catégories).
+
 ## 4. Vérification
 - **Tests unitaires** (vitest) sur `src/core` : hash, pHash, moments, sélection de souvenirs, règles d'albums intelligents, décodage sur la mini-photothèque de test (jpg, heic iPhone à tuiles, raw NEF/CR2/DNG, mov live, doublons exacts et rafales).
 - **Tests de perf** : script générant 200 000 entrées synthétiques → timeline fluide (< 16 ms/frame au scroll), recherche < 100 ms, scan initial mesuré.

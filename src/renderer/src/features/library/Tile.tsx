@@ -1,5 +1,5 @@
 import { memo, useState } from 'react'
-import { Heart, Play } from 'lucide-react'
+import { Heart, Layers, Play, SlidersHorizontal } from 'lucide-react'
 import clsx from 'clsx'
 import { media } from '@/api/client'
 import { duration } from '@/lib/format'
@@ -44,7 +44,7 @@ export const Tile = memo(function Tile({ tile, index, size, selected, compact }:
       )}
       {tile && !compact && (
         <>
-          {(tile.kind === 'video' || tile.live || tile.favorite) && (
+          {(tile.kind === 'video' || tile.live || tile.favorite || tile.edited || tile.versions > 0) && (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-9 bg-gradient-to-t from-black/45 to-transparent" />
           )}
           {tile.live && <LiveIcon className="pointer-events-none absolute left-1.5 top-1.5 size-4 text-white drop-shadow" />}
@@ -52,6 +52,12 @@ export const Tile = memo(function Tile({ tile, index, size, selected, compact }:
             <div className="pointer-events-none absolute bottom-1 right-1.5 flex items-center gap-1 text-[11px] font-semibold text-white drop-shadow">
               <Play className="size-3 fill-white" />
               {duration(tile.duration)}
+            </div>
+          )}
+          {tile.kind === 'photo' && (tile.edited || tile.versions > 0) && (
+            <div className="pointer-events-none absolute right-1.5 bottom-1.5 flex items-center gap-1 text-white drop-shadow">
+              {tile.edited && <SlidersHorizontal className="size-3.5" />}
+              {tile.versions > 0 && <Layers className="size-3.5" />}
             </div>
           )}
           {tile.favorite && <Heart className="pointer-events-none absolute bottom-1.5 left-1.5 size-3.5 fill-white text-white drop-shadow" />}

@@ -130,5 +130,9 @@ export const migrations: string[] = [
   /* 8 — non-destructive photo edits */ `
   ALTER TABLE assets ADD COLUMN edit TEXT;
   ALTER TABLE assets ADD COLUMN edited_at INTEGER;
+  `,
+  /* 9 — versions: edited copies stacked under their original */ `
+  ALTER TABLE assets ADD COLUMN version_of INTEGER;
+  CREATE INDEX assets_version_of ON assets(version_of) WHERE version_of IS NOT NULL;
   `
 ]

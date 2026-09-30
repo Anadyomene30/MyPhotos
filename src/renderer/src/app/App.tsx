@@ -15,6 +15,7 @@ import { SmartAlbumEditor } from '@/features/albums/SmartAlbumEditor'
 import { ExportDialog } from '@/features/export/ExportDialog'
 import { CleanupPage } from '@/features/cleanup/CleanupPage'
 import { Editor } from '@/features/editor/Editor'
+import { VideoEditor } from '@/features/editor/VideoEditor'
 
 function useTheme(): void {
   const theme = useUi((s) => s.theme)
@@ -77,6 +78,7 @@ export function App() {
       <SmartAlbumEditor />
       <ExportDialog />
       <Editor />
+      <VideoEditor />
     </div>
   )
 }

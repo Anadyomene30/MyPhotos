@@ -13,6 +13,8 @@ export interface AssetTile {
   raw: boolean
   /** has non-destructive edits */
   edited: boolean
+  /** number of edited copies stacked under this item */
+  versions: number
   /** cache key of the thumbnail: changes with the file content or a regeneration */
   v: string
 }
@@ -43,6 +45,8 @@ export interface AssetDetail extends AssetTile {
   /** true when the browser can display the original file directly */
   webNative: boolean
   edit: import('./edit/types').PhotoEdit | null
+  versionOf: number | null
+  versionList: Array<{ id: number; name: string; createdAt: number; v: string }>
   trashedAt: number | null
 }
 

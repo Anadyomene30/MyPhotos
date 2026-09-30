@@ -56,4 +56,38 @@ describe.runIf(existsSync(LIB))('non-destructive edits', () => {
     await lib.setEdit(id, null)
     expect(lib.assets.detail(id)!.edited).toBe(false)
   }, 60000)
+
+  it('saves an edited copy stacked under the original as one item', async () => {
+    const id = (lib.db.prepare("SELECT id FROM assets WHERE name = 'IMG_ROT6.JPG'").get() as { id: number }).id
+    const before = lib.assets.counts().all
+    const e = cloneEdit(NEUTRAL)
+    e.color.mono = true
+    const done = new Promise<{ ok: boolean; error?: string }>((resolve) => {
+      const on = (ev: { type: string }): void => {
+        if (ev.type === 'creation-done') {
+          lib.off('event', on)
+          resolve(ev as never)
+        }
+      }
+      lib.on('event', on)
+    })
+    lib.startEditedCopy(id, e)
+    const r = await done
+    expect(r.error).toBeUndefined()
+    const d = lib.assets.detail(id)!
+    expect(d.versionList.length).toBe(1)
+    expect(d.edited).toBe(false) // the original keeps its own settings
+    expect(lib.assets.counts().all).toBe(before) // still one item in the grid
+    const copy = lib.assets.detail(d.versionList[0]!.id)!
+    expect(copy.versionOf).toBe(id)
+    expect(copy.day).toBe(d.day)
+    const stats = await sharp(copy.path).stats()
+    expect(Math.abs(stats.channels[0]!.mean - stats.channels[2]!.mean)).toBeLessThan(3)
+    // trashing the original takes the version with it
+    lib.setTrashed([id], true)
+    expect(lib.assets.raw(copy.id)!.trashed_at).not.toBeNull()
+    lib.setTrashed([id], false)
+    lib.detachVersion(copy.id)
+    expect(lib.assets.counts().all).toBe(before + 1)
+  }, 60000)
 })
