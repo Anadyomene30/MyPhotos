@@ -77,6 +77,7 @@ export const pages: Record<string, string> = {
   'Aucune photo avec localisation. Les photos d’iPhone et d’appareils avec GPS apparaîtront ici.': 'No photos with a location. Photos from iPhone and GPS-enabled cameras will appear here.',
   'Chargement de la carte (connexion internet nécessaire)': 'Loading the map (internet connection required)',
   'lieu': 'place',
+  'Ouvrir la photo': 'Open photo',
   '{n} élément localisé': '{n} geotagged item',
   '{n} éléments localisés': '{n} geotagged items',
   'lieux': 'places',

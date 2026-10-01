@@ -28,6 +28,27 @@ const STYLE: maplibregl.StyleSpecification = {
   layers: [{ id: 'osm', type: 'raster', source: 'osm' }]
 }
 
+const ID_BASE = 1e10
+
+/** Rounded photo thumbnail used as a map marker; clusters carry a count badge. */
+function photoMarker(id: number, v: string, count: number | null, label: string): HTMLButtonElement {
+  const el = document.createElement('button')
+  el.className = count ? 'map-photo map-photo-cluster' : 'map-photo'
+  el.setAttribute('aria-label', label)
+  const img = document.createElement('img')
+  img.src = media.thumb(id, v)
+  img.alt = ''
+  img.draggable = false
+  img.decoding = 'async'
+  el.appendChild(img)
+  if (count) {
+    const badge = document.createElement('span')
+    badge.textContent = count >= 1000 ? `${Math.floor(count / 1000)}k` : String(count)
+    el.appendChild(badge)
+  }
+  return el
+}
+
 /** Map of every geotagged item (clustered) plus the list of places, both filtering the library. */
 export function PlacesPage() {
   const { data: places, isLoading } = usePlaces()
@@ -41,41 +62,69 @@ export function PlacesPage() {
 
   useEffect(() => {
     if (!mapEl.current || map.current) return
-    const m = new maplibregl.Map({ container: mapEl.current, style: STYLE, center: [2.5, 46.5], zoom: 4, attributionControl: { compact: true } })
+    const m = new maplibregl.Map({ container: mapEl.current, style: STYLE, center: [2.5, 46.5], zoom: 4, maxZoom: 19, attributionControl: { compact: true } })
     m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     map.current = m
     m.on('load', async () => {
       const geojson = await api<FeatureCollection>('/api/places/points')
-      m.addSource('photos', { type: 'geojson', data: geojson, cluster: true, clusterRadius: 44, clusterMaxZoom: 15 })
-      m.addLayer({ id: 'clusters', type: 'circle', source: 'photos', filter: ['has', 'point_count'], paint: { 'circle-color': '#0a84ff', 'circle-radius': ['step', ['get', 'point_count'], 16, 20, 20, 100, 26, 1000, 32], 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' } })
-      m.addLayer({ id: 'cluster-count', type: 'symbol', source: 'photos', filter: ['has', 'point_count'], layout: { 'text-field': ['get', 'point_count_abbreviated'], 'text-size': 12, 'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'] }, paint: { 'text-color': '#fff' } })
-      m.addLayer({ id: 'points', type: 'circle', source: 'photos', filter: ['!', ['has', 'point_count']], paint: { 'circle-color': '#ff375f', 'circle-radius': 7, 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } })
+      // thumbnail version per id, to build the URL of a cluster's cover
+      const versions = new Map<number, string>()
+      for (const f of geojson.features) versions.set(f.properties!.id as number, String(f.properties!.v ?? ''))
+      m.addSource('photos', { type: 'geojson', data: geojson, cluster: true, clusterRadius: 56, clusterMaxZoom: 19, maxzoom: 20, clusterProperties: { rank: ['max', ['get', 'rank']] } })
+      // invisible layer: keeps the source's tiles loaded so markers can be read from it
+      m.addLayer({ id: 'photos-hit', type: 'circle', source: 'photos', paint: { 'circle-radius': 1, 'circle-opacity': 0 } })
       if (geojson.features.length) {
         const b = new maplibregl.LngLatBounds()
         for (const f of geojson.features) b.extend((f.geometry as Point).coordinates as [number, number])
         m.fitBounds(b, { padding: 60, maxZoom: 11, duration: 0 })
       }
-      m.on('click', 'clusters', (e: maplibregl.MapMouseEvent) => {
-        const f = m.queryRenderedFeatures(e.point, { layers: ['clusters'] })[0]
-        if (!f) return
-        const src = m.getSource('photos') as maplibregl.GeoJSONSource
-        void src.getClusterExpansionZoom(f.properties!.cluster_id as number).then((z: number) => m.easeTo({ center: (f.geometry as Point).coordinates as [number, number], zoom: z }))
-      })
-      m.on('click', 'points', (e: maplibregl.MapMouseEvent & { features?: Feature[] }) => {
-        const f = e.features?.[0]
-        if (!f) return
-        const id = f.properties!.id as number
+
+      const openPhoto = (id: number): void => {
         void api<{ index: number | null }>(`/api/timeline/index/${id}`).then(({ index }) => {
           if (index !== null) {
             useUi.getState().setSection('all')
             openAsset(index)
           }
         })
-      })
-      for (const l of ['clusters', 'points']) {
-        m.on('mouseenter', l, () => (m.getCanvas().style.cursor = 'pointer'))
-        m.on('mouseleave', l, () => (m.getCanvas().style.cursor = ''))
       }
+      const src = m.getSource('photos') as maplibregl.GeoJSONSource
+      let shown = new Map<string, maplibregl.Marker>()
+      const sync = (): void => {
+        if (!m.isSourceLoaded('photos')) return
+        const next = new Map<string, maplibregl.Marker>()
+        for (const f of m.querySourceFeatures('photos')) {
+          const p = f.properties as Record<string, number>
+          const cluster = Boolean(p.cluster)
+          const key = cluster ? `c${p.cluster_id}:${p.point_count}` : `p${p.id}`
+          if (next.has(key)) continue
+          let mk = shown.get(key)
+          if (!mk) {
+            const id = cluster ? Math.round(p.rank! % ID_BASE) : p.id!
+            const n = cluster ? p.point_count! : null
+            const el = photoMarker(id, versions.get(id) ?? '', n, n ? tn(n, '{n} élément', '{n} éléments') : t('Ouvrir la photo'))
+            const at = (f.geometry as Point).coordinates as [number, number]
+            el.addEventListener('click', (e) => {
+              e.stopPropagation()
+              if (!cluster) return openPhoto(id)
+              // frame the real photos: a cluster's own position is rounded to the tile it was read from
+              void src.getClusterLeaves(p.cluster_id!, Infinity, 0).then((leaves) => {
+                const b = new maplibregl.LngLatBounds()
+                for (const l of leaves) b.extend((l.geometry as Point).coordinates as [number, number])
+                const sw = b.getSouthWest()
+                const ne = b.getNorthEast()
+                // all taken at the same spot: zooming cannot separate them, open the best one
+                if (Math.abs(ne.lng - sw.lng) < 1e-5 && Math.abs(ne.lat - sw.lat) < 1e-5) return openPhoto(id)
+                m.fitBounds(b, { padding: 90, maxZoom: 19 })
+              })
+            })
+            mk = new maplibregl.Marker({ element: el }).setLngLat(at).addTo(m)
+          }
+          next.set(key, mk)
+        }
+        for (const [k, mk] of shown) if (!next.has(k)) mk.remove()
+        shown = next
+      }
+      m.on('render', sync)
       setReady(true)
     })
     return () => {

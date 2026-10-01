@@ -107,3 +107,12 @@ img.thumb.loaded { opacity: 1; }
 
 .maplibre-dark .maplibregl-canvas { filter: brightness(0.85) contrast(1.05) saturate(0.85); }
 .maplibregl-ctrl-attrib { font-size: 10px; }
+
+/* photo thumbnails on the Places map */
+/* maplibre positions markers with position + transform: leave both alone (hover uses the separate scale property) */
+.map-photo { width: 44px; height: 44px; padding: 0; border: 2px solid #fff; border-radius: 10px; background: #d4d4d8; box-shadow: 0 2px 8px rgb(0 0 0 / 0.35); cursor: pointer; transition: scale 0.15s ease-out; }
+.map-photo-cluster { width: 56px; height: 56px; border-radius: 12px; }
+.map-photo:hover { scale: 1.08; z-index: 2; }
+.map-photo img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 8px; pointer-events: none; }
+.map-photo-cluster img { border-radius: 10px; }
+.map-photo span { position: absolute; top: -8px; right: -8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: #0a84ff; color: #fff; font: 600 11px/20px system-ui, sans-serif; text-align: center; box-shadow: 0 1px 4px rgb(0 0 0 / 0.3); }

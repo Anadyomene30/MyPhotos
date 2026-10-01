@@ -420,8 +420,10 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     }))
   })
   app.get('/api/places/points', (c) => {
-    const rows = lib.db.prepare(`SELECT id, lat, lon, thumb_v, qhash, kind FROM assets WHERE lat IS NOT NULL AND hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL`).all() as Row[]
-    return c.json({ type: 'FeatureCollection', features: rows.map((r) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] }, properties: { id: r.id, v: thumbKey(r), kind: r.kind } })) })
+    const rows = lib.db.prepare(`SELECT id, lat, lon, thumb_v, qhash, kind, quality, favorite FROM assets WHERE lat IS NOT NULL AND hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL`).all() as Row[]
+    // rank: the map clusters keep the max, so each cluster shows its best photo (favourites first, then quality); the id rides in the low digits
+    const rank = (r: Row): number => (Math.round(Math.min(1, Math.max(0, (r.quality as number | null) ?? 0)) * 1000) + (r.favorite === 1 ? 1000 : 0) + (r.kind === 'photo' ? 1 : 0)) * 1e10 + (r.id as number)
+    return c.json({ type: 'FeatureCollection', features: rows.map((r) => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [r.lon, r.lat] }, properties: { id: r.id, v: thumbKey(r), kind: r.kind, rank: rank(r) } })) })
   })
   /** Map tile proxy with on-disk cache (OpenStreetMap usage policy requires an identifying user agent). */
   app.get('/api/tiles/:z/:x/:y', async (c) => {
