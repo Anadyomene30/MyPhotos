@@ -185,4 +185,6 @@ export const app: Record<string, string> = {
   'La version {version} est prête. Redémarrez pour l’installer, ou elle s’installera à la fermeture.': 'Version {version} is ready. Restart to install it, or it will be installed when you quit.',
   'La version {version} est disponible au téléchargement.': 'Version {version} is available to download.',
   'Redémarrer': 'Restart',
+  'Le dossier « {name} » est introuvable, le disque est sans doute débranché. Les vignettes restent visibles ; les originaux reviennent dès qu’il est rebranché.': 'The folder “{name}” can’t be found; the disk is probably unplugged. Thumbnails stay visible, and originals come back as soon as it’s plugged in again.',
+  '{n} dossiers de la photothèque sont introuvables. Les vignettes restent visibles ; les originaux reviennent dès que les disques sont rebranchés.': '{n} library folders can’t be found. Thumbnails stay visible, and originals come back as soon as the disks are plugged in again.'
 }

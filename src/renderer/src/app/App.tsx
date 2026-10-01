@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useLibraryState, useServerEvents } from '@/api/hooks'
 import { useUi } from '@/store'
+import { OfflineBanner } from './OfflineBanner'
 import { Sidebar } from './Sidebar'
 import { Toolbar } from './Toolbar'
 import { Timeline } from '@/features/library/Timeline'
@@ -89,6 +90,7 @@ function MainApp() {
           <>
             <Toolbar />
             <Timeline />
+            <OfflineBanner />
           </>
         )}
       </main>

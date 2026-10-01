@@ -550,9 +550,12 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
   app.get('/api/preview/:id', async (c) => {
     const d = lib.assets.detail(idParam(c))
     if (!d) return c.body(null, 404)
-    if (d.kind === 'photo' && d.webNative) return sendFile(c, d.path, { cache: IMMUTABLE })
+    if (d.kind === 'photo' && d.webNative && existsSync(d.path)) return sendFile(c, d.path, { cache: IMMUTABLE })
     const file = await lib.thumbnail(d.id, 'preview')
-    return file ? sendFile(c, file, { type: 'image/webp', cache: IMMUTABLE }) : c.body(null, 404)
+    if (file) return sendFile(c, file, { type: 'image/webp', cache: IMMUTABLE })
+    // original unreachable (disk unplugged): the grid thumbnail, not cached so the full image shows once it is back
+    const small = await lib.thumbnail(d.id, 'grid')
+    return small ? sendFile(c, small, { type: 'image/webp', cache: 'no-store' }) : c.body(null, 404)
   })
 
   app.get('/api/original/:id', async (c) => {

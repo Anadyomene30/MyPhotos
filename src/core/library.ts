@@ -119,7 +119,12 @@ export class Library extends EventEmitter {
     this.retryFailuresAfterUpgrade()
     this.ml.loadVectors()
     void this.ml.ensureStarted().then(() => this.kickIndexer())
-    for (const s of this.sources()) this.watcher?.add(s.path)
+    for (const s of this.sources()) {
+      this.online.set(s.id, s.online)
+      if (s.online) this.watcher?.add(s.path)
+    }
+    this.sourcePoll = setInterval(() => this.pollSources(), 15000)
+    this.sourcePoll.unref?.()
     await this.rescanAll()
   }
 
@@ -135,6 +140,7 @@ export class Library extends EventEmitter {
 
   close(): void {
     this.closed = true
+    if (this.sourcePoll) clearInterval(this.sourcePoll)
     void this.dbTasks.close()
     void this.ml.stop()
     this.watcher?.close()
@@ -163,7 +169,42 @@ export class Library extends EventEmitter {
       .prepare(`SELECT s.id, s.path, s.added_at AS addedAt,
         (SELECT count(*) FROM assets a WHERE a.source_id = s.id AND a.hidden = 0 AND a.missing_at IS NULL) AS assetCount
         FROM sources s ORDER BY s.path`)
-      .all() as unknown as Source[]
+      .all()
+      .map((r) => ({ ...(r as unknown as Omit<Source, 'online'>), online: existsSync((r as { path: string }).path) }))
+  }
+
+  /**
+   * A source whose folder is absent (external disk unplugged, NAS asleep) is offline, not emptied: its photos stay
+   * in the library with their thumbnails. If a scan or the watcher already marked the whole folder missing when it
+   * vanished, that last batch is restored; a later scan with the disk back reconciles real deletions.
+   */
+  private keepOfflineSource(sourceId: number): void {
+    const r = this.db
+      .prepare('UPDATE assets SET missing_at = NULL WHERE source_id = ? AND missing_at IS NOT NULL AND missing_at >= (SELECT max(missing_at) FROM assets WHERE source_id = ?) - 120000')
+      .run(sourceId, sourceId)
+    if (Number(r.changes) > 0) this.emitChanged()
+  }
+
+  private online = new Map<number, boolean>()
+  private sourcePoll: ReturnType<typeof setInterval> | null = null
+
+  /** Rescan when an offline source comes back (disk plugged in again) and refresh the UI when one goes away. */
+  private pollSources(): void {
+    let back = false
+    let changed = false
+    for (const s of this.sources()) {
+      const was = this.online.get(s.id)
+      if (was === s.online) continue
+      this.online.set(s.id, s.online)
+      if (was === undefined) continue
+      changed = true
+      if (s.online) {
+        back = true
+        this.watcher?.add(s.path)
+      }
+    }
+    if (back) void this.rescanAll()
+    else if (changed) this.emitChanged()
   }
 
   async addSource(path: string): Promise<Source> {
@@ -202,6 +243,10 @@ export class Library extends EventEmitter {
         this.scanAgain = false
         for (const s of this.sources()) {
           if (this.closed) return
+          if (!s.online) {
+            this.keepOfflineSource(s.id)
+            continue
+          }
           const r = await scanSource(this.db, s.id, s.path)
           this.syncAliasAlbums(r.shortcuts)
           this.emitChanged()
@@ -265,6 +310,11 @@ export class Library extends EventEmitter {
   private async onFsChanges(root: string, paths: string[]): Promise<void> {
     const s = this.sources().find((x) => x.path === root)
     if (!s || this.closed) return
+    // the whole disk went away: not a deletion
+    if (!s.online) {
+      this.keepOfflineSource(s.id)
+      return
+    }
     const shortcuts: Shortcut[] = []
     const n = await applyChanges(this.db, s.id, s.path, paths, (sc) => shortcuts.push(sc))
     const linked = this.syncAliasAlbums(shortcuts)

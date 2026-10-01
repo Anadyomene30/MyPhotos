@@ -92,3 +92,37 @@ describe('alias folders', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 })
+
+describe('offline sources', () => {
+  it('keeps the photos of an unplugged disk and reconciles when it is back', async () => {
+    const { mkdirSync, renameSync } = await import('node:fs')
+    const dir = mkdtempSync(join(tmpdir(), 'myphotos-offline-'))
+    const disk = join(dir, 'SAT')
+    mkdirSync(disk)
+    const src = join(process.cwd(), '.devdata/library/Divers/IMG_ROT6.JPG')
+    copyFileSync(src, join(disk, 'a.jpg'))
+    copyFileSync(src, join(disk, 'b.jpg'))
+    const l = new Library({ dataDir: join(dir, 'data'), autoIndex: false, watch: false })
+    await l.addSource(disk)
+    await l.rescanAll()
+    const visible = (): number => l.assets.page({ filter: 'all' }, 0, 10).length
+    expect(visible()).toBe(2)
+    // unplug: nothing disappears, the source is reported offline
+    renameSync(disk, join(dir, 'away'))
+    await l.rescanAll()
+    expect(visible()).toBe(2)
+    expect(l.sources()[0]!.online).toBe(false)
+    // an older version (or the watcher) had marked everything missing: restored while offline
+    l.db.prepare('UPDATE assets SET missing_at = ?').run(Date.now())
+    await l.rescanAll()
+    expect(visible()).toBe(2)
+    // plug back with one file deleted meanwhile: the real deletion is applied
+    renameSync(join(dir, 'away'), disk)
+    rmSync(join(disk, 'b.jpg'))
+    await l.rescanAll()
+    expect(l.sources()[0]!.online).toBe(true)
+    expect(visible()).toBe(1)
+    l.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+})

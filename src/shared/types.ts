@@ -124,6 +124,8 @@ export interface Source {
   path: string
   addedAt: number
   assetCount: number
+  /** false while the folder is unreachable (external disk unplugged) */
+  online: boolean
 }
 
 export interface JobGroupState {
