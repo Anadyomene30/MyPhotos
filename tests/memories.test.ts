@@ -76,4 +76,17 @@ describe.runIf(existsSync(LIB))('memories on the fixture library', () => {
     lib.updateMemory(m.id, { title: 'Mon souvenir', pinned: true })
     expect(lib.memories()[0]!.title).toBe('Mon souvenir')
   })
+
+  it('retranslates generated memory titles but keeps renamed ones', async () => {
+    const renamed = lib.memories().find((m) => m.title === 'Mon souvenir')!
+    const year = lib.memories().find((m) => m.kind === 'year' && m.id !== renamed.id)!
+    expect(year.title).toMatch(/en images$/)
+    lib.setLocalePref('en', 'en-US')
+    await lib.ensureMemories(true)
+    expect(lib.memories().find((m) => m.id === year.id)!.title).toMatch(/in pictures$/)
+    expect(lib.memories().find((m) => m.id === renamed.id)!.title).toBe('Mon souvenir')
+    lib.setLocalePref('fr', 'fr-FR')
+    await lib.ensureMemories(true)
+    expect(lib.memories().find((m) => m.id === year.id)!.title).toMatch(/en images$/)
+  })
 })

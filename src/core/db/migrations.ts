@@ -322,5 +322,10 @@ export const migrations: string[] = [
   `
   CREATE INDEX moments_trip ON moments(trip_id) WHERE trip_id IS NOT NULL;
   ALTER TABLE moments ADD COLUMN fp TEXT;
+  `,
+  // 17: whether a memory still has the app's generated title (follows the language) or one the user or Claude chose.
+  // NULL for memories created before: decided at the next proposal by comparing with the generated title.
+  `
+  ALTER TABLE memories ADD COLUMN auto_title INTEGER;
   `
 ]

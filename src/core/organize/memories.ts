@@ -282,9 +282,14 @@ export function proposeMemories(db: Db, now = new Date()): MemoryDraft[] {
 }
 
 /** Persist proposals: new keys are inserted, existing ones keep their id, title edits and pin state. */
+/**
+ * Store new proposals and refresh existing ones. Returns how many memories were created or retitled.
+ * Generated titles follow the current language; a title chosen by the user or by Claude is kept.
+ */
 export async function syncMemories(db: Db, drafts: MemoryDraft[], thumbPath: (id: number) => string): Promise<number> {
-  const existing = new Map((db.prepare('SELECT id, key, title, asset_ids FROM memories').all() as Array<{ id: number; key: string; title: string; asset_ids: string }>).map((r) => [r.key, r]))
-  let created = 0
+  type Prev = { id: number; key: string; title: string; subtitle: string | null; asset_ids: string; auto_title: number | null }
+  const existing = new Map((db.prepare('SELECT id, key, title, subtitle, asset_ids, auto_title FROM memories').all() as Prev[]).map((r) => [r.key, r]))
+  let changed = 0
   const now = Date.now()
   for (const d of drafts) {
     const prev = existing.get(d.key)
@@ -292,12 +297,18 @@ export async function syncMemories(db: Db, drafts: MemoryDraft[], thumbPath: (id
       // refresh selection only when it grew notably (keeps user-curated lists stable)
       const prevIds = JSON.parse(prev.asset_ids) as number[]
       if (d.ids.length > prevIds.length * 1.3) db.prepare('UPDATE memories SET asset_ids = ?, cover_id = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(d.ids), d.coverId, now, prev.id)
+      const auto = prev.auto_title ?? (prev.title === d.title ? 1 : 0)
+      if (prev.auto_title === null) db.prepare('UPDATE memories SET auto_title = ? WHERE id = ?').run(auto, prev.id)
+      if (auto === 1 && (prev.title !== d.title || prev.subtitle !== d.subtitle)) {
+        db.prepare('UPDATE memories SET title = ?, subtitle = ? WHERE id = ?').run(d.title, d.subtitle, prev.id)
+        changed++
+      }
       continue
     }
     const theme = await themeFor(thumbPath(d.coverId))
-    db.prepare('INSERT INTO memories (kind, key, title, subtitle, cover_id, asset_ids, theme, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    db.prepare('INSERT INTO memories (kind, key, title, subtitle, cover_id, asset_ids, theme, created_at, updated_at, auto_title) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)')
       .run(d.kind, d.key, d.title, d.subtitle, d.coverId, JSON.stringify(d.ids), JSON.stringify(theme), now, now)
-    created++
+    changed++
   }
   // drop stale, untouched auto memories whose content disappeared
   transaction(db, () => {
@@ -307,5 +318,5 @@ export async function syncMemories(db: Db, drafts: MemoryDraft[], thumbPath: (id
       if (alive < Math.min(6, ids.length / 2)) db.prepare('DELETE FROM memories WHERE id = ?').run(r.id)
     }
   })
-  return created
+  return changed
 }

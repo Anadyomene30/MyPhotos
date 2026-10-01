@@ -545,8 +545,8 @@ export class Library extends EventEmitter {
     this.memoriesVersion = this.version
     this.memoriesAt = Date.now()
     const drafts = await this.dbTasks.run({ task: 'memories', now: Date.now() })
-    const created = await syncMemories(this.db, drafts, (id) => this.thumbs.pathFor(id, 'grid'))
-    if (created) this.emitChanged()
+    const changed = await syncMemories(this.db, drafts, (id) => this.thumbs.pathFor(id, 'grid'))
+    if (changed) this.emitChanged()
   }
 
   private memoryRow(r: Row): MemorySummary {
@@ -582,6 +582,9 @@ export class Library extends EventEmitter {
   updateMemory(id: number, patch: { title?: string; subtitle?: string | null; pinned?: boolean; dismissed?: boolean; assetIds?: number[]; coverId?: number }): void {
     const r = this.db.prepare('SELECT * FROM memories WHERE id = ?').get(id) as Row | undefined
     if (!r) return
+    // a title chosen by the user (or Claude) no longer follows the generated one
+    const retitled = (patch.title?.trim() && patch.title.trim() !== r.title) || (patch.subtitle !== undefined && patch.subtitle !== r.subtitle)
+    if (retitled) this.db.prepare('UPDATE memories SET auto_title = 0 WHERE id = ?').run(id)
     this.db.prepare('UPDATE memories SET title = ?, subtitle = ?, pinned = ?, dismissed = ?, asset_ids = ?, cover_id = ?, updated_at = ? WHERE id = ?').run(
       patch.title?.trim() || (r.title as string), patch.subtitle === undefined ? (r.subtitle as string | null) : patch.subtitle,
       patch.pinned === undefined ? (r.pinned as number) : patch.pinned ? 1 : 0, patch.dismissed === undefined ? (r.dismissed as number) : patch.dismissed ? 1 : 0,
@@ -721,9 +724,11 @@ export class Library extends EventEmitter {
     this.setSetting('locale', pref === 'auto' ? null : pref)
     this.setSetting('locale_system', system.slice(0, 35))
     if (this.applyLocale()) {
-      // moment titles and cleanup reasons follow the language; memories keep the titles they were created with
+      // generated text follows the language: moment and memory titles, cleanup reasons
       this.momentsVersion = -1
+      this.memoriesVersion = -1
       this.invalidateCleanup()
+      void this.ensureMemories(true).catch(() => undefined)
       this.emitChanged()
     }
   }
