@@ -167,8 +167,16 @@ Raccourcis, animations, i18n EN, accessibilité, notarisation mac, installeur Wi
 - **Éditeur vidéo** : découpe, vitesse, rotation/miroir/format, couleur, netteté, débruitage, stabilisation, volume ; rendu ffmpeg dans « MyPhotos Créations ».
 - **RAW + JPEG** regroupés en un seul élément.
 
+- **Livre photo qui recadre bien** : points d'intérêt (visages, sinon saillance), mise en page justifiée qui garde le format de chaque photo, quasi-doublons écartés.
+- **Dossiers d'alias → albums** : un dossier d'alias Finder (ex. albums exportés d'Apple Photos) devient un album MyPhotos, une seule fois ; les alias ne sont jamais indexés comme photos.
+- **« Est-ce la même personne ? »** : suggestions de fusion calibrées sur la vraie photothèque (cosinus des centroïdes ≥ 0,40), réponses « non » mémorisées ; petits groupes rangés sous « Autres visages ».
+
 ### État d’avancement (2026-10-01)
-Phases 0 à 4 terminées, plus les ajouts ci-dessus. Phase 4 réalisée avec : modèles InsightFace (SCRFD + ArcFace) et CLIP ViT-B/32 quantifié, téléchargés à l’activation dans `<données>/models`, worker thread ONNX, regroupement incrémental des visages, recherche texte (FTS5) + sémantique, catégories zéro-shot, géocodage hors ligne (GeoNames), carte MapLibre avec tuiles OSM proxifiées et mises en cache. Prochaine : phase 5 (Moments, Souvenirs, livre photo).
+Phases 0 à 7 terminées, plus les ajouts ci-dessus.
+- Phase 5 : Moments et voyages, Souvenirs composés (sélection MMR, thèmes de couleur), livre photo PDF, titres Claude en option, rangement de dossiers proposé.
+- Phase 6 : rétrospective vidéo (photos animées, cartes années, extraits vidéo, fondus, musique, aperçu 360p).
+- Phase 7 : partage famille sur le réseau local (lien + QR code, voir ou voir et ajouter, code facultatif), page invité mobile (cœurs, commentaires, ajouts dans `Partagés/`, ZIP), prénom affiché réglable.
+- Prochaine : phase 8. Packaging electron-builder, ffmpeg ≥ 8.1 embarqué (téléchargement à valider), tests Windows, i18n EN, accessibilité, mises à jour auto, doc utilisateur.
 
 ## 4. Vérification
 - **Tests unitaires** (vitest) sur `src/core` : hash, pHash, moments, sélection de souvenirs, règles d'albums intelligents, décodage sur la mini-photothèque de test (jpg, heic iPhone à tuiles, raw NEF/CR2/DNG, mov live, doublons exacts et rafales).
