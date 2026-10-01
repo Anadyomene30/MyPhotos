@@ -19,10 +19,10 @@ import { mkdir as mkdirAsync } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import sharp from 'sharp'
 import { SHARP_EXTS } from './media/kinds'
-import { buildCleanupReport } from './cleanup'
 import { MlService } from './ml/service'
-import { rebuildMoments } from './organize/moments'
-import { paginate, proposeMemories, syncMemories } from './organize/memories'
+import { applyMomentPlan } from './organize/moments'
+import { DbTaskRunner } from './dbTasks'
+import { paginate, syncMemories } from './organize/memories'
 import { enrichWithClaude } from './organize/claudeTitles'
 import { applyMovePlan, buildMovePlan, type MovePlan } from './organize/folders'
 import { thumbKey, toTile } from './repo/assets'
@@ -92,6 +92,7 @@ export class Library extends EventEmitter {
     super()
     mkdirSync(opts.dataDir, { recursive: true })
     this.db = openDb(join(opts.dataDir, 'library.db'))
+    this.dbTasks = new DbTaskRunner(this.db, join(opts.dataDir, 'library.db'), opts.workerDir)
     this.assets = new AssetRepo(this.db)
     this.albums = new AlbumRepo(this.db)
     this.shares = new ShareRepo(this.db)
@@ -136,6 +137,7 @@ export class Library extends EventEmitter {
 
   close(): void {
     this.closed = true
+    void this.dbTasks.close()
     void this.ml.stop()
     this.watcher?.close()
     this.db.close()
@@ -480,15 +482,28 @@ export class Library extends EventEmitter {
   private momentsVersion = -1
   private memoriesVersion = -1
 
-  /** Rebuild moments when the library changed since the last build (cheap: one ordered scan). */
-  ensureMoments(): void {
-    if (this.momentsVersion === this.version) return
-    rebuildMoments(this.db)
-    this.momentsVersion = this.version
+  private momentsRunning: Promise<void> | null = null
+
+  /** Rebuild moments when the library changed since the last build. Computed off-thread, only changed moments are written. */
+  ensureMoments(): Promise<void> {
+    if (this.momentsVersion === this.version) return Promise.resolve()
+    if (this.momentsRunning) return this.momentsRunning
+    const v = this.version
+    this.momentsRunning = this.dbTasks
+      .run({ task: 'moments' })
+      .then((plan) => {
+        if (this.closed) return
+        applyMomentPlan(this.db, plan)
+        this.momentsVersion = v
+      })
+      .finally(() => {
+        this.momentsRunning = null
+      })
+    return this.momentsRunning
   }
 
-  moments(): MomentSummary[] {
-    this.ensureMoments()
+  async moments(): Promise<MomentSummary[]> {
+    await this.ensureMoments()
     const rows = this.db.prepare('SELECT m.*, a.thumb_v, a.qhash FROM moments m LEFT JOIN assets a ON a.id = m.cover_id ORDER BY m.start_at DESC').all() as Row[]
     return rows.map((r) => ({
       id: r.id as number, title: r.title as string, subtitle: r.subtitle as string | null, dayStart: r.day_start as string, dayEnd: r.day_end as string,
@@ -497,7 +512,7 @@ export class Library extends EventEmitter {
     }))
   }
 
-  renameMoment(id: number, title: string): void {
+  async renameMoment(id: number, title: string): Promise<void> {
     const m = this.db.prepare('SELECT sig FROM moments WHERE id = ?').get(id) as { sig: string } | undefined
     if (!m) return
     const t = title.trim()
@@ -507,7 +522,7 @@ export class Library extends EventEmitter {
     } else {
       this.db.prepare('DELETE FROM moment_titles WHERE sig = ?').run(m.sig)
       this.momentsVersion = -1
-      this.ensureMoments()
+      await this.ensureMoments()
     }
     this.emitChanged()
   }
@@ -528,10 +543,10 @@ export class Library extends EventEmitter {
   }
 
   private async buildMemories(): Promise<void> {
-    this.ensureMoments()
+    await this.ensureMoments()
     this.memoriesVersion = this.version
     this.memoriesAt = Date.now()
-    const drafts = proposeMemories(this.db)
+    const drafts = await this.dbTasks.run({ task: 'memories', now: Date.now() })
     const created = await syncMemories(this.db, drafts, (id) => this.thumbs.pathFor(id, 'grid'))
     if (created) this.emitChanged()
   }
@@ -588,10 +603,10 @@ export class Library extends EventEmitter {
   }
 
   /** Regenerate the selection of an automatic memory. */
-  regenerateMemory(id: number): void {
+  async regenerateMemory(id: number): Promise<void> {
     const r = this.db.prepare('SELECT key FROM memories WHERE id = ?').get(id) as { key: string } | undefined
     if (!r) return
-    const d = proposeMemories(this.db).find((x) => x.key === r.key)
+    const d = (await this.dbTasks.run({ task: 'memories', now: Date.now() })).find((x) => x.key === r.key)
     if (!d) return
     this.db.prepare('UPDATE memories SET asset_ids = ?, cover_id = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(d.ids), d.coverId, Date.now(), id)
     this.emitChanged()
@@ -627,16 +642,16 @@ export class Library extends EventEmitter {
   }
 
   /** Preview of the folder arrangement for one source (nothing is moved). */
-  movePlan(sourceId: number): MovePlan & { sourcePath: string } {
-    this.ensureMoments()
+  async movePlan(sourceId: number): Promise<MovePlan & { sourcePath: string }> {
+    await this.ensureMoments()
     const src = this.sources().find((s) => s.id === sourceId)
     if (!src) throw new Error('Dossier introuvable')
     return { ...buildMovePlan(this.db, sourceId), sourcePath: src.path }
   }
 
   /** Move the files of a source into Year/Month Moment folders. Explicit user action, progress as a job. */
-  startMove(sourceId: number): string {
-    const plan = this.movePlan(sourceId)
+  async startMove(sourceId: number): Promise<string> {
+    const plan = await this.movePlan(sourceId)
     const jobId = `move-${++this.exportSeq}`
     const group: JobGroupState = { id: jobId, label: 'Rangement des fichiers', total: plan.items.length, done: 0, failed: 0 }
     this.progress.set(jobId, group)
@@ -710,11 +725,32 @@ export class Library extends EventEmitter {
   // ---------------------------------------------------------------- cleanup
 
   private cleanupCache: CleanupReport | null = null
+  private dbTasks: DbTaskRunner
 
-  cleanupReport(): CleanupReport {
-    if (this.cleanupCache && this.cleanupCache.version === this.version) return this.cleanupCache
-    this.cleanupCache = buildCleanupReport(this.db, this.version, undefined, this.creationsSourceId())
-    return this.cleanupCache
+  private cleanupRunning: Promise<CleanupReport> | null = null
+  private cleanupEpoch = 0
+
+  private invalidateCleanup(): void {
+    this.cleanupCache = null
+    this.cleanupEpoch++
+  }
+
+  /** Cached per library version; computed off-thread (seconds at 200k). Callers during a computation share it. */
+  cleanupReport(): Promise<CleanupReport> {
+    if (this.cleanupCache && this.cleanupCache.version === this.version) return Promise.resolve(this.cleanupCache)
+    if (this.cleanupRunning) return this.cleanupRunning
+    const epoch = this.cleanupEpoch
+    this.cleanupRunning = this.dbTasks
+      .run({ task: 'cleanup', version: this.version, creationsSource: this.creationsSourceId() })
+      .then((r) => {
+        // a trash or keep action during the computation makes this result stale
+        if (epoch === this.cleanupEpoch) this.cleanupCache = r
+        return r
+      })
+      .finally(() => {
+        this.cleanupRunning = null
+      })
+    return this.cleanupRunning
   }
 
   private async sha(id: number): Promise<string | null> {
@@ -757,7 +793,7 @@ export class Library extends EventEmitter {
 
   ignoreCleanup(signature: string, kind: string): void {
     this.db.prepare('INSERT OR IGNORE INTO cleanup_ignored (signature, kind, created_at) VALUES (?, ?, ?)').run(signature, kind, Date.now())
-    this.cleanupCache = null
+    this.invalidateCleanup()
     this.emitChanged()
   }
 
@@ -822,7 +858,7 @@ export class Library extends EventEmitter {
             SELECT DISTINCT album_id, ?, ? FROM album_assets WHERE asset_id IN (SELECT value FROM json_each(?))`).run(row.id as number, Date.now(), JSON.stringify(ids))
           assetId = row.id as number
         }
-        this.cleanupCache = null
+        this.invalidateCleanup()
         this.emitChanged()
         this.send({ type: 'creation-done', ok: true, assetId, sources: ids })
       } catch (e) {
@@ -1043,7 +1079,7 @@ export class Library extends EventEmitter {
     this.db.prepare('UPDATE assets SET edit = ?, edited_at = ?, thumb_state = 0, analyze_state = 0, thumb_v = thumb_v + 1 WHERE id = ?').run(json, json ? Date.now() : null, id)
     await this.thumbs.remove(id)
     await this.thumbnail(id, 'grid')
-    this.cleanupCache = null
+    this.invalidateCleanup()
     this.emitChanged()
   }
 

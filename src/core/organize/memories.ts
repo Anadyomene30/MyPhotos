@@ -1,7 +1,6 @@
 import sharp from 'sharp'
 import type { Db, Row } from '../db'
 import { transaction } from '../db'
-import { hamming } from '../media/analyze'
 import { fromBlob } from '../ml/vectors'
 import { dateRangeLabel } from './moments'
 import type { MemoryKind, MemoryPage, MemoryTheme } from '@shared/types'
@@ -22,6 +21,8 @@ interface Cand {
   faces: number
   screenshot: boolean
   phash: string | null
+  /** phash as two 32-bit halves, parsed once (selection compares it many times) */
+  ph?: [number, number] | null
   clip: Float32Array | null
   ratio: number
 }
@@ -45,6 +46,16 @@ function loadCandidates(db: Db, where: string, params: Array<string | number>): 
     }))
 }
 
+function popcount(x: number): number {
+  x -= (x >>> 1) & 0x55555555
+  x = (x & 0x33333333) + ((x >>> 2) & 0x33333333)
+  return (((x + (x >>> 4)) & 0x0f0f0f0f) * 0x01010101) >>> 24
+}
+
+function phDistance(a: [number, number], b: [number, number]): number {
+  return popcount((a[0] ^ b[0]) >>> 0) + popcount((a[1] ^ b[1]) >>> 0)
+}
+
 function dot(a: Float32Array, b: Float32Array): number {
   let s = 0
   for (let i = 0; i < a.length; i++) s += a[i]! * b[i]!
@@ -54,8 +65,26 @@ function dot(a: Float32Array, b: Float32Array): number {
 /** similarity 0..1 between two candidates (CLIP when available, else perceptual hash) */
 function similarity(a: Cand, b: Cand): number {
   if (a.clip && b.clip) return Math.max(0, (dot(a.clip, b.clip) - 0.5) / 0.5)
-  if (a.phash && b.phash) return Math.max(0, 1 - hamming(a.phash, b.phash) / 24)
+  if (a.ph && b.ph) return Math.max(0, 1 - phDistance(a.ph, b.ph) / 24)
   return 0
+}
+
+/**
+ * Bound the MMR pool (quadratic in picks × pool) on large sets: split the period into time slices and keep the best
+ * few of each, so a year of 10 000 photos still yields picks spread over the whole year.
+ */
+function shortlist<T extends { c: Cand; s: number }>(scored: T[], n: number): T[] {
+  const cap = Math.max(200, n * 12)
+  if (scored.length <= cap) return scored
+  const byTime = [...scored].sort((a, b) => a.c.takenAt - b.c.takenAt)
+  const slices = n * 4
+  const per = Math.ceil(cap / slices)
+  const out: T[] = []
+  for (let k = 0; k < slices; k++) {
+    const slice = byTime.slice(Math.floor((k * byTime.length) / slices), Math.floor(((k + 1) * byTime.length) / slices))
+    out.push(...slice.sort((a, b) => b.s - a.s).slice(0, per))
+  }
+  return out
 }
 
 /**
@@ -63,16 +92,17 @@ function similarity(a: Cand, b: Cand): number {
  * similarity to what is already chosen, and against being taken too close in time.
  */
 export function select(cands: Cand[], n: number, opts: { lambda?: number; timeSpreadMs?: number } = {}): Cand[] {
+  for (const c of cands) if (c.ph === undefined) c.ph = c.phash ? [parseInt(c.phash.slice(0, 8), 16), parseInt(c.phash.slice(8, 16), 16)] : null
   const lambda = opts.lambda ?? 0.7
   const spread = opts.timeSpreadMs ?? 20 * 60000
-  const scored = cands.map((c) => ({ c, s: c.quality * 0.7 + (c.favorite ? 0.35 : 0) + Math.min(0.25, c.faces * 0.1) + (c.clip ? 0 : -0.05) }))
+  const scored = shortlist(cands.map((c) => ({ c, s: c.quality * 0.7 + (c.favorite ? 0.35 : 0) + Math.min(0.25, c.faces * 0.1) + (c.clip ? 0 : -0.05) })), n)
   const chosen: Cand[] = []
   const pool = new Set(scored)
   while (chosen.length < n && pool.size) {
     let best: { c: Cand; v: number; e: (typeof scored)[number] } | null = null
     for (const e of pool) {
       // near-identical frames (bursts, re-saves) never appear twice
-      if (chosen.some((k) => (e.c.clip && k.clip ? dot(e.c.clip, k.clip) > 0.93 : false) || (e.c.phash && k.phash ? hamming(e.c.phash, k.phash) <= 8 : false))) continue
+      if (chosen.some((k) => (e.c.clip && k.clip ? dot(e.c.clip, k.clip) > 0.93 : false) || (e.c.ph && k.ph ? phDistance(e.c.ph, k.ph) <= 8 : false))) continue
       let maxSim = 0
       let nearTime = 0
       for (const k of chosen) {

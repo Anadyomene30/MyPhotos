@@ -145,8 +145,34 @@ export interface RebuildResult {
   trips: number
 }
 
-/** Recompute every moment and trip from scratch (fast: one ordered scan), keeping user titles by signature. */
-export function rebuildMoments(db: Db): RebuildResult {
+export interface PlannedMoment {
+  sig: string
+  title: string
+  subtitle: string
+  start: number
+  end: number
+  dayStart: string
+  dayEnd: string
+  city: string | null
+  country: string | null
+  lat: number | null
+  lon: number | null
+  coverId: number
+  ids: number[]
+  /** index into MomentPlan.trips */
+  trip: number | null
+}
+
+export interface MomentPlan {
+  moments: PlannedMoment[]
+  trips: Array<{ sig: string; title: string; start: number; end: number; cities: string[]; n: number; coverId: number }>
+}
+
+/**
+ * Compute every moment and trip from scratch (one ordered scan), keeping user titles by signature.
+ * Read-only, so it can run on a separate connection in a worker.
+ */
+export function planMoments(db: Db): MomentPlan {
   const rows = db
     .prepare(`SELECT id, taken_at, day, lat, lon, place_city, place_country, kind, quality, date_source
       FROM assets WHERE hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL ORDER BY taken_at, id`)
@@ -159,61 +185,112 @@ export function rebuildMoments(db: Db): RebuildResult {
   const home = homeCity(db)
   const drafts = segment(items)
   const custom = new Map((db.prepare('SELECT sig, title FROM moment_titles').all() as Array<{ sig: string; title: string }>).map((r) => [r.sig, r.title]))
-  const cover = (its: MomentInput[]): number => [...its].sort((a, b) => (a.kind === 'video' ? 1 : 0) - (b.kind === 'video' ? 1 : 0) || (b.quality ?? 0) - (a.quality ?? 0))[0]!.id
+  const cover = (its: MomentInput[]): number => {
+    let best = its[0]!
+    for (const it of its) if ((best.kind === 'video' ? 1 : 0) - (it.kind === 'video' ? 1 : 0) > 0 || ((it.kind === 'video') === (best.kind === 'video') && (it.quality ?? 0) > (best.quality ?? 0))) best = it
+    return best.id
+  }
 
-  return transaction(db, () => {
-    db.exec('DELETE FROM moment_assets; DELETE FROM moments; DELETE FROM trips;')
-    const insM = db.prepare('INSERT INTO moments (sig, title, subtitle, start_at, end_at, day_start, day_end, city, country, lat, lon, n, cover_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    const insMA = db.prepare('INSERT OR REPLACE INTO moment_assets (moment_id, asset_id) VALUES (?, ?)')
-    const ids: number[] = []
-    for (const m of drafts) {
-      const dayStart = m.items[0]!.day
-      const dayEnd = m.items[m.items.length - 1]!.day
-      const sig = sigOf(m)
-      const t = momentTitle({ dayStart, dayEnd, city: m.city, country: m.country, homeCity: home, n: m.items.length })
-      const id = Number(insM.run(sig, custom.get(sig) ?? t.title, t.subtitle, m.start, m.end, dayStart, dayEnd, m.city, m.country, m.lat, m.lon, m.items.length, cover(m.items)).lastInsertRowid)
-      ids.push(id)
-      for (const it of m.items) insMA.run(id, it.id)
+  const plan: MomentPlan = { moments: [], trips: [] }
+  for (const m of drafts) {
+    const dayStart = m.items[0]!.day
+    const dayEnd = m.items[m.items.length - 1]!.day
+    const sig = sigOf(m)
+    const t = momentTitle({ dayStart, dayEnd, city: m.city, country: m.country, homeCity: home, n: m.items.length })
+    plan.moments.push({ sig, title: custom.get(sig) ?? t.title, subtitle: t.subtitle, start: m.start, end: m.end, dayStart, dayEnd, city: m.city, country: m.country, lat: m.lat, lon: m.lon, coverId: cover(m.items), ids: m.items.map((x) => x.id), trip: null })
+  }
+
+  // trips: consecutive moments away from home, spanning ≥ 2 calendar days, with ≤ 2 days of gap
+  let run: number[] = []
+  const flushTrip = (): void => {
+    if (run.length) {
+      const first = drafts[run[0]!]!
+      const last = drafts[run[run.length - 1]!]!
+      const dayStart = first.items[0]!.day
+      const dayEnd = last.items[last.items.length - 1]!.day
+      const days = (Date.parse(dayEnd) - Date.parse(dayStart)) / 86400000 + 1
+      const n = run.reduce((a, i) => a + drafts[i]!.items.length, 0)
+      if (days >= 2 && n >= 8) {
+        const cities = [...new Set(run.map((i) => drafts[i]!.city).filter((c): c is string => Boolean(c)))]
+        const country = run.map((i) => drafts[i]!.country).find(Boolean) ?? null
+        const where = cities.length === 0 ? (country ?? 'ailleurs') : cities.length === 1 ? cities[0]! : cities.length === 2 ? `${cities[0]} et ${cities[1]}` : `${cities[0]}, ${cities[1]} et ${cities.length - 2} autres`
+        const a = parts(dayStart)
+        const title = `${days >= 7 ? 'Voyage' : 'Escapade'} à ${where}`
+        const sub = `${MONTHS[a.m - 1]![0]!.toUpperCase()}${MONTHS[a.m - 1]!.slice(1)} ${a.y} · ${dateRangeLabel(dayStart, dayEnd)}`
+        const t = plan.trips.length
+        plan.trips.push({ sig: `${dayStart}:${first.items[0]!.id}`, title: `${title} · ${sub}`, start: first.start, end: last.end, cities, n, coverId: cover(run.flatMap((i) => drafts[i]!.items)) })
+        for (const i of run) plan.moments[i]!.trip = t
+      }
     }
-    // trips: consecutive moments away from home, spanning ≥ 2 calendar days, with ≤ 2 days of gap
-    let trips = 0
+    run = []
+  }
+  drafts.forEach((m, i) => {
+    const away = m.city !== null && home !== null && m.city !== home && m.country !== null
+    const geoUnknown = m.city === null
+    const prev = run.length ? drafts[run[run.length - 1]!] : undefined
+    const close = prev ? m.start - prev.end <= 2 * 86400000 : true
+    if ((away || (geoUnknown && run.length > 0 && close)) && close) run.push(i)
+    else {
+      flushTrip()
+      if (away) run.push(i)
+    }
+  })
+  flushTrip()
+  return plan
+}
+
+/** Fingerprint of a moment row: unchanged moments are left untouched (no rewrite of their 1000s of links). */
+function momentFp(m: PlannedMoment): string {
+  let sum = 0
+  for (const id of m.ids) sum = (sum + id * 2654435761) % 4294967296
+  return [m.title, m.subtitle, m.start, m.end, m.city, m.country, m.coverId, m.ids.length, sum].join('|')
+}
+
+/** Write a plan, touching only the moments that changed. Trips are few and always rewritten. */
+export function applyMomentPlan(db: Db, plan: MomentPlan): RebuildResult {
+  return transaction(db, () => {
+    const existing = new Map((db.prepare('SELECT id, sig, fp FROM moments').all() as Array<{ id: number; sig: string; fp: string | null }>).map((r) => [r.sig, r]))
+    const delM = db.prepare('DELETE FROM moments WHERE id = ?')
+    const delMA = db.prepare('DELETE FROM moment_assets WHERE moment_id = ?')
+    const insM = db.prepare('INSERT INTO moments (sig, fp, title, subtitle, start_at, end_at, day_start, day_end, city, country, lat, lon, n, cover_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    const insMA = db.prepare('INSERT OR REPLACE INTO moment_assets (moment_id, asset_id) VALUES (?, ?)')
+    const keep = new Set<string>()
+    const ids: number[] = []
+    for (const m of plan.moments) {
+      keep.add(m.sig)
+      const fp = momentFp(m)
+      const prev = existing.get(m.sig)
+      if (prev && prev.fp === fp) {
+        ids.push(prev.id)
+        continue
+      }
+      if (prev) {
+        delMA.run(prev.id)
+        delM.run(prev.id)
+      }
+      const id = Number(insM.run(m.sig, fp, m.title, m.subtitle, m.start, m.end, m.dayStart, m.dayEnd, m.city, m.country, m.lat, m.lon, m.ids.length, m.coverId).lastInsertRowid)
+      for (const a of m.ids) insMA.run(id, a)
+      ids.push(id)
+    }
+    for (const [sig, r] of existing) {
+      if (keep.has(sig)) continue
+      delMA.run(r.id)
+      delM.run(r.id)
+    }
+    // links of assets that left every moment (trashed, hidden, missing)
+    db.exec('DELETE FROM moment_assets WHERE moment_id NOT IN (SELECT id FROM moments)')
+    db.exec('DELETE FROM trips; UPDATE moments SET trip_id = NULL WHERE trip_id IS NOT NULL;')
     const insT = db.prepare('INSERT INTO trips (sig, title, start_at, end_at, cities, n, cover_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
     const setTrip = db.prepare('UPDATE moments SET trip_id = ? WHERE id = ?')
-    let run: Array<{ m: MomentDraft; id: number }> = []
-    const flushTrip = (): void => {
-      if (run.length) {
-        const first = run[0]!.m
-        const last = run[run.length - 1]!.m
-        const dayStart = first.items[0]!.day
-        const dayEnd = last.items[last.items.length - 1]!.day
-        const days = (Date.parse(dayEnd) - Date.parse(dayStart)) / 86400000 + 1
-        const n = run.reduce((a, r) => a + r.m.items.length, 0)
-        if (days >= 2 && n >= 8) {
-          const cities = [...new Set(run.map((r) => r.m.city).filter((c): c is string => Boolean(c)))]
-          const country = run.find((r) => r.m.country)?.m.country ?? null
-          const where = cities.length === 0 ? (country ?? 'ailleurs') : cities.length === 1 ? cities[0]! : cities.length === 2 ? `${cities[0]} et ${cities[1]}` : `${cities[0]}, ${cities[1]} et ${cities.length - 2} autres`
-          const a = parts(dayStart)
-          const title = `${days >= 7 ? 'Voyage' : 'Escapade'} à ${where}`
-          const sub = `${MONTHS[a.m - 1]![0]!.toUpperCase()}${MONTHS[a.m - 1]!.slice(1)} ${a.y} · ${dateRangeLabel(dayStart, dayEnd)}`
-          const tid = Number(insT.run(`${dayStart}:${first.items[0]!.id}`, `${title} · ${sub}`, first.start, last.end, JSON.stringify(cities), n, cover(run.flatMap((r) => r.m.items))).lastInsertRowid)
-          for (const r of run) setTrip.run(tid, r.id)
-          trips++
-        }
-      }
-      run = []
-    }
-    drafts.forEach((m, i) => {
-      const away = m.city !== null && home !== null && m.city !== home && (m.country !== null)
-      const geoUnknown = m.city === null
-      const prev = run[run.length - 1]?.m
-      const close = prev ? m.start - prev.end <= 2 * 86400000 : true
-      if ((away || (geoUnknown && run.length > 0 && close)) && close) run.push({ m, id: ids[i]! })
-      else {
-        flushTrip()
-        if (away) run.push({ m, id: ids[i]! })
-      }
+    const tripIds = plan.trips.map((t) => Number(insT.run(t.sig, t.title, t.start, t.end, JSON.stringify(t.cities), t.n, t.coverId).lastInsertRowid))
+    plan.moments.forEach((m, i) => {
+      if (m.trip !== null) setTrip.run(tripIds[m.trip]!, ids[i]!)
     })
-    flushTrip()
-    return { moments: drafts.length, trips }
+    return { moments: plan.moments.length, trips: plan.trips.length }
   })
+}
+
+/** Recompute and store every moment and trip. */
+export function rebuildMoments(db: Db): RebuildResult {
+  return applyMomentPlan(db, planMoments(db))
 }

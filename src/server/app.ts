@@ -100,7 +100,7 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
   }
   app.get('/api/timeline/buckets', async (c) => {
     const q = timelineQuery(c)
-    if (q.group === 'moments') lib.ensureMoments()
+    if (q.group === 'moments') await lib.ensureMoments()
     if (q.search || q.similar) {
       const ids = await searchTiles(q)
       return c.json(ids.length ? [{ day: 'search', count: ids.length }] : [])
@@ -234,10 +234,10 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
   app.get('/api/assets/:id/albums', (c) => c.json(lib.albums.forAsset(idParam(c))))
 
   // ------------------------------------------------------------ moments & memories
-  app.get('/api/moments', (c) => c.json(lib.moments()))
+  app.get('/api/moments', async (c) => c.json(await lib.moments()))
   app.patch('/api/moments/:id', async (c) => {
     const body = z.object({ title: z.string().max(120) }).parse(await c.req.json())
-    lib.renameMoment(idParam(c), body.title)
+    await lib.renameMoment(idParam(c), body.title)
     return c.json({ ok: true })
   })
   app.get('/api/memories', async (c) => {
@@ -257,8 +257,8 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ ok: true })
   })
   app.post('/api/memories/:id/album', (c) => c.json({ albumId: lib.saveMemoryAsAlbum(idParam(c)) }))
-  app.post('/api/memories/:id/regenerate', (c) => {
-    lib.regenerateMemory(idParam(c))
+  app.post('/api/memories/:id/regenerate', async (c) => {
+    await lib.regenerateMemory(idParam(c))
     return c.json({ ok: true })
   })
   app.post('/api/memories/:id/enrich', async (c) => {
@@ -279,17 +279,17 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
       return c.json({ error: (e as Error).message }, 400)
     }
   })
-  app.get('/api/organize/plan/:id', (c) => {
+  app.get('/api/organize/plan/:id', async (c) => {
     try {
-      const p = lib.movePlan(idParam(c))
+      const p = await lib.movePlan(idParam(c))
       return c.json({ count: p.items.length, alreadyTidy: p.alreadyTidy, skipped: p.skipped, sample: p.sample, sourcePath: p.sourcePath })
     } catch (e) {
       return c.json({ error: (e as Error).message }, 400)
     }
   })
-  app.post('/api/organize/apply/:id', (c) => {
+  app.post('/api/organize/apply/:id', async (c) => {
     try {
-      return c.json({ jobId: lib.startMove(idParam(c)) })
+      return c.json({ jobId: await lib.startMove(idParam(c)) })
     } catch (e) {
       return c.json({ error: (e as Error).message }, 400)
     }
@@ -441,7 +441,7 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
   app.get('/api/similar/:id', (c) => c.json(lib.ml.similar(idParam(c))))
 
   // ------------------------------------------------------------ cleanup
-  app.get('/api/cleanup', (c) => c.json(lib.cleanupReport()))
+  app.get('/api/cleanup', async (c) => c.json(await lib.cleanupReport()))
   app.post('/api/cleanup/exact', async (c) => {
     const body = z.object({ groups: z.array(z.object({ keep: z.number().int(), remove: z.array(z.number().int()).min(1) })).min(1).max(50000) }).parse(await c.req.json())
     return c.json(await lib.resolveExactDuplicates(body.groups))

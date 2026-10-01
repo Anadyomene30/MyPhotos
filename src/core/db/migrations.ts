@@ -317,5 +317,10 @@ export const migrations: string[] = [
     folder TEXT PRIMARY KEY,
     album_id INTEGER
   );
+  `,
+  // 16: memories load each trip's photos; without this every trip scanned all moments
+  `
+  CREATE INDEX moments_trip ON moments(trip_id) WHERE trip_id IS NOT NULL;
+  ALTER TABLE moments ADD COLUMN fp TEXT;
   `
 ]

@@ -19,7 +19,7 @@ describe.runIf(existsSync(LIB))('folder arrangement', () => {
     await lib.addSource(copy)
     await lib.rescanAll()
     await lib.kickIndexer()
-    lib.ensureMoments()
+    await lib.ensureMoments()
   }, 240000)
   afterAll(() => {
     lib.close()

@@ -23,13 +23,13 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
     rmSync(dataDir, { recursive: true, force: true })
   })
 
-  it('analyzes every visible item', () => {
-    const r = lib.cleanupReport()
+  it('analyzes every visible item', async () => {
+    const r = (await lib.cleanupReport())
     expect(r.analyzed).toBe(r.total)
   })
 
-  it('groups exact copies and keeps the original outside the copies folder', () => {
-    const r = lib.cleanupReport()
+  it('groups exact copies and keeps the original outside the copies folder', async () => {
+    const r = (await lib.cleanupReport())
     expect(r.exact.length).toBeGreaterThanOrEqual(8)
     for (const g of r.exact) {
       const keep = g.items.find((i) => i.id === g.keepId)!
@@ -38,14 +38,14 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
     }
   })
 
-  it('finds HEIC conversions as visual duplicates, keeping the higher definition', () => {
-    const r = lib.cleanupReport()
+  it('finds HEIC conversions as visual duplicates, keeping the higher definition', async () => {
+    const r = (await lib.cleanupReport())
     const withHeic = r.visual.filter((g) => g.items.some((i) => i.ext === 'heic'))
     expect(withHeic.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('groups bursts and suggests the sharpest shot', () => {
-    const r = lib.cleanupReport()
+  it('groups bursts and suggests the sharpest shot', async () => {
+    const r = (await lib.cleanupReport())
     expect(r.similar.length).toBeGreaterThanOrEqual(1)
     for (const g of r.similar) {
       expect(g.items.length).toBeGreaterThanOrEqual(2)
@@ -55,7 +55,7 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
   })
 
   it('detects the exposure bracket and fuses it into a new photo', async () => {
-    const r = lib.cleanupReport()
+    const r = (await lib.cleanupReport())
     expect(r.brackets.length).toBe(1)
     const g = r.brackets[0]!
     expect(g.items.map((i) => i.name).sort()).toEqual(['IMG_3402.JPG', 'IMG_3403.JPG', 'IMG_3404.JPG'])
@@ -78,12 +78,12 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
     expect(d.day).toBe('2019-05-12')
     expect(d.path.startsWith(lib.creationsDir)).toBe(true)
     // the fusion is not reported as a duplicate of its sources
-    expect(lib.cleanupReport().brackets.length).toBe(1)
-    expect(lib.cleanupReport().visual.some((v) => v.items.some((i) => i.id === res.assetId))).toBe(false)
+    expect((await lib.cleanupReport()).brackets.length).toBe(1)
+    expect((await lib.cleanupReport()).visual.some((v) => v.items.some((i) => i.id === res.assetId))).toBe(false)
   }, 120000)
 
   it('verifies bytes before trashing copies and supports ignoring groups', async () => {
-    const r = lib.cleanupReport()
+    const r = (await lib.cleanupReport())
     const g = r.exact[0]!
     const res = await lib.resolveExactDuplicates([{ keep: g.keepId, remove: g.items.map((i) => i.id).filter((id) => id !== g.keepId) }])
     expect(res.trashed).toBe(g.items.length - 1)
@@ -94,6 +94,6 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
     expect(bad.trashed).toBe(0)
     expect(bad.skipped).toBe(1)
     lib.ignoreCleanup(other.key, 'exact')
-    expect(lib.cleanupReport().exact.find((x) => x.key === other.key)).toBeUndefined()
+    expect((await lib.cleanupReport()).exact.find((x) => x.key === other.key)).toBeUndefined()
   })
 })

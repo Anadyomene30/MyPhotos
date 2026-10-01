@@ -19,7 +19,8 @@ export default defineConfig({
           index: resolve('src/main/index.ts'),
           backend: resolve('src/backend/index.ts'),
           'fusion-worker': resolve('src/core/edit/fusion-worker.ts'),
-          'ml-worker': resolve('src/ml/worker.ts')
+          'ml-worker': resolve('src/ml/worker.ts'),
+          'db-worker': resolve('src/core/db-worker.ts')
         }
       }
     }
