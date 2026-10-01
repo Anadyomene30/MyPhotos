@@ -16,7 +16,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "build:mac": "sh scripts/build-mac.sh",
-    "build:win": "electron-vite build && electron-builder --win"
+    "build:win": "node scripts/fetch-ffmpeg.mjs win32-x64 && electron-vite build && electron-builder --win",
+    "fetch:ffmpeg": "node scripts/fetch-ffmpeg.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.130.0",

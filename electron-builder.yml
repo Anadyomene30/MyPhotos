@@ -17,7 +17,7 @@ files:
 extraResources:
   - from: resources/geo
     to: geo
-  # ffmpeg ≥ 8.1 (HEIC tiles) goes in resources/ffmpeg/<platform>-<arch>/ once validated; system ffmpeg is used otherwise
+  # ffmpeg ≥ 8.1 (HEIC tiles), fetched by scripts/fetch-ffmpeg.mjs (build-mac.sh runs it); system ffmpeg is used otherwise
   - from: resources/ffmpeg/${platform}-${arch}
     to: ffmpeg/${platform}-${arch}
     filter: ["**/*"]

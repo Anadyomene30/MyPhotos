@@ -6,6 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 OUT="${MYPHOTOS_BUILD_DIR:-$HOME/Library/Caches/MyPhotos-build}"
 rm -rf "$OUT"
+node scripts/fetch-ffmpeg.mjs darwin-arm64
 npx electron-vite build
 npx electron-builder --mac "$@" -c.directories.output="$OUT"
 mkdir -p dist

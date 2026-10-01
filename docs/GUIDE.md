@@ -94,4 +94,4 @@ Un lien peut être **révoqué** à tout moment. Le prénom affiché aux invité
 - **Mac (Apple Silicon)** : ouvrez `MyPhotos-<version>-arm64.dmg` et glissez MyPhotos dans Applications. L'app n'est pas encore signée par Apple : au premier lancement, faites clic droit sur MyPhotos puis **Ouvrir**.
 - **Windows** : lancez l'installeur `MyPhotos Setup <version>.exe`.
 
-Pour lire les photos iPhone (HEIC) et les vidéos, MyPhotos utilise ffmpeg. Sur Mac, installez-le avec Homebrew (`brew install ffmpeg`) tant qu'il n'est pas intégré à l'app.
+MyPhotos embarque ffmpeg pour lire les photos iPhone (HEIC) et les vidéos : rien d'autre à installer.
