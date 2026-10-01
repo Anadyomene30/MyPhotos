@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, onServerEvent, qs } from './client'
 import { useUi } from '@/store'
 import { TileCache, queryKey } from '@/features/library/tileCache'
@@ -89,8 +89,8 @@ export function useTimelineQuery(): TimelineQuery {
 export function useBuckets(q: TimelineQuery) {
   return useQuery({
     queryKey: ['buckets', queryKey(q)],
-    queryFn: () => api<DayBucket[]>(`/api/timeline/buckets${qs(queryParams(q))}`),
-    placeholderData: keepPreviousData
+    queryFn: () => api<DayBucket[]>(`/api/timeline/buckets${qs(queryParams(q))}`)
+    // no placeholder: showing the previous view's layout with empty tiles looked broken when switching albums
   })
 }
 
