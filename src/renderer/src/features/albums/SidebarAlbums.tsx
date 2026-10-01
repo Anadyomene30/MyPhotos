@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react'
 import clsx from 'clsx'
-import { FolderHeart, Plus, Sparkles } from 'lucide-react'
+import { FolderHeart, Plus, Sparkles, Users } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/api/client'
+import type { ShareLink } from '@shared/types'
 import { media } from '@/api/client'
 import { albumsApi, useAlbums } from '@/api/hooks'
 import { MenuItem, Popover } from '@/components/Popover'
@@ -12,6 +15,10 @@ import { addToAlbumWithToast } from './AddToAlbumMenu'
 
 export function SidebarAlbums() {
   const { data: albums } = useAlbums()
+  const version = useUi((s) => s.version)
+  const { data: shareInfo } = useQuery({ queryKey: ['share-overview', version], queryFn: () => api<{ links: ShareLink[]; activity: Array<{ albumId: number; comments: number; uploads: number }> }>('/api/shares') })
+  const shared = new Set((shareInfo?.links ?? []).map((l) => l.albumId))
+  const news = new Map((shareInfo?.activity ?? []).map((a) => [a.albumId, a.comments + a.uploads]))
   const albumId = useUi((s) => s.albumId)
   const page = useUi((s) => s.page)
   const openAlbum = useUi((s) => s.openAlbum)
@@ -61,7 +68,10 @@ export function SidebarAlbums() {
           return (
             <button
               key={a.id}
-              onClick={() => openAlbum(a.id)}
+              onClick={() => {
+                openAlbum(a.id)
+                if (news.get(a.id)) void api(`/api/albums/${a.id}/shares/seen`, { method: 'POST' })
+              }}
               onDragOver={(e) => {
                 if (!droppable || !e.dataTransfer.types.includes(DRAG_MIME)) return
                 e.preventDefault()
@@ -89,6 +99,8 @@ export function SidebarAlbums() {
               )}
               <span className="flex-1 truncate">{a.name}</span>
               {a.kind === 'smart' && <Sparkles className={clsx('size-3 shrink-0', dropTarget === a.id ? 'text-white' : 'text-faint')} />}
+              {shared.has(a.id) && <Users className={clsx('size-3 shrink-0', dropTarget === a.id ? 'text-white' : 'text-accent')} />}
+              {(news.get(a.id) ?? 0) > 0 && <span className="grid h-4 min-w-4 place-items-center rounded-full bg-heart px-1 text-[10px] font-bold text-white">{news.get(a.id)}</span>}
               <span className={clsx('text-[11.5px] tabular-nums', dropTarget === a.id ? 'text-white/80' : 'text-faint')}>{count(a.count)}</span>
             </button>
           )

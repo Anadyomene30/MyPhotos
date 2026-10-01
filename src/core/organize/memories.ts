@@ -30,14 +30,14 @@ const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet'
 
 function loadCandidates(db: Db, where: string, params: Array<string | number>): Cand[] {
   const rows = db
-    .prepare(`SELECT a.id, a.taken_at, a.day, a.kind, a.quality, a.favorite, a.is_screenshot, a.phash, a.ratio,
+    .prepare(`SELECT a.id, a.taken_at, a.day, a.kind, a.quality, a.favorite, a.is_screenshot, a.phash, a.ratio, a.make, a.model,
         (SELECT count(*) FROM faces f WHERE f.asset_id = a.id AND f.person_id IS NOT NULL) AS faces,
         (SELECT emb FROM clip_emb c WHERE c.asset_id = a.id) AS clip,
         EXISTS (SELECT 1 FROM categories c WHERE c.asset_id = a.id AND c.label IN ('document', 'screenshot')) AS doc
       FROM assets a WHERE a.hidden = 0 AND a.missing_at IS NULL AND a.trashed_at IS NULL AND a.kind = 'photo' AND ${where}`)
     .all(...params) as Row[]
   return rows
-    .filter((r) => !r.is_screenshot && !r.doc)
+    .filter((r) => !r.is_screenshot && !r.doc && !(!r.make && !r.model && !r.faces))
     .map((r) => ({
       id: r.id as number, takenAt: r.taken_at as number, day: r.day as string, kind: r.kind as string,
       quality: (r.quality as number | null) ?? 0.4, favorite: r.favorite === 1, faces: r.faces as number,

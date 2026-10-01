@@ -163,6 +163,8 @@ export type ServerEvent =
   | { type: 'export-done'; result: ExportResult }
   | { type: 'creation-done'; ok: boolean; assetId: number | null; error?: string; sources: number[] }
   | { type: 'ml-status'; status: MlStatus }
+  | { type: 'share-activity'; albumId: number; albumName: string; kind: 'comment' | 'upload' | 'like'; author: string }
+  | { type: 'lan-status'; status: LanStatus }
   | { type: 'retro-done'; ok: boolean; assetId: number | null; preview: boolean; file: string | null; error?: string }
 
 export type PhotoFormat = 'original' | 'jpeg' | 'png' | 'webp' | 'avif' | 'tiff'
@@ -361,4 +363,48 @@ export interface RetroOptions {
   includeVideos: boolean
   /** quick low-resolution render */
   preview?: boolean
+}
+
+export interface ShareLink {
+  id: number
+  albumId: number
+  token: string
+  canAdd: boolean
+  hasPin: boolean
+  createdAt: number
+  expiresAt: number | null
+  lastVisit: number | null
+}
+
+export interface LanStatus {
+  enabled: boolean
+  running: boolean
+  port: number
+  addresses: string[]
+  error: string | null
+}
+
+export interface SharedAlbumInfo {
+  name: string
+  count: number
+  canAdd: boolean
+  owner: string
+  coverId: number | null
+  locked: boolean
+}
+
+export interface ShareComment {
+  id: number
+  assetId: number | null
+  author: string
+  text: string
+  createdAt: number
+}
+
+export interface ShareActivity {
+  albumId: number
+  albumName: string
+  comments: number
+  uploads: number
+  likes: number
 }

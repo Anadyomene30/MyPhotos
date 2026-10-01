@@ -24,6 +24,10 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
           else
             ui.toast('Création terminée', e.assetId ? { label: 'Voir', run: () => void openAsset(e.assetId!) } : undefined)
         }
+        if (e.type === 'share-activity') {
+          const what = e.kind === 'upload' ? 'a ajouté des photos à' : e.kind === 'comment' ? 'a commenté' : 'a aimé une photo de'
+          useUi.getState().toast(`${e.author} ${what} « ${e.albumName} »`, { label: 'Voir', run: () => useUi.getState().openAlbum(e.albumId) })
+        }
         if (e.type === 'retro-done' && !e.preview) {
           const ui = useUi.getState()
           if (!e.ok) ui.toast(`Vidéo impossible : ${e.error ?? 'erreur inconnue'}`)

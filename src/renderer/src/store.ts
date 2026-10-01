@@ -55,6 +55,8 @@ interface UiState {
   setVideoEditorId(id: number | null): void
   memoryId: number | null
   openMemory(id: number | null): void
+  shareAlbumId: number | null
+  openShare(id: number | null): void
   retro: { source: import('@shared/types').RetroOptions['source']; title?: string; subtitle?: string } | null
   openRetro(v: UiState['retro']): void
   setSmartEditor(v: { albumId: number | null } | null): void
@@ -106,6 +108,8 @@ export const useUi = create<UiState>((set, get) => ({
   openMemory: (memoryId) => set({ memoryId }),
   retro: null,
   openRetro: (retro) => set({ retro }),
+  shareAlbumId: null,
+  openShare: (shareAlbumId) => set({ shareAlbumId }),
   kind: 'all',
   grouping: saved.grouping ?? 'day',
   zoom: saved.zoom ?? DEFAULT_ZOOM.day,

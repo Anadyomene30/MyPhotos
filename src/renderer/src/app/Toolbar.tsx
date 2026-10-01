@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useRef, useState } from 'react'
-import { Clapperboard, FolderMinus, Share, Heart, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
+import { Clapperboard, FolderMinus, Share, Heart, Users, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
 import { IconButton, Segmented } from '@/components/ui'
 import { albumsApi, patchAssets, useAlbums, useCategories, useLibraryState, usePersons } from '@/api/hooks'
 import { SearchBar } from './SearchBar'
@@ -244,6 +244,15 @@ function AlbumMenu({ albumId, name, smart }: { albumId: number; name: string; sm
             Modifier les règles…
           </MenuItem>
         )}
+        <MenuItem
+          icon={<Users className="size-4" />}
+          onClick={() => {
+            close()
+            useUi.getState().openShare(albumId)
+          }}
+        >
+          Partager avec la famille…
+        </MenuItem>
         <MenuItem
           icon={<Share className="size-4" />}
           onClick={() => {

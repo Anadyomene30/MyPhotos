@@ -259,5 +259,43 @@ export const migrations: string[] = [
   ALTER TABLE assets ADD COLUMN focal_x REAL;
   ALTER TABLE assets ADD COLUMN focal_y REAL;
   UPDATE assets SET analyze_state = 0 WHERE analyze_state = 1;
+  `,
+  /* 13 — family sharing on the local network */ `
+  CREATE TABLE shares (
+    id INTEGER PRIMARY KEY,
+    album_id INTEGER NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    can_add INTEGER NOT NULL DEFAULT 0,
+    pin_hash TEXT,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER,
+    revoked INTEGER NOT NULL DEFAULT 0,
+    last_visit INTEGER
+  );
+  CREATE INDEX shares_album ON shares(album_id);
+  CREATE TABLE share_comments (
+    id INTEGER PRIMARY KEY,
+    album_id INTEGER NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    asset_id INTEGER,
+    author TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    seen INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX share_comments_album ON share_comments(album_id, created_at);
+  CREATE TABLE share_likes (
+    album_id INTEGER NOT NULL REFERENCES albums(id) ON DELETE CASCADE,
+    asset_id INTEGER NOT NULL,
+    author TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (album_id, asset_id, author)
+  ) WITHOUT ROWID;
+  CREATE TABLE share_uploads (
+    asset_path TEXT PRIMARY KEY,
+    album_id INTEGER NOT NULL,
+    author TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    seen INTEGER NOT NULL DEFAULT 0
+  );
   `
 ]

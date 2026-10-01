@@ -10,6 +10,7 @@ import { plural } from '@/lib/format'
 import { IntelligenceSettings } from './Intelligence'
 import { CloudSettings } from './Cloud'
 import { OrganizeSettings } from './Organize'
+import { OwnerSettings } from './Owner'
 
 export function Settings() {
   const open = useUi((s) => s.settingsOpen)
@@ -87,6 +88,7 @@ export function Settings() {
             {error && <p className="mt-2 text-[12px] text-red-500">{error}</p>}
             <p className="mt-2 text-[11.5px] text-faint">Retirer un dossier le retire seulement de MyPhotos. Vos fichiers restent intacts.</p>
           </section>
+          <OwnerSettings />
           <IntelligenceSettings />
           <CloudSettings />
           <OrganizeSettings />

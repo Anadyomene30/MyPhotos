@@ -9,11 +9,13 @@ import { decodeInput, type Library } from '@core/library'
 import { thumbKey } from '@core/repo/assets'
 import { CATEGORIES } from '@core/ml/categories'
 import type { Row } from '@core/db'
-import type { LibraryFilter, ServerEvent, TimelineQuery } from '@shared/types'
+import type { LanStatus, LibraryFilter, ServerEvent, TimelineQuery } from '@shared/types'
+import QRCode from 'qrcode'
 import { mimeFor, sendFile } from './files'
 import { NEUTRAL_VIDEO, type VideoEdit } from '@shared/edit/video'
 
 export interface AppOptions {
+  lan?: { status(): LanStatus; setEnabled(on: boolean): Promise<LanStatus> }
   token: string
   rendererDir?: string
   /** extra origin allowed to call the API (the Vite dev server) */
@@ -47,7 +49,7 @@ const idParam = (c: Context): number => parseInt(c.req.param('id') ?? '', 10)
 export function createApp(lib: Library, opts: AppOptions): Hono {
   const app = new Hono()
 
-  if (opts.devOrigin) app.use('/api/*', cors({ origin: opts.devOrigin, allowHeaders: ['x-token', 'content-type', 'range'], allowMethods: ['GET', 'POST', 'PATCH', 'DELETE'] }))
+  if (opts.devOrigin) app.use('/api/*', cors({ origin: opts.devOrigin, allowHeaders: ['x-token', 'content-type', 'range'], allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] }))
 
   app.use('/api/*', async (c, next) => {
     const t = c.req.header('x-token') ?? c.req.query('t')
@@ -292,6 +294,45 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
       return c.json({ error: (e as Error).message }, 400)
     }
   })
+  // ------------------------------------------------------------ family sharing
+  app.get('/api/lan', (c) => c.json(opts.lan?.status() ?? { enabled: false, running: false, port: 0, addresses: [], error: 'indisponible' }))
+  app.put('/api/lan', async (c) => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(await c.req.json())
+    if (!opts.lan) return c.json({ error: 'Partage indisponible' }, 400)
+    return c.json(await opts.lan.setEnabled(enabled))
+  })
+  app.get('/api/albums/:id/shares', (c) => c.json(lib.shares.forAlbum(idParam(c))))
+  app.post('/api/albums/:id/shares', async (c) => {
+    const body = z.object({ canAdd: z.boolean(), pin: z.string().max(20).nullable().optional(), expiresInDays: z.number().int().min(1).max(3650).nullable().optional() }).parse(await c.req.json())
+    const a = lib.albums.get(idParam(c))
+    if (!a) return c.json({ error: 'Album introuvable' }, 404)
+    return c.json(lib.shares.create(a.id, { canAdd: body.canAdd && a.kind === 'manual', pin: body.pin, expiresInDays: body.expiresInDays }))
+  })
+  app.delete('/api/shares/:id', (c) => {
+    lib.shares.revoke(idParam(c))
+    lib.changed()
+    return c.json({ ok: true })
+  })
+  app.get('/api/shares', (c) => c.json({ links: lib.shares.all(), activity: lib.shares.activity() }))
+  app.post('/api/albums/:id/shares/seen', (c) => {
+    lib.shares.markSeen(idParam(c))
+    lib.changed()
+    return c.json({ ok: true })
+  })
+  app.get('/api/albums/:id/comments', (c) => c.json(lib.shares.comments(idParam(c))))
+  app.get('/api/qr', async (c) => {
+    const text = c.req.query('text') ?? ''
+    if (!text || text.length > 500) return c.body(null, 400)
+    const svg = await QRCode.toString(text, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#111111', light: '#ffffff' } })
+    return c.body(svg, 200, { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'private, max-age=3600' })
+  })
+  app.put('/api/settings/owner', async (c) => {
+    const { name } = z.object({ name: z.string().min(1).max(40) }).parse(await c.req.json())
+    lib.setSetting('owner_name', name.trim())
+    return c.json({ ok: true })
+  })
+  app.get('/api/settings/owner', (c) => c.json({ name: lib.ownerName }))
+
   app.get('/api/settings/cloud', (c) => c.json({ hasKey: Boolean(lib.setting('anthropic_api_key')) }))
   app.put('/api/settings/cloud', async (c) => {
     const body = z.object({ apiKey: z.string().max(300).nullable() }).parse(await c.req.json())

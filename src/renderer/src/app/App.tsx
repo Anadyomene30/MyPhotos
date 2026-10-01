@@ -19,6 +19,7 @@ import { PlacesPage } from '@/features/places/PlacesPage'
 import { MemoriesPage } from '@/features/memories/MemoriesPage'
 import { MemoryBook } from '@/features/memories/MemoryBook'
 import { RetroDialog } from '@/features/retro/RetroDialog'
+import { ShareDialog } from '@/features/share/ShareDialog'
 import { Editor } from '@/features/editor/Editor'
 import { VideoEditor } from '@/features/editor/VideoEditor'
 
@@ -99,6 +100,7 @@ function MainApp() {
       <ExportDialog />
       <Editor />
       <RetroDialog />
+      <ShareDialog />
       <VideoEditor />
     </div>
   )

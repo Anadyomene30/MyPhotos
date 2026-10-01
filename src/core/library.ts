@@ -1,11 +1,13 @@
 import { EventEmitter } from 'node:events'
 import { mkdirSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
-import { cpus } from 'node:os'
+import { cpus, userInfo } from 'node:os'
+import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 import { openDb, transaction, type Db, type Row } from './db'
 import { AssetRepo } from './repo/assets'
 import { AlbumRepo } from './repo/albums'
+import { ShareRepo } from './repo/shares'
 import { applyChanges, pairLivePhotos, scanSource } from './scan/scanner'
 import { FolderWatcher } from './scan/watcher'
 import { readMetadata } from './media/metadata'
@@ -70,6 +72,7 @@ export class Library extends EventEmitter {
   readonly db: Db
   readonly assets: AssetRepo
   readonly albums: AlbumRepo
+  readonly shares: ShareRepo
   readonly thumbs: ThumbStore
   readonly ml: MlService
   private geocoder: Geocoder | null | undefined
@@ -91,6 +94,7 @@ export class Library extends EventEmitter {
     this.db = openDb(join(opts.dataDir, 'library.db'))
     this.assets = new AssetRepo(this.db)
     this.albums = new AlbumRepo(this.db)
+    this.shares = new ShareRepo(this.db)
     this.assets.albumCondition = (id) => this.albums.condition(id)
     this.thumbs = new ThumbStore(join(opts.dataDir, 'cache'))
     this.watcher = opts.watch === false ? null : new FolderWatcher((root, paths) => void this.onFsChanges(root, paths))
@@ -606,6 +610,47 @@ export class Library extends EventEmitter {
     return jobId
   }
 
+  // ---------------------------------------------------------------- family sharing
+
+  /** <first library folder>/Partagés/<album>: the only place MyPhotos writes into the user's folders. */
+  sharedUploadDir(albumName: string): string | null {
+    const creations = this.creationsDir
+    const src = this.sources().find((s) => s.path !== creations)
+    return src ? join(src.path, 'Partagés', sanitizeName(albumName) || 'Album') : null
+  }
+
+  /** Index files a guest uploaded and add them to the shared album. */
+  async addSharedUploads(albumId: number, paths: string[], author: string): Promise<void> {
+    if (!paths.length) return
+    const src = this.sources().find((s) => paths[0]!.startsWith(s.path))
+    if (!src) return
+    await applyChanges(this.db, src.id, src.path, paths)
+    const ids: number[] = []
+    for (const p of paths) {
+      const r = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(p) as Row | undefined
+      if (!r) continue
+      await this.indexMeta(r)
+      ids.push(r.id as number)
+      this.shares.recordUpload(p, albumId, author)
+    }
+    this.albums.addAssets(albumId, ids)
+    for (const id of ids) void this.thumbnail(id, 'grid')
+    this.shareActivity(albumId, 'upload', author)
+    if (this.opts.autoIndex !== false) void this.kickIndexer()
+  }
+
+  shareActivity(albumId: number, kind: 'comment' | 'upload' | 'like', author: string): void {
+    const a = this.albums.get(albumId)
+    if (!a) return
+    this.send({ type: 'share-activity', albumId, albumName: a.name, kind, author })
+    this.emitChanged()
+  }
+
+  get ownerName(): string {
+    return this.setting('owner_name') ?? (this.defaultOwner ??= systemFirstName())
+  }
+  private defaultOwner?: string
+
   setting(key: string): string | null {
     return (this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined)?.value ?? null
   }
@@ -1017,6 +1062,8 @@ export function exifFromRow(ref: Row, comment: string): { IFD0: Record<string, s
   return { IFD0: ifd0, IFD2: ifd2 }
 }
 
+const sanitizeName = (s: string): string => s.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/, '').trim().slice(0, 80)
+
 /** 0..1 technical quality: sharpness dominates, then exposure, then resolution. */
 export function qualityScore(sharpness: number, brightness: number, clipDark: number, clipBright: number, megapixels: number): number {
   const sharp = Math.max(0, Math.min(1, (Math.log10(sharpness + 1) - 1) / 2.2))
@@ -1040,3 +1087,17 @@ export async function indexAll(lib: Library): Promise<void> {
   await lib.kickIndexer()
 }
 
+
+/** First name of the OS account ("Dimitri" rather than the login "dimitrisourzac"), best effort. */
+function systemFirstName(): string {
+  try {
+    if (process.platform === 'darwin') {
+      const full = execFileSync('id', ['-F'], { encoding: 'utf8', timeout: 2000 }).trim()
+      if (full) return full.split(/\s+/)[0]!
+    }
+  } catch {
+    // fall back to the login name
+  }
+  const login = process.env.USER || process.env.USERNAME || userInfo().username || 'MyPhotos'
+  return login.charAt(0).toUpperCase() + login.slice(1)
+}

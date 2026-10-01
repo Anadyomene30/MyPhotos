@@ -65,13 +65,14 @@ export function planSequence(db: Db, opts: RetroOptions): RetroSegment[] {
   }
   if (!opts.includeVideos) cond.push("a.kind = 'photo'")
   const rows = db
-    .prepare(`SELECT a.id, a.kind, a.taken_at, a.day, a.ratio, a.focal_x, a.focal_y, a.duration, a.quality, a.favorite, a.phash, a.is_screenshot,
+    .prepare(`SELECT a.id, a.kind, a.taken_at, a.day, a.ratio, a.focal_x, a.focal_y, a.duration, a.quality, a.favorite, a.phash, a.is_screenshot, a.make, a.model,
         (SELECT count(*) FROM faces f WHERE f.asset_id = a.id AND f.person_id IS NOT NULL) AS faces,
         (SELECT emb FROM clip_emb c WHERE c.asset_id = a.id) AS clip,
         EXISTS (SELECT 1 FROM categories c WHERE c.asset_id = a.id AND c.label IN ('document', 'screenshot')) AS doc
       FROM assets a WHERE ${cond.join(' AND ')} ORDER BY a.taken_at`)
     .all(...params) as Row[]
-  const usable = rows.filter((r) => !r.is_screenshot && !r.doc && (r.kind === 'photo' || ((r.duration as number | null) ?? 0) >= 2))
+  // images without any camera information are usually screenshots, memes or downloads
+  const usable = rows.filter((r) => !r.is_screenshot && !r.doc && !(r.kind === 'photo' && !r.make && !r.model && !r.faces) && (r.kind === 'photo' || ((r.duration as number | null) ?? 0) >= 2))
   const byId = new Map(usable.map((r) => [r.id as number, r]))
   const target = Math.max(4, Math.round((opts.seconds - 3) / per))
   const cands = usable.map((r) => ({

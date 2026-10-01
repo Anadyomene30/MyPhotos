@@ -5,6 +5,8 @@ import { serve } from '@hono/node-server'
 import { Library } from '@core/library'
 import { createApp } from '../server/app'
 import { hostCall, notifyParent } from './host'
+import { createGuestApp } from '../server/guest'
+import { LanServer } from './lan'
 
 /**
  * Backend entry. Runs inside an Electron utilityProcess (production) or as a plain Node process
@@ -25,7 +27,28 @@ const lib = new Library({
   appUrl: () => `http://127.0.0.1:${listeningPort}/?t=${token}`
 })
 let listeningPort = preferredPort
-const app = createApp(lib, { token, rendererDir, devOrigin: process.env.MYPHOTOS_DEV_ORIGIN })
+const guest = createGuestApp(lib, { rendererDir, ownerName: () => lib.ownerName })
+const lan = new LanServer(guest, parseInt(process.env.MYPHOTOS_LAN_PORT ?? '47810', 10))
+const lanEnabled = (): boolean => lib.setting('lan_enabled') === '1'
+const publishLan = (): void => {
+  lib.emit('event', { type: 'lan-status', status: lan.status(lanEnabled()) })
+}
+const app = createApp(lib, {
+  token,
+  rendererDir,
+  devOrigin: process.env.MYPHOTOS_DEV_ORIGIN,
+  lan: {
+    status: () => lan.status(lanEnabled()),
+    setEnabled: async (on: boolean) => {
+      lib.setSetting('lan_enabled', on ? '1' : '0')
+      if (on) await lan.start()
+      else await lan.stop()
+      publishLan()
+      return lan.status(on)
+    }
+  }
+})
+if (lanEnabled()) void lan.start().then(publishLan)
 
 function listen(port: number): Promise<number> {
   return new Promise((ok, fail) => {
