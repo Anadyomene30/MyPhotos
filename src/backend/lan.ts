@@ -1,4 +1,4 @@
-import { networkInterfaces } from 'node:os'
+import { hostname, networkInterfaces } from 'node:os'
 import type { ServerType } from '@hono/node-server'
 import { serve } from '@hono/node-server'
 import type { Hono } from 'hono'
@@ -14,7 +14,11 @@ export function lanAddresses(): string[] {
     }
   }
   // the usual home router ranges first, VPN/virtual last
-  return out.sort((a, b) => (a.startsWith('192.168.1.') || a.startsWith('192.168.0.') ? -1 : 0) - (b.startsWith('192.168.1.') || b.startsWith('192.168.0.') ? -1 : 0))
+  out.sort((a, b) => (a.startsWith('192.168.1.') || a.startsWith('192.168.0.') ? -1 : 0) - (b.startsWith('192.168.1.') || b.startsWith('192.168.0.') ? -1 : 0))
+  // macOS answers to "<name>.local" (Bonjour): stable when the router hands out a new IP
+  const host = hostname()
+  if (process.platform === 'darwin' && host.endsWith('.local') && out.length) out.push(host)
+  return out
 }
 
 /** Guest server bound to all interfaces, started only while sharing is enabled. */

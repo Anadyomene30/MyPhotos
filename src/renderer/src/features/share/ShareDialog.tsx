@@ -92,9 +92,12 @@ export function ShareDialog() {
                 <label className="flex items-center gap-2 text-[12px] text-muted">
                   Adresse de cet ordinateur :
                   <select className="rounded-md border border-line bg-bg px-2 py-1 text-[12px]" value={addr ?? ''} onChange={(e) => setAddr(e.target.value)}>
-                    {lan.addresses.map((a) => <option key={a}>{a}</option>)}
+                    {lan.addresses.map((a) => <option key={a} value={a}>{a.endsWith('.local') ? `${a} (nom stable)` : a}</option>)}
                   </select>
                 </label>
+              )}
+              {addr?.endsWith('.local') && (
+                <p className="-mt-3 text-[11.5px] text-faint">Le nom en « .local » reste valable si l’adresse change. Il fonctionne sur iPhone, iPad et Mac ; sur Android, préférez l’adresse chiffrée.</p>
               )}
               {active.map((l) => (
                 <div key={l.id} className="flex gap-4 rounded-xl border border-line p-3.5">
