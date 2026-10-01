@@ -1,7 +1,7 @@
 import { t, tn } from '@/i18n'
 import clsx from 'clsx'
-import { useRef, useState } from 'react'
-import { Clapperboard, FolderMinus, RectangleHorizontal, Square, Share, Heart, Users, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Clapperboard, Film, FolderMinus, Image as ImageIcon, Images, RectangleHorizontal, Square, Share, Heart, Users, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
 import { IconButton, Segmented } from '@/components/ui'
 import { albumsApi, patchAssets, useAlbums, useCategories, useLibraryState, usePersons } from '@/api/hooks'
 import { SearchBar } from './SearchBar'
@@ -56,6 +56,17 @@ export function Toolbar() {
     : null
   const win = window.desktop && window.desktop.platform !== 'darwin'
   const n = selection.size
+  const headerRef = useRef<HTMLElement>(null)
+  const [width, setWidth] = useState(1200)
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setWidth(e!.contentRect.width))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  // narrow window: icons instead of labels, collapsed search, no zoom slider
+  const compact = width < 900
   const counts = data?.counts
 
   const subtitle = (() => {
@@ -73,8 +84,11 @@ export function Toolbar() {
 
   return (
     <header
+      ref={headerRef}
       className={clsx(
-        'drag absolute inset-x-0 top-0 z-20 flex h-[52px] items-center gap-3 border-b border-line bg-bg/80 pl-5 backdrop-blur-2xl backdrop-saturate-150',
+        'drag absolute inset-x-0 top-0 z-20 flex h-[52px] items-center',
+        compact ? 'gap-2' : 'gap-3',
+        'border-b border-line bg-bg/80 pl-5 backdrop-blur-2xl backdrop-saturate-150',
         win ? 'pr-[150px]' : 'pr-4'
       )}
     >
@@ -84,7 +98,7 @@ export function Toolbar() {
             <button onClick={clearSelection} className="grid size-6 place-items-center rounded-full bg-hover text-muted hover:text-fg" aria-label={t('Désélectionner')}>
               <X className="size-3.5" />
             </button>
-            <span className="text-[14px] font-semibold">{tn(n, '{n} sélectionné', '{n} sélectionnés')}</span>
+            <span className="truncate text-[14px] font-semibold whitespace-nowrap">{tn(n, '{n} sélectionné', '{n} sélectionnés')}</span>
           </div>
         ) : (
           <div className="flex items-baseline gap-2.5 truncate">
@@ -176,28 +190,40 @@ export function Toolbar() {
         </Button>
       )}
 
-      <SearchBar />
+      {!(compact && n > 0) && <SearchBar compact={compact} />}
 
-      <Segmented<Grouping>
-        value={grouping}
-        onChange={setGrouping}
-        options={[
-          { value: 'year', label: t('Années'), title: t('Années (1)') },
-          { value: 'month', label: t('Mois'), title: t('Mois (2)') },
-          { value: 'day', label: t('Jours'), title: t('Jours (3)') },
-          { value: 'moments', label: t('Moments'), title: t('Moments (4)') }
-        ]}
-      />
+      {!(compact && n > 0) && (
+        <Segmented<Grouping>
+          size={compact ? 'sm' : 'md'}
+          value={grouping}
+          onChange={setGrouping}
+          options={[
+            { value: 'year', label: t('Années'), title: t('Années (1)') },
+            { value: 'month', label: t('Mois'), title: t('Mois (2)') },
+            { value: 'day', label: t('Jours'), title: t('Jours (3)') },
+            { value: 'moments', label: t('Moments'), title: t('Moments (4)') }
+          ]}
+        />
+      )}
 
-      {section !== 'live' && (
+      {section !== 'live' && !(compact && n > 0) && (
         <Segmented<KindFilter>
           value={kind}
           onChange={setKind}
-          options={[
-            { value: 'all', label: t('Tout') },
-            { value: 'photo', label: t('Photos') },
-            { value: 'video', label: t('Vidéos') }
-          ]}
+          size={compact ? 'sm' : 'md'}
+          options={
+            compact
+              ? [
+                  { value: 'all', label: <Images className="size-3.5" aria-label={t('Tout')} />, title: t('Tout') },
+                  { value: 'photo', label: <ImageIcon className="size-3.5" aria-label={t('Photos')} />, title: t('Photos') },
+                  { value: 'video', label: <Film className="size-3.5" aria-label={t('Vidéos')} />, title: t('Vidéos') }
+                ]
+              : [
+                  { value: 'all', label: t('Tout') },
+                  { value: 'photo', label: t('Photos') },
+                  { value: 'video', label: t('Vidéos') }
+                ]
+          }
         />
       )}
 
@@ -219,7 +245,7 @@ export function Toolbar() {
           max={ZOOM_LEVELS.length - 1}
           value={zoom}
           onChange={(e) => setZoom(Number(e.target.value))}
-          className="h-1 w-20 cursor-pointer accent-[var(--accent)]"
+          className={clsx('h-1 w-20 cursor-pointer accent-[var(--accent)]', compact && 'hidden')}
           aria-label={t('Taille des vignettes')}
         />
         <IconButton label={t('Zoomer (+)')} onClick={() => setZoom(zoom + 1)} disabled={zoom === ZOOM_LEVELS.length - 1} className="size-7">

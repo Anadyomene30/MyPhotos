@@ -5,8 +5,11 @@ import { Search, X } from 'lucide-react'
 import { useMlStatus } from '@/api/hooks'
 import { useUi } from '@/store'
 
-/** Toolbar search: file names, places, people, categories, and semantic search when CLIP is installed. */
-export function SearchBar() {
+/**
+ * Toolbar search: file names, places, people, categories, and semantic search when CLIP is installed.
+ * `compact` (narrow window): just the magnifier until clicked or filled.
+ */
+export function SearchBar({ compact = false }: { compact?: boolean }) {
   const search = useUi((s) => s.search)
   const setSearch = useUi((s) => s.setSearch)
   const { data: ml } = useMlStatus()
@@ -35,7 +38,7 @@ export function SearchBar() {
   const semantic = ml?.enabled && ml.running.clip
 
   return (
-    <div className={clsx('no-drag relative flex h-[30px] items-center rounded-lg bg-hover transition-[width]', value ? 'w-64' : 'w-52 focus-within:w-64')}>
+    <div className={clsx('no-drag relative flex h-[30px] items-center rounded-lg bg-hover transition-[width]', compact ? (value ? 'w-48' : 'w-[30px] cursor-pointer focus-within:w-48') : value ? 'w-64' : 'w-52 focus-within:w-64')}>
       <Search className="pointer-events-none absolute left-2.5 size-3.5 text-faint" />
       <input
         ref={ref}
