@@ -17,6 +17,7 @@
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "build:mac": "sh scripts/build-mac.sh",
     "build:win": "node scripts/fetch-ffmpeg.mjs win32-x64 && electron-vite build && electron-builder --win",
+    "build:win-on-mac": "sh scripts/build-win-from-mac.sh",
     "fetch:ffmpeg": "node scripts/fetch-ffmpeg.mjs"
   },
   "dependencies": {

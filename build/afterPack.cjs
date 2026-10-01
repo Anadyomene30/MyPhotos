@@ -27,6 +27,15 @@ exports.default = async function afterPack(context) {
     }
   }
 
+  // sharp's per-platform packages: a cross build (Windows from a Mac) also carries the host's ones
+  const img = join(resources, 'app.asar.unpacked', 'node_modules', '@img')
+  if (existsSync(img)) {
+    for (const d of readdirSync(img)) {
+      const m = /^sharp-(?:libvips-)?(\w+)-(\w+)$/.exec(d)
+      if (m && (m[1] !== platform || m[2] !== arch)) rmSync(join(img, d), { recursive: true, force: true })
+    }
+  }
+
   // codesign refuses files carrying extended attributes (Finder info, provenance) picked up during extraction
   if (platform === 'darwin') execFileSync('xattr', ['-cr', context.appOutDir])
 }
