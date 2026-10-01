@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import { useQueryClient } from '@tanstack/react-query'
 import { BookOpen, Clapperboard, FolderHeart, Loader2, Pencil, Pin, RefreshCw, Sparkles, Trash2, Wand2, X } from 'lucide-react'
 import { api, media } from '@/api/client'
-import { memoriesApi, useMemory } from '@/api/hooks'
+import { memoriesApi, openAsset as openAssetInLibrary, useMemory } from '@/api/hooks'
 import { Button, IconButton } from '@/components/ui'
 import { confirm } from '@/components/Confirm'
 import { promptText } from '@/components/Prompt'
@@ -139,12 +139,12 @@ export function MemoryBook({ id, printMode = false }: { id: number; printMode?: 
 
   const openAsset = (assetId: number): void => {
     if (printMode) return
-    void api<{ index: number | null }>(`/api/timeline/index/${assetId}`).then(({ index }) => {
-      if (index === null) return
+    useUi.getState().openMemory(null)
+    // closing the photo reopens the memory
+    void openAssetInLibrary(assetId, () => {
       const ui = useUi.getState()
-      ui.openMemory(null)
-      ui.setSection('all')
-      ui.openViewer(index)
+      ui.openPage('memories')
+      ui.openMemory(id)
     })
   }
 

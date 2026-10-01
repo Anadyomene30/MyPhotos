@@ -7,7 +7,7 @@ import type { Feature, FeatureCollection, Point } from 'geojson'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Loader2, MapPin } from 'lucide-react'
 import { api, media } from '@/api/client'
-import { usePlaces } from '@/api/hooks'
+import { openAsset, usePlaces } from '@/api/hooks'
 import { useUi } from '@/store'
 import { count, plural } from '@/lib/format'
 import { t, tn } from '@/i18n'
@@ -29,6 +29,9 @@ const STYLE: maplibregl.StyleSpecification = {
 }
 
 const ID_BASE = 1e10
+
+/** Last map view, so coming back from a photo shows the same place. */
+let lastView: { center: [number, number]; zoom: number } | null = null
 
 /** Rounded photo thumbnail used as a map marker; clusters carry a count badge. */
 function photoMarker(id: number, v: string, count: number | null, label: string): HTMLButtonElement {
@@ -53,7 +56,6 @@ function photoMarker(id: number, v: string, count: number | null, label: string)
 export function PlacesPage() {
   const { data: places, isLoading } = usePlaces()
   const openPlace = useUi((s) => s.openPlace)
-  const openAsset = useUi((s) => s.openViewer)
   const mapEl = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const [ready, setReady] = useState(false)
@@ -73,20 +75,15 @@ export function PlacesPage() {
       m.addSource('photos', { type: 'geojson', data: geojson, cluster: true, clusterRadius: 56, clusterMaxZoom: 19, maxzoom: 20, clusterProperties: { rank: ['max', ['get', 'rank']] } })
       // invisible layer: keeps the source's tiles loaded so markers can be read from it
       m.addLayer({ id: 'photos-hit', type: 'circle', source: 'photos', paint: { 'circle-radius': 1, 'circle-opacity': 0 } })
-      if (geojson.features.length) {
+      if (lastView) m.jumpTo(lastView)
+      else if (geojson.features.length) {
         const b = new maplibregl.LngLatBounds()
         for (const f of geojson.features) b.extend((f.geometry as Point).coordinates as [number, number])
         m.fitBounds(b, { padding: 60, maxZoom: 11, duration: 0 })
       }
 
-      const openPhoto = (id: number): void => {
-        void api<{ index: number | null }>(`/api/timeline/index/${id}`).then(({ index }) => {
-          if (index !== null) {
-            useUi.getState().setSection('all')
-            openAsset(index)
-          }
-        })
-      }
+      // closing the photo comes back to the map
+      const openPhoto = (id: number): void => void openAsset(id, () => useUi.getState().openPage('places'))
       const src = m.getSource('photos') as maplibregl.GeoJSONSource
       let shown = new Map<string, maplibregl.Marker>()
       const sync = (): void => {
@@ -125,13 +122,17 @@ export function PlacesPage() {
         shown = next
       }
       m.on('render', sync)
+      m.on('moveend', () => {
+        const c = m.getCenter()
+        lastView = { center: [c.lng, c.lat], zoom: m.getZoom() }
+      })
       setReady(true)
     })
     return () => {
       m.remove()
       map.current = null
     }
-  }, [openAsset])
+  }, [])
 
   const flyTo = (lat: number, lon: number): void => {
     map.current?.flyTo({ center: [lon, lat], zoom: 11 })

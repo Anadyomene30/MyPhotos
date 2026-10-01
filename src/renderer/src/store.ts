@@ -68,8 +68,10 @@ interface UiState {
   toggleAspectGrid(): void
   select(ids: number[], mode: 'replace' | 'toggle' | 'add', anchor?: number | null): void
   clearSelection(): void
-  openViewer(index: number): void
+  /** `onClose` brings the user back where the photo was opened from (map, memory); navigation inside the viewer keeps it */
+  openViewer(index: number, onClose?: () => void): void
   closeViewer(): void
+  viewerReturn: (() => void) | null
   toggleInfo(): void
   setSettingsOpen(open: boolean): void
   setTheme(t: Theme): void
@@ -144,8 +146,13 @@ export const useUi = create<UiState>((set, get) => ({
     set({ selection: next, anchor: anchor === undefined ? get().anchor : anchor })
   },
   clearSelection: () => set({ selection: new Set(), anchor: null }),
-  openViewer: (viewerIndex) => set({ viewerIndex }),
-  closeViewer: () => set({ viewerIndex: null }),
+  viewerReturn: null,
+  openViewer: (viewerIndex, onClose) => set(onClose ? { viewerIndex, viewerReturn: onClose } : { viewerIndex }),
+  closeViewer: () => {
+    const back = get().viewerReturn
+    set({ viewerIndex: null, viewerReturn: null })
+    back?.()
+  },
   toggleInfo: () => set({ infoOpen: !get().infoOpen }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setTheme: (theme) => set({ theme }),

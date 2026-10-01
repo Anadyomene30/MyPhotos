@@ -148,13 +148,14 @@ export const albumsApi = {
   removeAssets: (id: number, ids: number[]) => api<{ removed: number }>(`/api/albums/${id}/assets`, { method: 'DELETE', json: { ids } })
 }
 
-/** Show one asset in the viewer, from the whole library timeline. */
-export async function openAsset(id: number): Promise<void> {
+/** Show one asset in the viewer, from the whole library timeline. `onClose` returns to where it was opened from. */
+export async function openAsset(id: number, onClose?: () => void): Promise<void> {
+  const { index } = await api<{ index: number | null }>(`/api/timeline/index/${id}`)
+  if (index === null) return
   const ui = useUi.getState()
   ui.setSection('all')
   ui.setKind('all')
-  const { index } = await api<{ index: number | null }>(`/api/timeline/index/${id}`)
-  if (index !== null) useUi.getState().openViewer(index)
+  ui.openViewer(index, onClose)
 }
 
 export function useMlStatus() {
