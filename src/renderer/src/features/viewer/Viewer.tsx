@@ -267,6 +267,7 @@ function Stage({ tile, detail, facesOn }: { tile: AssetTile; detail: AssetDetail
     }
     return { left: (box.w - w) / 2, top: (box.h - h) / 2, width: w, height: h }
   })()
+  const fitted = imgRect ? { width: imgRect.width, height: imgRect.height } : undefined
   const [scale, setScale] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [liveOn, setLiveOn] = useState(false)
@@ -308,7 +309,7 @@ function Stage({ tile, detail, facesOn }: { tile: AssetTile; detail: AssetDetail
       )
     }
     return (
-      <div className="grid h-full place-items-center p-6 pt-14">
+      <div className="absolute inset-x-6 top-14 bottom-6 flex items-center justify-center">
         <video key={tile.id} src={media.original(tile.id)} poster={media.thumb(tile.id, tile.v)} controls autoPlay playsInline className="max-h-full max-w-full rounded-sm bg-black shadow-2xl" />
       </div>
     )
@@ -316,7 +317,7 @@ function Stage({ tile, detail, facesOn }: { tile: AssetTile; detail: AssetDetail
 
   return (
     <div
-      className={clsx('absolute inset-0 grid place-items-center overflow-hidden p-4 pt-14', scale > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-default')}
+      className={clsx('absolute inset-0 overflow-hidden', scale > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-default')}
       onWheel={onWheel}
       onDoubleClick={onDouble}
       onPointerDown={onDown}
@@ -325,20 +326,22 @@ function Stage({ tile, detail, facesOn }: { tile: AssetTile; detail: AssetDetail
     >
       <div
         ref={wrap}
-        className="relative grid h-full w-full place-items-center transition-transform duration-150 ease-out"
+        // definite box (absolute, not a grid track) so the photo is sized to fit it instead of its natural size
+        className="absolute inset-x-4 top-14 bottom-4 flex items-center justify-center transition-transform duration-150 ease-out"
         style={{ transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)` }}
       >
         {scale === 1 && loaded && <FacesOverlay assetId={tile.id} rect={imgRect} visible={facesOn} />}
-        {!loaded && <img src={media.thumb(tile.id, tile.v)} alt="" draggable={false} className="absolute max-h-full max-w-full object-contain blur-[2px]" style={{ aspectRatio: tile.ratio, height: '100%' }} />}
+        {!loaded && <img src={media.thumb(tile.id, tile.v)} alt="" draggable={false} className="absolute object-contain blur-[2px]" style={fitted ?? { maxWidth: '100%', maxHeight: '100%' }} />}
         <img
           src={media.preview(tile.id, tile.v)}
           alt=""
           draggable={false}
           onLoad={() => setLoaded(true)}
+          style={fitted}
           className={clsx('max-h-full max-w-full object-contain transition-opacity duration-200', loaded ? 'opacity-100' : 'opacity-0')}
         />
         {liveOn && detail?.hasLiveVideo && (
-          <video src={media.live(tile.id)} autoPlay muted playsInline onEnded={() => setLiveOn(false)} className="absolute max-h-full max-w-full object-contain" />
+          <video src={media.live(tile.id)} autoPlay muted playsInline onEnded={() => setLiveOn(false)} className="absolute max-h-full max-w-full object-contain" style={fitted} />
         )}
       </div>
       {tile.live && (
