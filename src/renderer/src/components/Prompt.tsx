@@ -2,6 +2,7 @@ import { t } from '@/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { Button } from './ui'
+import { useModal } from './useModal'
 
 interface PromptRequest {
   title: string
@@ -28,6 +29,7 @@ export function PromptHost() {
       setTimeout(() => input.current?.select(), 0)
     }
   }, [req])
+  const panelRef = useModal<HTMLFormElement>(Boolean(req))
   if (!req) return null
   const close = (v: string | null): void => {
     req.resolve(v && v.trim() ? v.trim() : null)
@@ -36,6 +38,7 @@ export function PromptHost() {
   return (
     <div className="animate-fade-in fixed inset-0 z-[60] grid place-items-center bg-black/35 backdrop-blur-[2px]" onMouseDown={() => close(null)}>
       <form
+        ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="prompt-title"
         className="animate-pop-in w-[380px] max-w-[92vw] rounded-2xl border border-line bg-surface p-5 shadow-2xl dark:bg-elevated"
         onMouseDown={(e) => e.stopPropagation()}
         onSubmit={(e) => {
@@ -49,7 +52,7 @@ export function PromptHost() {
           }
         }}
       >
-        <h2 className="font-display text-[16px] font-semibold">{req.title}</h2>
+        <h2 id="prompt-title" className="font-display text-[16px] font-semibold">{req.title}</h2>
         <input
           ref={input}
           autoFocus

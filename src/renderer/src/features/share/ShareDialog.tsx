@@ -7,6 +7,7 @@ import { confirm } from '@/components/Confirm'
 import { useUi } from '@/store'
 import { localeTag, t } from '@/i18n'
 import type { LanStatus, ShareLink } from '@shared/types'
+import { useModal } from '@/components/useModal'
 
 const fmt = new Intl.DateTimeFormat(localeTag(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 
@@ -39,6 +40,7 @@ export function ShareDialog() {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [albumId])
 
+  const panelRef = useModal<HTMLDivElement>(albumId !== null)
   if (albumId === null) return null
   const url = (l: ShareLink): string => `http://${addr ?? 'localhost'}:${lan?.port ?? 47810}/s/${l.token}`
 
@@ -68,10 +70,10 @@ export function ShareDialog() {
 
   return (
     <div className="animate-fade-in fixed inset-0 z-[58] grid place-items-center bg-black/35 backdrop-blur-[2px]" onMouseDown={close}>
-      <div className="animate-pop-in flex max-h-[92vh] w-[620px] max-w-[95vw] flex-col rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="share-title" className="animate-pop-in flex max-h-[92vh] w-[620px] max-w-[95vw] flex-col rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
           <Share2 className="size-4 text-accent" />
-          <h2 className="flex-1 font-display text-[16px] font-semibold">{t('Partager avec la famille')}</h2>
+          <h2 id="share-title" className="flex-1 font-display text-[16px] font-semibold">{t('Partager avec la famille')}</h2>
           <IconButton label={t('Fermer')} onClick={close}><X className="size-4" /></IconButton>
         </div>
         <div className="scroll-thin space-y-5 overflow-y-auto p-5">

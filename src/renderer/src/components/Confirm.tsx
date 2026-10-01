@@ -2,6 +2,7 @@ import { t } from '@/i18n'
 import { useEffect } from 'react'
 import { create } from 'zustand'
 import { Button } from './ui'
+import { useModal } from './useModal'
 
 interface ConfirmRequest {
   title: string
@@ -37,11 +38,12 @@ export function ConfirmHost() {
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   })
+  const panelRef = useModal<HTMLDivElement>(Boolean(req))
   if (!req) return null
   return (
     <div className="animate-fade-in fixed inset-0 z-[60] grid place-items-center bg-black/35 backdrop-blur-[2px]" onMouseDown={() => close(false)}>
-      <div className="animate-pop-in w-[400px] max-w-[92vw] rounded-2xl border border-line bg-surface p-5 shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
-        <h2 className="font-display text-[16px] font-semibold">{req.title}</h2>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="animate-pop-in w-[400px] max-w-[92vw] rounded-2xl border border-line bg-surface p-5 shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
+        <h2 id="confirm-title" className="font-display text-[16px] font-semibold">{req.title}</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-muted">{req.message}</p>
         <div className="mt-5 flex justify-end gap-2">
           <Button onClick={() => close(false)}>{t('Annuler')}</Button>

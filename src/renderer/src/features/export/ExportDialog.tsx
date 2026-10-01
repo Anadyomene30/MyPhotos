@@ -8,6 +8,7 @@ import { useUi } from '@/store'
 import { bytes, plural } from '@/lib/format'
 import { t, tn } from '@/i18n'
 import { loadSettings, PHOTO_FORMATS, PHOTO_SIZES, PRESETS, saveSettings, VIDEO_FORMATS, VIDEO_SIZES, type ExportSettings } from './presets'
+import { useModal } from '@/components/useModal'
 
 const ICONS: Record<string, ReactNode> = {
   share: <Send className="size-5" />,
@@ -73,6 +74,7 @@ export function ExportDialog() {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [ids, initial])
 
+  const panelRef = useModal<HTMLDivElement>(Boolean(ids))
   if (!ids) return null
   const photos = summary?.photos ?? 0
   const videos = summary?.videos ?? 0
@@ -100,11 +102,11 @@ export function ExportDialog() {
 
   return (
     <div className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/35 backdrop-blur-[2px]" onMouseDown={close}>
-      <div className="animate-pop-in flex max-h-[90vh] w-[640px] max-w-[94vw] flex-col rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="export-title" className="animate-pop-in flex max-h-[90vh] w-[640px] max-w-[94vw] flex-col rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
           <Upload className="size-4 text-accent" />
           <div className="min-w-0 flex-1">
-            <h2 className="font-display text-[16px] font-semibold">{tn(ids.length, 'Exporter {n} élément', 'Exporter {n} éléments')}</h2>
+            <h2 id="export-title" className="font-display text-[16px] font-semibold">{tn(ids.length, 'Exporter {n} élément', 'Exporter {n} éléments')}</h2>
             {summary && <p className="text-[12px] text-muted">{[photos ? plural(photos, 'photo', 'photos') : '', videos ? plural(videos, 'vidéo', 'vidéos') : '', bytes(summary.bytes)].filter(Boolean).join(' · ')}</p>}
           </div>
           <IconButton label={t('Fermer')} onClick={close}>

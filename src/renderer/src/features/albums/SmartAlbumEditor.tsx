@@ -6,6 +6,7 @@ import { albumsApi, useAlbums } from '@/api/hooks'
 import { Button, IconButton, Segmented } from '@/components/ui'
 import { useUi } from '@/store'
 import type { SmartRule, SmartRules } from '@shared/types'
+import { useModal } from '@/components/useModal'
 
 type Field = SmartRule['field']
 
@@ -134,6 +135,7 @@ export function SmartAlbumEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor?.albumId])
 
+  const panelRef = useModal<HTMLDivElement>(Boolean(editor))
   if (!editor) return null
   const close = (): void => setEditor(null)
   const save = async (): Promise<void> => {
@@ -151,7 +153,7 @@ export function SmartAlbumEditor() {
 
   return (
     <div className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/35 backdrop-blur-[2px]" onMouseDown={close}>
-      <div className="animate-pop-in w-[620px] max-w-[94vw] rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={t('Album intelligent')} className="animate-pop-in w-[620px] max-w-[94vw] rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
           <Sparkles className="size-4 text-accent" />
           <input

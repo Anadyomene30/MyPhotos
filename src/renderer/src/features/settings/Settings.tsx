@@ -13,6 +13,7 @@ import { CloudSettings } from './Cloud'
 import { OrganizeSettings } from './Organize'
 import { OwnerSettings } from './Owner'
 import { LanguageSettings } from './Language'
+import { useModal } from '@/components/useModal'
 
 export function Settings() {
   const open = useUi((s) => s.settingsOpen)
@@ -36,6 +37,7 @@ export function Settings() {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [open, setOpen])
 
+  const panelRef = useModal<HTMLDivElement>(open)
   if (!open) return null
 
   const remove = async (id: number): Promise<void> => {
@@ -45,9 +47,9 @@ export function Settings() {
 
   return (
     <div className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/30 backdrop-blur-[2px]" onMouseDown={() => setOpen(false)}>
-      <div className="animate-pop-in flex max-h-[88vh] w-[560px] max-w-[92vw] flex-col rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="settings-title" className="animate-pop-in flex max-h-[88vh] w-[560px] max-w-[92vw] flex-col rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-          <h2 className="font-display text-[16px] font-semibold">{t('Réglages')}</h2>
+          <h2 id="settings-title" className="font-display text-[16px] font-semibold">{t('Réglages')}</h2>
           <IconButton label={t('Fermer')} onClick={() => setOpen(false)}>
             <X className="size-4" />
           </IconButton>
