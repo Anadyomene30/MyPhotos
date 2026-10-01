@@ -186,5 +186,7 @@ export const app: Record<string, string> = {
   'La version {version} est disponible au téléchargement.': 'Version {version} is available to download.',
   'Redémarrer': 'Restart',
   'Le dossier « {name} » est introuvable, le disque est sans doute débranché. Les vignettes restent visibles ; les originaux reviennent dès qu’il est rebranché.': 'The folder “{name}” can’t be found; the disk is probably unplugged. Thumbnails stay visible, and originals come back as soon as it’s plugged in again.',
-  '{n} dossiers de la photothèque sont introuvables. Les vignettes restent visibles ; les originaux reviennent dès que les disques sont rebranchés.': '{n} library folders can’t be found. Thumbnails stay visible, and originals come back as soon as the disks are plugged in again.'
+  '{n} dossiers de la photothèque sont introuvables. Les vignettes restent visibles ; les originaux reviennent dès que les disques sont rebranchés.': '{n} library folders can’t be found. Thumbnails stay visible, and originals come back as soon as the disks are plugged in again.',
+  'Afficher des carrés': 'Show square tiles',
+  'Afficher les photos entières': 'Show whole photos',
 }

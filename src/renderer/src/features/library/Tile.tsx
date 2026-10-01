@@ -15,21 +15,23 @@ function LiveIcon({ className }: { className?: string }) {
   )
 }
 
-export const Tile = memo(function Tile({ tile, index, size, selected, compact }: {
+export const Tile = memo(function Tile({ tile, index, size, selected, compact, fit }: {
   tile: AssetTile | undefined
   index: number
   size: number
   selected: boolean
   compact: boolean
+  /** whole photo at its aspect ratio, centred in the square cell */
+  fit: boolean
 }) {
   const [loaded, setLoaded] = useState(false)
-  return (
+  // in fit mode the frame shrinks to the photo; badges and selection follow the photo's edges
+  const ratio = tile?.ratio && tile.ratio > 0 ? tile.ratio : 1
+  const frame = fit && tile ? (ratio >= 1 ? { width: size, height: size / ratio } : { width: size * ratio, height: size }) : { width: size, height: size }
+  const inner = (
     <div
-      data-index={index}
-      data-id={tile?.id}
-      draggable={Boolean(tile)}
       className={clsx('tile-bg group relative overflow-hidden', !compact && 'rounded-[3px]')}
-      style={{ width: size, height: size }}
+      style={frame}
     >
       {tile && (
         <img
@@ -39,7 +41,7 @@ export const Tile = memo(function Tile({ tile, index, size, selected, compact }:
           draggable={false}
           decoding="async"
           onLoad={() => setLoaded(true)}
-          style={{ objectPosition: `${tile.fx * 100}% ${tile.fy * 100}%` }}
+          style={fit ? undefined : { objectPosition: `${tile.fx * 100}% ${tile.fy * 100}%` }}
           className={clsx('thumb pointer-events-none h-full w-full object-cover', loaded && 'loaded')}
         />
       )}
@@ -74,6 +76,11 @@ export const Tile = memo(function Tile({ tile, index, size, selected, compact }:
           </div>
         </>
       )}
+    </div>
+  )
+  return (
+    <div data-index={index} data-id={tile?.id} draggable={Boolean(tile)} className="grid place-items-center" style={{ width: size, height: size }}>
+      {inner}
     </div>
   )
 })

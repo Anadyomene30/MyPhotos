@@ -1,7 +1,7 @@
 import { t, tn } from '@/i18n'
 import clsx from 'clsx'
 import { useRef, useState } from 'react'
-import { Clapperboard, FolderMinus, Share, Heart, Users, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
+import { Clapperboard, FolderMinus, RectangleHorizontal, Square, Share, Heart, Users, Wand2, MoreHorizontal, Minus, Pencil, Plus, RotateCcw, Sparkles, Trash2, X } from 'lucide-react'
 import { IconButton, Segmented } from '@/components/ui'
 import { albumsApi, patchAssets, useAlbums, useCategories, useLibraryState, usePersons } from '@/api/hooks'
 import { SearchBar } from './SearchBar'
@@ -30,6 +30,8 @@ export function Toolbar() {
   const kind = useUi((s) => s.kind)
   const grouping = useUi((s) => s.grouping)
   const zoom = useUi((s) => s.zoom)
+  const aspectGrid = useUi((s) => s.aspectGrid)
+  const toggleAspectGrid = useUi((s) => s.toggleAspectGrid)
   const selection = useUi((s) => s.selection)
   const { setKind, setGrouping, setZoom, clearSelection } = useUi.getState()
   const label = useScrollLabel((s) => s.label)
@@ -200,6 +202,14 @@ export function Toolbar() {
       )}
 
       <div className="no-drag flex items-center gap-1">
+        <IconButton
+          label={aspectGrid ? t('Afficher des carrés') : t('Afficher les photos entières')}
+          onClick={toggleAspectGrid}
+          active={aspectGrid}
+          className="size-7"
+        >
+          {aspectGrid ? <RectangleHorizontal className="size-3.5" /> : <Square className="size-3.5" />}
+        </IconButton>
         <IconButton label={t('Dézoomer (−)')} onClick={() => setZoom(zoom - 1)} disabled={zoom === 0} className="size-7">
           <Minus className="size-3.5" />
         </IconButton>

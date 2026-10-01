@@ -35,6 +35,8 @@ interface UiState {
   kind: KindFilter
   grouping: Grouping
   zoom: number
+  /** grid shows whole photos at their own aspect ratio instead of square crops (Apple Photos' Aspect Ratio Grid) */
+  aspectGrid: boolean
   selection: Set<number>
   /** global timeline index of the last clicked tile, for shift-range selection */
   anchor: number | null
@@ -63,6 +65,7 @@ interface UiState {
   setKind(k: KindFilter): void
   setGrouping(g: Grouping): void
   setZoom(z: number): void
+  toggleAspectGrid(): void
   select(ids: number[], mode: 'replace' | 'toggle' | 'add', anchor?: number | null): void
   clearSelection(): void
   openViewer(index: number): void
@@ -77,7 +80,7 @@ interface UiState {
 
 const saved = (() => {
   try {
-    return JSON.parse(localStorage.getItem('mp-ui') ?? '{}') as Partial<Pick<UiState, 'grouping' | 'zoom' | 'theme' | 'infoOpen'>>
+    return JSON.parse(localStorage.getItem('mp-ui') ?? '{}') as Partial<Pick<UiState, 'grouping' | 'zoom' | 'theme' | 'infoOpen' | 'aspectGrid'>>
   } catch {
     return {}
   }
@@ -113,6 +116,7 @@ export const useUi = create<UiState>((set, get) => ({
   kind: 'all',
   grouping: saved.grouping ?? 'day',
   zoom: saved.zoom ?? DEFAULT_ZOOM.day,
+  aspectGrid: saved.aspectGrid ?? false,
   selection: new Set(),
   anchor: null,
   viewerIndex: null,
@@ -130,6 +134,7 @@ export const useUi = create<UiState>((set, get) => ({
   setKind: (kind) => set({ kind, selection: new Set(), anchor: null }),
   setGrouping: (grouping) => set({ grouping, zoom: DEFAULT_ZOOM[grouping] }),
   setZoom: (zoom) => set({ zoom: Math.max(0, Math.min(ZOOM_LEVELS.length - 1, zoom)) }),
+  toggleAspectGrid: () => set({ aspectGrid: !get().aspectGrid }),
   select: (ids, mode, anchor) => {
     const next = mode === 'replace' ? new Set<number>() : new Set(get().selection)
     for (const id of ids) {
@@ -155,7 +160,7 @@ export const useUi = create<UiState>((set, get) => ({
 
 useUi.subscribe((s) => {
   try {
-    localStorage.setItem('mp-ui', JSON.stringify({ grouping: s.grouping, zoom: s.zoom, theme: s.theme, infoOpen: s.infoOpen }))
+    localStorage.setItem('mp-ui', JSON.stringify({ grouping: s.grouping, zoom: s.zoom, theme: s.theme, infoOpen: s.infoOpen, aspectGrid: s.aspectGrid }))
   } catch {
     /* storage unavailable */
   }

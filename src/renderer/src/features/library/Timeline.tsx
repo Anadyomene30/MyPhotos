@@ -21,6 +21,7 @@ export function Timeline() {
   const cache = useTileCache(q)
   const grouping = useUi((s) => s.grouping)
   const zoom = useUi((s) => s.zoom)
+  const aspectGrid = useUi((s) => s.aspectGrid)
   const selection = useUi((s) => s.selection)
   const viewerOpen = useUi((s) => s.viewerIndex !== null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -184,7 +185,7 @@ export function Timeline() {
                     {Array.from({ length: r.count }, (_, k) => {
                       const index = r.start + k
                       const tile = cache.get(index)
-                      return <Tile key={index} tile={tile} index={index} size={layout.cell} selected={tile ? selection.has(tile.id) : false} compact={compact} />
+                      return <Tile key={index} tile={tile} index={index} size={layout.cell} selected={tile ? selection.has(tile.id) : false} compact={compact} fit={aspectGrid} />
                     })}
                   </div>
                 )}
