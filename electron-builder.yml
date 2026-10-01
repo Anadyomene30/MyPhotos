@@ -1,0 +1,65 @@
+# Packaging. `npm run build:mac` on a Mac (DMG, Apple Silicon), `npm run build:win` on Windows (NSIS x64):
+# native modules (sharp, onnxruntime) must be installed for the target platform, so build on that platform.
+appId: fr.sourzac.myphotos
+productName: MyPhotos
+copyright: Dimitri Sourzac
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  # dev-only or other-runtime payloads that would only bloat the app
+  - "!**/*.{map,md,markdown,ts,tsx}"
+  - "!**/{test,tests,__tests__,docs,example,examples}/**"
+  # transformers.js bundles its own copy of onnxruntime-web and uses onnxruntime-node here
+  - "!node_modules/onnxruntime-web/**"
+extraResources:
+  - from: resources/geo
+    to: geo
+  # ffmpeg ≥ 8.1 (HEIC tiles) goes in resources/ffmpeg/<platform>-<arch>/ once validated; system ffmpeg is used otherwise
+  - from: resources/ffmpeg/${platform}-${arch}
+    to: ffmpeg/${platform}-${arch}
+    filter: ["**/*"]
+asar: true
+asarUnpack:
+  - node_modules/sharp/**
+  - node_modules/@img/**
+  - node_modules/onnxruntime-node/**
+npmRebuild: false
+afterPack: build/afterPack.cjs
+mac:
+  category: public.app-category.photography
+  icon: build/icon.png
+  target:
+    # Apple Silicon. An Intel build needs sharp's darwin-x64 binaries installed first (npm i --os=darwin --cpu=x64 sharp)
+    - target: dmg
+      arch: [arm64]
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  # ad-hoc signature for local builds; set CSC_LINK / CSC_NAME (Developer ID) to sign and notarize for distribution
+  identity: "-"
+  extendInfo:
+    NSPhotoLibraryUsageDescription: MyPhotos lit les dossiers de photos que vous choisissez.
+    NSDesktopFolderUsageDescription: MyPhotos lit les photos que vous rangez sur le Bureau.
+    NSDocumentsFolderUsageDescription: MyPhotos lit les photos que vous rangez dans Documents.
+    NSDownloadsFolderUsageDescription: MyPhotos lit les photos que vous rangez dans Téléchargements.
+    NSRemovableVolumesUsageDescription: MyPhotos lit les photos rangées sur vos disques externes.
+    NSNetworkVolumesUsageDescription: MyPhotos lit les photos rangées sur vos disques réseau.
+    NSLocalNetworkUsageDescription: MyPhotos partage vos albums avec votre famille sur le réseau local.
+dmg:
+  title: MyPhotos
+win:
+  icon: build/icon-win.png
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: MyPhotos
+  include: build/installer.nsh
+  license: null

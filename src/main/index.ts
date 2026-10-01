@@ -21,10 +21,11 @@ function startBackend(): Promise<BackendInfo> {
     stdio: 'inherit',
     env: {
       ...process.env,
-      MYPHOTOS_DATA: join(app.getPath('userData'), 'library'),
+      // overridable for tests of the packaged app on a throwaway library
+      MYPHOTOS_DATA: process.env.MYPHOTOS_DATA ?? join(app.getPath('userData'), 'library'),
       MYPHOTOS_RESOURCES: resources,
       MYPHOTOS_RENDERER_DIR: join(here, '../renderer'),
-      MYPHOTOS_CREATIONS: join(app.getPath('pictures'), 'MyPhotos Créations'),
+      MYPHOTOS_CREATIONS: process.env.MYPHOTOS_CREATIONS ?? join(app.getPath('pictures'), 'MyPhotos Créations'),
       ...(isDev ? { MYPHOTOS_DEV_ORIGIN: new URL(process.env.ELECTRON_RENDERER_URL!).origin, MYPHOTOS_TOKEN: 'dev' } : {})
     }
   })
