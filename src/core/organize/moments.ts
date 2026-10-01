@@ -140,8 +140,9 @@ export function momentTitle(d: { dayStart: string; dayEnd: string; city: string 
     return { title: where, subtitle: weekend ? t('{weekday} {range}', { weekday: capitalize(weekdayName(a.wd)), range }) : range }
   }
   if (holiday) return { title: holiday, subtitle: range }
-  if (multi) return { title: range, subtitle: tn(d.n, '{n} élément', '{n} éléments') }
-  return { title: t('{weekday} {range}', { weekday: capitalize(weekdayName(a.wd)), range }), subtitle: tn(d.n, '{n} élément', '{n} éléments') }
+  // no subtitle: the header already shows the item count
+  if (multi) return { title: range, subtitle: '' }
+  return { title: t('{weekday} {range}', { weekday: capitalize(weekdayName(a.wd)), range }), subtitle: '' }
 }
 
 /** The city where most photos were taken, over the whole library. */
