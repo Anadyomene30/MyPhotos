@@ -89,6 +89,11 @@ export function Toolbar() {
               <div className="no-drag flex items-center gap-2">
                 {context.icon}
                 <h1 className="font-display text-[15px] font-semibold tracking-tight">{context.title}</h1>
+                {personId !== null && (
+                  <button onClick={() => useUi.getState().openRetro({ source: { type: 'person', value: personId }, title: person?.name ?? undefined })} className="grid size-6 place-items-center rounded-full text-muted hover:bg-hover hover:text-fg" aria-label="Créer une vidéo souvenir" title="Créer une vidéo souvenir">
+                    <Clapperboard className="size-3.5" />
+                  </button>
+                )}
                 <button onClick={() => useUi.getState().setSection('all')} className="grid size-5 place-items-center rounded-full bg-hover text-muted hover:text-fg" aria-label="Retour à la photothèque" title="Retour à la photothèque">
                   <X className="size-3" />
                 </button>
@@ -252,6 +257,15 @@ function AlbumMenu({ albumId, name, smart }: { albumId: number; name: string; sm
           }}
         >
           Partager avec la famille…
+        </MenuItem>
+        <MenuItem
+          icon={<Clapperboard className="size-4" />}
+          onClick={() => {
+            close()
+            useUi.getState().openRetro({ source: { type: 'album', value: albumId }, title: name })
+          }}
+        >
+          Créer une vidéo souvenir…
         </MenuItem>
         <MenuItem
           icon={<Share className="size-4" />}

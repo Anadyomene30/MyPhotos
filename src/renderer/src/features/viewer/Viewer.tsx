@@ -76,7 +76,6 @@ export function Viewer() {
       else if ((e.key === 'e' || e.key === 'E') && tile && !inTrash) (tile.kind === 'photo' ? useUi.getState().setEditorId(tile.id) : useUi.getState().setVideoEditorId(tile.id))
       else if (e.key === 'i' || e.key === 'I') toggleInfo()
       else if (e.key === 'f' || e.key === 'F') setFacesOn((v) => !v)
-      else if ((e.key === 'e' || e.key === 'E') && tile && !inTrash) (tile.kind === 'photo' ? ui.setEditorId(tile.id) : ui.setVideoEditorId(tile.id))
       else if (e.key === '.') toggleFavorite()
       else if (e.key === 'Backspace' || e.key === 'Delete') trash()
       else if (e.key === ' ' && tile?.kind !== 'video') {
