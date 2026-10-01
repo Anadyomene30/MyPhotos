@@ -13,6 +13,7 @@ import { IconButton } from '@/components/ui'
 import { dateTime } from '@/lib/format'
 import { trashWithUndo } from '@/features/library/Timeline'
 import { InfoPanel } from './InfoPanel'
+import { Filmstrip } from './Filmstrip'
 import type { AssetDetail, AssetTile } from '@shared/types'
 
 export function Viewer() {
@@ -218,6 +219,7 @@ export function Viewer() {
           )}
           {i < total - 1 && <NavButton side="right" onClick={() => go(1)} />}
         </div>
+        <Filmstrip cache={cache} index={i} total={total} onSelect={openViewer} />
       </div>
       {infoOpen && (shownDetail ?? detail) && <InfoPanel detail={(shownDetail ?? detail)!} />}
     </div>

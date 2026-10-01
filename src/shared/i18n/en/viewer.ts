@@ -110,5 +110,7 @@ export const viewer: Record<string, string> = {
   'Haute': 'High',
   'Équilibrée': 'Balanced',
   'Légère': 'Small',
-  'La vidéo d’origine n’est pas modifiée : une nouvelle vidéo est créée dans « MyPhotos Créations ».': 'The original video is not modified: a new video is created in “MyPhotos Créations”.'
+  'La vidéo d’origine n’est pas modifiée : une nouvelle vidéo est créée dans « MyPhotos Créations ».': 'The original video is not modified: a new video is created in “MyPhotos Créations”.',
+  'Pellicule': 'Film strip',
+  'Photo {n} sur {total}': 'Photo {n} of {total}',
 }
