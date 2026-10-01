@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "backend-test",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "MYPHOTOS_DATA=.devdata/data MYPHOTOS_TOKEN=dev MYPHOTOS_PORT=47805 MYPHOTOS_LAN_PORT=47815 node out/main/backend.js"],
+      "port": 47805
+    }
+  ]
+}
