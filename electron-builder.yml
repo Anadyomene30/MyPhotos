@@ -63,3 +63,9 @@ nsis:
   shortcutName: MyPhotos
   include: build/installer.nsh
   license: null
+# Auto-update feed: release builds upload to a GitHub release (GH_TOKEN), the app reads latest*.yml from it
+publish:
+  provider: github
+  owner: Anadyomene30
+  repo: MyPhotos
+  releaseType: draft

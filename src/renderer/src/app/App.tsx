@@ -10,6 +10,7 @@ import { Viewer } from '@/features/viewer/Viewer'
 import { Welcome } from '@/features/onboarding/Welcome'
 import { Settings } from '@/features/settings/Settings'
 import { Toasts } from '@/components/Toasts'
+import { UpdateNotice } from '@/features/settings/Updates'
 import { ConfirmHost } from '@/components/Confirm'
 import { PromptHost } from '@/components/Prompt'
 import { SmartAlbumEditor } from '@/features/albums/SmartAlbumEditor'
@@ -95,6 +96,7 @@ function MainApp() {
       {viewerOpen && <Viewer />}
       <Settings />
       <Toasts />
+      <UpdateNotice />
       <ConfirmHost />
       <PromptHost />
       <SmartAlbumEditor />

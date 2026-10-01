@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell, utilityProcess, type UtilityProcess } from 'electron'
 import { join } from 'node:path'
+import { setupUpdater } from './updater'
 
 const isDev = !app.isPackaged && Boolean(process.env.ELECTRON_RENDERER_URL)
 const here = import.meta.dirname
@@ -181,6 +182,7 @@ else {
     backendInfo = startBackend()
     mainWindow = createWindow()
     mainWindow.on('closed', () => (mainWindow = null))
+    setupUpdater(() => mainWindow)
     app.on('activate', () => {
       if (!mainWindow) {
         mainWindow = createWindow()

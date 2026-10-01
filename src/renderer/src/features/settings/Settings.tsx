@@ -13,6 +13,7 @@ import { CloudSettings } from './Cloud'
 import { OrganizeSettings } from './Organize'
 import { OwnerSettings } from './Owner'
 import { LanguageSettings } from './Language'
+import { UpdateSettings } from './Updates'
 import { useModal } from '@/components/useModal'
 
 export function Settings() {
@@ -97,6 +98,7 @@ export function Settings() {
           <CloudSettings />
           <OrganizeSettings />
           <LanguageSettings />
+          <UpdateSettings />
           <section className="flex items-center justify-between">
             <h3 className="text-[13px] font-semibold">{t('Apparence')}</h3>
             <Segmented<Theme>
