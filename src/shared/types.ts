@@ -265,6 +265,15 @@ export interface PersonSummary {
   photos: number
 }
 
+export interface PersonPair {
+  a: PersonSummary
+  b: PersonSummary
+  score: number
+  /** a few of the clearest faces of each, to decide at a glance */
+  aFaces: number[]
+  bFaces: number[]
+}
+
 export interface SearchHit {
   id: number
   score: number

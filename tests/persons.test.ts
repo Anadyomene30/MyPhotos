@@ -97,3 +97,43 @@ describe('geocoder', () => {
     expect(g.lookup(0, 0)).toBeNull()
   })
 })
+
+describe('same-person suggestions', () => {
+  it('proposes split clusters, most likely first, and remembers "no"', async () => {
+    const { MlService } = await import('@core/ml/service')
+    const { mkdtempSync, rmSync } = await import('node:fs')
+    const { tmpdir } = await import('node:os')
+    const dir = mkdtempSync(join(tmpdir(), 'myphotos-same-'))
+    const db = openDb(':memory:')
+    db.prepare("INSERT INTO sources (path, added_at) VALUES ('/x', 0)").run()
+    const asset = db.prepare("INSERT INTO assets (id, source_id, path, rel_dir, name, stem, ext, kind, size, mtime, taken_at, day, added_at) VALUES (?, 1, ?, '', 'a.jpg', 'a', 'jpg', 'photo', 1, 0, 0, '2020-01-01', 0)")
+    const person = db.prepare('INSERT INTO persons (id, name, centroid, n, created_at) VALUES (?, ?, ?, 3, 0)')
+    const face = db.prepare('INSERT INTO faces (asset_id, x, y, w, h, score, quality, emb, person_id) VALUES (?, 0, 0, 0.2, 0.2, 0.9, 0.9, ?, ?)')
+    const base = randomUnit(11)
+    const people: Array<[number, string | null, Float32Array]> = [
+      [1, 'Léa', base],
+      [2, null, variant(base, 12, 0.8)], // same identity, another age
+      [3, null, randomUnit(13)], // someone else
+      [4, 'Paul', variant(base, 14, 0.8)] // named differently: never proposed with Léa
+    ]
+    let a = 1
+    for (const [id, name, v] of people) {
+      person.run(id, name, toBlob(v))
+      for (let i = 0; i < 3; i++) {
+        asset.run(a, `/x/${a}.jpg`)
+        face.run(a++, toBlob(v), id)
+      }
+    }
+    const ml = new MlService(db, dir, dir, { jobs() {}, changed() {}, status() {} })
+    const s = ml.mergeSuggestions()
+    expect(s.some((p) => p.a.id === 1 && p.b.id === 2)).toBe(true)
+    expect(s.some((p) => [p.a.id, p.b.id].includes(3))).toBe(false)
+    expect(s.some((p) => [p.a.id, p.b.id].sort().join() === '1,4')).toBe(false)
+    expect(s[0]!.aFaces.length).toBe(3)
+    for (let i = 1; i < s.length; i++) expect(s[i - 1]!.score).toBeGreaterThanOrEqual(s[i]!.score)
+    ml.notSamePerson(2, 1)
+    expect(ml.mergeSuggestions().some((p) => p.a.id === 1 && p.b.id === 2)).toBe(false)
+    db.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+})

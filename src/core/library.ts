@@ -8,7 +8,7 @@ import { openDb, transaction, type Db, type Row } from './db'
 import { AssetRepo } from './repo/assets'
 import { AlbumRepo } from './repo/albums'
 import { ShareRepo } from './repo/shares'
-import { applyChanges, pairLivePhotos, scanSource } from './scan/scanner'
+import { applyChanges, pairLivePhotos, scanSource, type Shortcut } from './scan/scanner'
 import { FolderWatcher } from './scan/watcher'
 import { readMetadata } from './media/metadata'
 import { fullHash, quickHash } from './media/hash'
@@ -202,7 +202,8 @@ export class Library extends EventEmitter {
         this.scanAgain = false
         for (const s of this.sources()) {
           if (this.closed) return
-          await scanSource(this.db, s.id, s.path)
+          const r = await scanSource(this.db, s.id, s.path)
+          this.syncAliasAlbums(r.shortcuts)
           this.emitChanged()
         }
       } while (this.scanAgain && !this.closed)
@@ -217,11 +218,57 @@ export class Library extends EventEmitter {
     return this.scanPromise
   }
 
+  /**
+   * A folder of Finder aliases (for example albums exported from Apple Photos) becomes a MyPhotos album named after
+   * the folder. Each alias is taken into account once: photos removed from the album, or an album deleted by the user,
+   * stay that way. Nothing is written on disk. Returns the number of photos added to albums.
+   */
+  syncAliasAlbums(shortcuts: Shortcut[]): number {
+    if (!shortcuts.length) return 0
+    const known = this.db.prepare('SELECT 1 FROM alias_links WHERE alias_path = ?')
+    const fresh = shortcuts.filter((sc) => sc.target && !known.get(sc.path))
+    if (!fresh.length) return 0
+    const byPath = this.db.prepare('SELECT id, hidden, source_id, rel_dir, stem FROM assets WHERE path = ? AND missing_at IS NULL')
+    const mainOf = this.db.prepare('SELECT id FROM assets WHERE source_id = ? AND rel_dir = ? AND stem = ? AND hidden = 0 AND missing_at IS NULL LIMIT 1')
+    const byFolder = new Map<string, number[]>()
+    let added = 0
+    transaction(this.db, () => {
+      const link = this.db.prepare('INSERT OR IGNORE INTO alias_links (alias_path, folder, target) VALUES (?, ?, ?)')
+      for (const sc of fresh) {
+        const folder = sc.path.slice(0, Math.max(sc.path.lastIndexOf('/'), sc.path.lastIndexOf('\\')))
+        const a = byPath.get(sc.target!) as { id: number; hidden: number; source_id: number; rel_dir: string; stem: string } | undefined
+        // the target is not indexed (yet): leave the alias unlinked so a later scan retries
+        if (!a) continue
+        link.run(sc.path, folder, sc.target)
+        const id = a.hidden ? ((mainOf.get(a.source_id, a.rel_dir, a.stem) as { id: number } | undefined)?.id ?? a.id) : a.id
+        const list = byFolder.get(folder) ?? []
+        list.push(id)
+        byFolder.set(folder, list)
+      }
+      const getAlbum = this.db.prepare('SELECT album_id FROM alias_albums WHERE folder = ?')
+      const setAlbum = this.db.prepare('INSERT INTO alias_albums (folder, album_id) VALUES (?, ?)')
+      for (const [folder, ids] of [...byFolder].sort((x, y) => x[0].localeCompare(y[0], 'fr'))) {
+        const row = getAlbum.get(folder) as { album_id: number | null } | undefined
+        if (row) {
+          if (row.album_id !== null && this.albums.get(row.album_id)) added += this.albums.addAssets(row.album_id, ids)
+          continue
+        }
+        const name = folder.split(/[\\/]/).pop() || 'Album'
+        const album = this.albums.create(name, 'manual', null, ids)
+        setAlbum.run(folder, album.id)
+        added += ids.length
+      }
+    })
+    return added
+  }
+
   private async onFsChanges(root: string, paths: string[]): Promise<void> {
     const s = this.sources().find((x) => x.path === root)
     if (!s || this.closed) return
-    const n = await applyChanges(this.db, s.id, s.path, paths)
-    if (n > 0) {
+    const shortcuts: Shortcut[] = []
+    const n = await applyChanges(this.db, s.id, s.path, paths, (sc) => shortcuts.push(sc))
+    const linked = this.syncAliasAlbums(shortcuts)
+    if (n > 0 || linked > 0) {
       this.emitChanged()
       if (this.opts.autoIndex !== false) this.kickIndexer()
     }

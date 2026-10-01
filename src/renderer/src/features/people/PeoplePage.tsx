@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
-import { Check, Eye, EyeOff, Loader2, Merge, Pencil, Sparkles, Users, X } from 'lucide-react'
+import { Check, ChevronRight, Eye, EyeOff, Loader2, Merge, Pencil, Sparkles, Users, X } from 'lucide-react'
 import { media } from '@/api/client'
 import { mlApi, useMlStatus, usePersons } from '@/api/hooks'
 import { Button, IconButton } from '@/components/ui'
@@ -8,6 +8,10 @@ import { confirm } from '@/components/Confirm'
 import { useUi } from '@/store'
 import { count, plural } from '@/lib/format'
 import type { PersonSummary } from '@shared/types'
+import { SamePersonPrompt } from './SamePerson'
+
+/** unnamed people seen on fewer photos than this go under "Autres visages" */
+const MAIN_MIN_PHOTOS = 3
 
 export function PersonAvatar({ person, size = 40, className }: { person: Pick<PersonSummary, 'coverFaceId' | 'name'>; size?: number; className?: string }) {
   return (
@@ -52,7 +56,9 @@ export function PeoplePage() {
 
   const list = (persons ?? []).filter((p) => showHidden || !p.hidden)
   const named = list.filter((p) => p.name)
-  const unnamed = list.filter((p) => !p.name)
+  const unnamed = list.filter((p) => !p.name && p.photos >= MAIN_MIN_PHOTOS)
+  const others = list.filter((p) => !p.name && p.photos < MAIN_MIN_PHOTOS)
+  const [showOthers, setShowOthers] = useState(false)
 
   const toggle = (id: number, additive: boolean): void => {
     setSelected((s) => {
@@ -168,6 +174,7 @@ export function PeoplePage() {
 
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 pb-8">
         {isLoading && <Loader2 className="mx-auto mt-10 size-6 animate-spin text-faint" />}
+        {status?.enabled && status.pending === 0 && <SamePersonPrompt />}
         {named.length > 0 && (
           <section className="mt-4">
             <div className="mb-1 flex flex-wrap">{named.map((p) => <Card key={p.id} p={p} />)}</div>
@@ -177,6 +184,14 @@ export function PeoplePage() {
           <section className="mt-4">
             <h2 className="mb-1 px-3 text-[12px] font-semibold text-faint">{named.length ? 'À nommer' : 'Double-cliquez sur une personne pour la nommer'}</h2>
             <div className="flex flex-wrap">{unnamed.map((p) => <Card key={p.id} p={p} />)}</div>
+          </section>
+        )}
+        {others.length > 0 && (
+          <section className="mt-4">
+            <button onClick={() => setShowOthers((v) => !v)} className="mb-1 flex items-center gap-1.5 px-3 text-[12px] font-semibold text-faint hover:text-fg">
+              <ChevronRight className={clsx('size-3.5 transition-transform', showOthers && 'rotate-90')} /> Autres visages · {others.length}
+            </button>
+            {showOthers && <div className="flex flex-wrap">{others.map((p) => <Card key={p.id} p={p} />)}</div>}
           </section>
         )}
         {persons && list.length === 0 && status?.enabled && status.pending === 0 && (

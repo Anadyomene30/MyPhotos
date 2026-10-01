@@ -370,6 +370,12 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     lib.ml.mergePersons(body.into, body.from)
     return c.json({ ok: true })
   })
+  app.get('/api/persons/suggestions', (c) => c.json(lib.ml.mergeSuggestions()))
+  app.post('/api/persons/not-same', async (c) => {
+    const body = z.object({ a: z.number().int(), b: z.number().int() }).parse(await c.req.json())
+    lib.ml.notSamePerson(body.a, body.b)
+    return c.json({ ok: true })
+  })
   app.post('/api/persons/:id/cover', async (c) => {
     const body = z.object({ faceId: z.number().int() }).parse(await c.req.json())
     lib.ml.setCover(idParam(c), body.faceId)

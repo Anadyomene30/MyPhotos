@@ -1,10 +1,11 @@
-import { stat } from 'node:fs/promises'
+import { open, stat } from 'node:fs/promises'
 import { basename, dirname, relative, sep } from 'node:path'
 import { fdir } from 'fdir'
 import { transaction, type Db } from '../db'
 import { extOf, kindOf, RAW_EXTS, stemOf, looksLikeScreenshot } from '../media/kinds'
 import { fallbackDate } from '../media/metadata'
 import { limiter } from '../util'
+import { bookmarkTargetPath } from './bookmark'
 
 const IGNORED_DIRS = new Set(['@eaDir', '$RECYCLE.BIN', 'System Volume Information', '.thumbnails', 'node_modules', '#recycle', '.Trashes', '.Spotlight-V100', '.fseventsd'])
 
@@ -16,6 +17,37 @@ export function isCandidateFile(path: string): boolean {
   const name = basename(path)
   if (name.startsWith('.') || name.startsWith('~')) return false
   return kindOf(extOf(name)) !== null
+}
+
+/** Finder aliases (bookmark data) and Windows .lnk shortcuts can carry a photo extension; they are not photos. */
+export function isShortcutHeader(head: Uint8Array): boolean {
+  const ascii = (from: number, to: number): string => String.fromCharCode(...head.subarray(from, to))
+  if (head.length >= 12 && ascii(0, 4) === 'book' && ascii(8, 12) === 'mark') return true
+  return head.length >= 8 && head[0] === 0x4c && head[1] === 0 && head[2] === 0 && head[3] === 0 && head[4] === 0x01 && head[5] === 0x14 && head[6] === 0x02 && head[7] === 0x00
+}
+
+const SHORTCUT_MAX_SIZE = 64 * 1024
+
+export interface Shortcut {
+  path: string
+  /** absolute path the alias points to, when it can be read (macOS bookmarks) */
+  target: string | null
+}
+
+/** Only small files can be shortcuts, so real photos and videos are never opened here. */
+export async function readShortcut(path: string, size: number): Promise<Shortcut | null> {
+  if (size >= SHORTCUT_MAX_SIZE) return null
+  const fh = await open(path, 'r')
+  try {
+    const head = new Uint8Array(16)
+    const { bytesRead } = await fh.read(head, 0, 16, 0)
+    if (!isShortcutHeader(head.subarray(0, bytesRead))) return null
+    const all = new Uint8Array(size)
+    await fh.read(all, 0, size, 0)
+    return { path, target: bookmarkTargetPath(all) }
+  } finally {
+    await fh.close()
+  }
 }
 
 export async function listMediaFiles(root: string): Promise<string[]> {
@@ -34,6 +66,7 @@ export interface ScanResult {
   changed: number
   missing: number
   total: number
+  shortcuts: Shortcut[]
 }
 
 interface ExistingRow {
@@ -62,6 +95,7 @@ export async function scanSource(db: Db, sourceId: number, root: string, onProgr
   const toInsert: Array<{ path: string; size: number; mtime: number }> = []
   const toUpdate: Array<{ id: number; size: number; mtime: number }> = []
   const reappeared: number[] = []
+  const shortcuts: Shortcut[] = []
   let n = 0
 
   await Promise.all(
@@ -70,6 +104,11 @@ export async function scanSource(db: Db, sourceId: number, root: string, onProgr
         try {
           const st = await stat(path)
           if (!st.isFile() || st.size === 0) return
+          const sc = await readShortcut(path, st.size)
+          if (sc) {
+            shortcuts.push(sc)
+            return
+          }
           seen.add(path)
           const mtime = Math.round(st.mtimeMs)
           const prev = existing.get(path)
@@ -111,7 +150,7 @@ export async function scanSource(db: Db, sourceId: number, root: string, onProgr
     pairLivePhotos(db, sourceId)
   })
 
-  return { added: toInsert.length, changed: toUpdate.length, missing: missing.length, total: seen.size }
+  return { added: toInsert.length, changed: toUpdate.length, missing: missing.length, total: seen.size, shortcuts }
 }
 
 /**
@@ -136,7 +175,7 @@ export function pairLivePhotos(db: Db, sourceId?: number): void {
 }
 
 /** Apply a batch of filesystem change notifications incrementally, without a full rescan. */
-export async function applyChanges(db: Db, sourceId: number, root: string, paths: string[]): Promise<number> {
+export async function applyChanges(db: Db, sourceId: number, root: string, paths: string[], onShortcut?: (s: Shortcut) => void): Promise<number> {
   const files = new Map<string, { size: number; mtime: number } | null>()
   const goneDirs: string[] = []
   for (const p of paths) {
@@ -147,13 +186,21 @@ export async function applyChanges(db: Db, sourceId: number, root: string, paths
         for (const f of await listMediaFiles(p)) {
           try {
             const fst = await stat(f)
+            if (fst.size === 0) continue
+            const sc = await readShortcut(f, fst.size)
+            if (sc) {
+              onShortcut?.(sc)
+              continue
+            }
             files.set(f, { size: fst.size, mtime: Math.round(fst.mtimeMs) })
           } catch {
             /* ignore */
           }
         }
       } else if (st.isFile() && isCandidateFile(p) && st.size > 0) {
-        files.set(p, { size: st.size, mtime: Math.round(st.mtimeMs) })
+        const sc = await readShortcut(p, st.size)
+        if (sc) onShortcut?.(sc)
+        files.set(p, sc ? null : { size: st.size, mtime: Math.round(st.mtimeMs) })
       }
     } catch {
       if (isCandidateFile(p)) files.set(p, null)

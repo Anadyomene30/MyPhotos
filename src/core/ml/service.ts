@@ -10,7 +10,7 @@ import { downloadPack, MODEL_PACKS, packInstalled, type ModelPack } from './mode
 import { PersonClusterer } from './persons'
 import { CATEGORIES, classify } from './categories'
 import { fromBlob, toBlob, VectorStore } from './vectors'
-import type { MlStatus, PersonSummary, SearchHit } from '@shared/types'
+import type { MlStatus, PersonPair, PersonSummary, SearchHit } from '@shared/types'
 
 export interface MlEvents {
   jobs(): void
@@ -19,6 +19,10 @@ export interface MlEvents {
 }
 
 const CLIP_DIM = 512
+/** unnamed people on fewer photos than this are tucked away under "Autres visages" (same rule as the People page) */
+const MAIN_MIN_PHOTOS = 3
+/** centroid cosine from which two people are proposed as possibly the same (calibrated on a real library) */
+const SAME_PERSON_HINT = 0.4
 const ANALYSIS_SIZE = 1600
 
 /**
@@ -76,7 +80,7 @@ export class MlService {
       running: this.client.ready,
       pending,
       done,
-      persons: (this.db.prepare('SELECT count(*) AS n FROM persons WHERE hidden = 0 AND n >= 2').get() as { n: number }).n,
+      persons: this.persons(true).filter((p) => !p.hidden && (p.name || p.photos >= MAIN_MIN_PHOTOS)).length,
       error: this.lastError
     }
   }
@@ -327,10 +331,57 @@ export class MlService {
   mergePersons(into: number, from: number[]): void {
     const cl = this.clusterer_()
     transaction(this.db, () => {
-      for (const f of from) if (f !== into) cl.merge(into, f)
+      for (const f of from) {
+        if (f === into) continue
+        cl.merge(into, f)
+        this.db.prepare('DELETE FROM person_not_same WHERE a = ? OR b = ?').run(f, f)
+      }
     })
     this.afterBatch()
     this.refreshSearchTextForPerson(into)
+    this.events.changed()
+  }
+
+  /**
+   * Pairs of people who may be the same person (split clusters: different ages, glasses, lighting).
+   * Most likely first; pairs already answered "no" and pairs of two differently named people are skipped.
+   */
+  mergeSuggestions(limit = 40): PersonPair[] {
+    const people = new Map(this.persons(true).filter((p) => !p.hidden).map((p) => [p.id, p]))
+    const rows = this.db.prepare('SELECT id, centroid FROM persons WHERE centroid IS NOT NULL AND hidden = 0').all() as Array<{ id: number; centroid: Uint8Array }>
+    const vecs = rows.filter((r) => people.has(r.id)).map((r) => ({ id: r.id, v: fromBlob(r.centroid) }))
+    const rejected = new Set((this.db.prepare('SELECT a, b FROM person_not_same').all() as Array<{ a: number; b: number }>).map((r) => `${r.a}:${r.b}`))
+    const out: PersonPair[] = []
+    for (let i = 0; i < vecs.length; i++) {
+      const a = vecs[i]!
+      for (let j = i + 1; j < vecs.length; j++) {
+        const b = vecs[j]!
+        let s = 0
+        for (let k = 0; k < a.v.length; k++) s += a.v[k]! * b.v[k]!
+        if (s < SAME_PERSON_HINT) continue
+        const [lo, hi] = a.id < b.id ? [a.id, b.id] : [b.id, a.id]
+        if (rejected.has(`${lo}:${hi}`)) continue
+        const pa = people.get(a.id)!
+        const pb = people.get(b.id)!
+        if (pa.name && pb.name) continue
+        // keep the named or bigger one first: it is the one the other merges into
+        const first = pa.name || (!pb.name && pa.photos >= pb.photos) ? pa : pb
+        out.push({ a: first, b: first === pa ? pb : pa, score: Math.round(s * 1000) / 1000, aFaces: [], bFaces: [] })
+      }
+    }
+    const top = out.sort((x, y) => y.score - x.score).slice(0, limit)
+    const sample = this.db.prepare('SELECT id FROM faces WHERE person_id = ? AND hidden = 0 ORDER BY quality DESC LIMIT 4')
+    const faces = (id: number): number[] => (sample.all(id) as Array<{ id: number }>).map((r) => r.id)
+    for (const p of top) {
+      p.aFaces = faces(p.a.id)
+      p.bFaces = faces(p.b.id)
+    }
+    return top
+  }
+
+  notSamePerson(a: number, b: number): void {
+    const [lo, hi] = a < b ? [a, b] : [b, a]
+    this.db.prepare('INSERT OR IGNORE INTO person_not_same (a, b) VALUES (?, ?)').run(lo, hi)
     this.events.changed()
   }
 

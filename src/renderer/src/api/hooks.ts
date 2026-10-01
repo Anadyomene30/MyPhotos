@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { api, onServerEvent, qs } from './client'
 import { useUi } from '@/store'
 import { TileCache, queryKey } from '@/features/library/tileCache'
-import type { Album, AssetDetail, DayBucket, FaceInfo, JobGroupState, LibraryState, MemoryDetail, MemorySummary, MlStatus, PersonSummary, PlaceSummary, SmartRules, TimelineQuery } from '@shared/types'
+import type { Album, AssetDetail, DayBucket, FaceInfo, JobGroupState, LibraryState, MemoryDetail, MemorySummary, MlStatus, PersonPair, PersonSummary, PlaceSummary, SmartRules, TimelineQuery } from '@shared/types'
 import { queryParams } from '@/features/library/tileCache'
 
 /** Wire server-sent events into react-query and the UI store. Mount once. */
@@ -163,6 +163,10 @@ export function usePersons(all = false) {
   return useQuery({ queryKey: ['persons', all], queryFn: () => api<PersonSummary[]>(`/api/persons${all ? '?all=1' : ''}`) })
 }
 
+export function usePersonSuggestions(enabled = true) {
+  return useQuery({ queryKey: ['persons', 'suggestions'], queryFn: () => api<PersonPair[]>('/api/persons/suggestions'), enabled })
+}
+
 export function useFaces(assetId: number | undefined) {
   return useQuery({ queryKey: ['faces', assetId], queryFn: () => api<FaceInfo[]>(`/api/assets/${assetId}/faces`), enabled: assetId !== undefined })
 }
@@ -182,6 +186,7 @@ export const mlApi = {
   renamePerson: (id: number, name: string | null) => api(`/api/persons/${id}`, { method: 'PATCH', json: { name } }),
   hidePerson: (id: number, hidden: boolean) => api(`/api/persons/${id}`, { method: 'PATCH', json: { hidden } }),
   merge: (into: number, from: number[]) => api('/api/persons/merge', { method: 'POST', json: { into, from } }),
+  notSame: (a: number, b: number) => api('/api/persons/not-same', { method: 'POST', json: { a, b } }),
   setCover: (personId: number, faceId: number) => api(`/api/persons/${personId}/cover`, { method: 'POST', json: { faceId } }),
   moveFace: (faceId: number, personId: number | null) => api(`/api/faces/${faceId}/move`, { method: 'POST', json: { personId } }),
   namePerson: (faceId: number, name: string) => api<{ personId: number }>(`/api/faces/${faceId}/person`, { method: 'POST', json: { name } })

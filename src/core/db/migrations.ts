@@ -297,5 +297,25 @@ export const migrations: string[] = [
     created_at INTEGER NOT NULL,
     seen INTEGER NOT NULL DEFAULT 0
   );
+  `,
+  // 14: "not the same person" answers, so merge suggestions are not asked twice
+  `
+  CREATE TABLE person_not_same (
+    a INTEGER NOT NULL,
+    b INTEGER NOT NULL,
+    PRIMARY KEY (a, b)
+  ) WITHOUT ROWID;
+  `,
+  // 15: folders of Finder aliases become albums (each alias seen once, so user edits are kept)
+  `
+  CREATE TABLE alias_links (
+    alias_path TEXT PRIMARY KEY,
+    folder TEXT NOT NULL,
+    target TEXT
+  );
+  CREATE TABLE alias_albums (
+    folder TEXT PRIMARY KEY,
+    album_id INTEGER
+  );
   `
 ]
