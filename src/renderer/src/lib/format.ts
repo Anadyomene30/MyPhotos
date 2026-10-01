@@ -1,4 +1,6 @@
-const LOCALE = 'fr-FR'
+import { isPlural, localeTag, t } from '@/i18n'
+
+const LOCALE = localeTag()
 
 const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
 
@@ -19,8 +21,8 @@ export function dayLabel(day: string): { title: string; sub: string } {
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const yest = new Date(today.getTime() - 86400000)
   const yestKey = `${yest.getFullYear()}-${String(yest.getMonth() + 1).padStart(2, '0')}-${String(yest.getDate()).padStart(2, '0')}`
-  if (day === todayKey) return { title: 'Aujourd’hui', sub: cap(fmtDay.format(d)) }
-  if (day === yestKey) return { title: 'Hier', sub: cap(fmtDay.format(d)) }
+  if (day === todayKey) return { title: t('Aujourd’hui'), sub: cap(fmtDay.format(d)) }
+  if (day === yestKey) return { title: t('Hier'), sub: cap(fmtDay.format(d)) }
   return { title: fmtDay.format(d), sub: cap(fmtWeekday.format(d)) }
 }
 
@@ -58,8 +60,8 @@ export function duration(sec: number | null): string {
 }
 
 export function bytes(n: number): string {
-  if (n < 1024) return `${n} o`
-  const units = ['Ko', 'Mo', 'Go', 'To']
+  if (n < 1024) return `${n} ${t('o')}`
+  const units = [t('Ko'), t('Mo'), t('Go'), t('To')]
   let v = n / 1024
   let i = 0
   while (v >= 1024 && i < units.length - 1) {
@@ -71,8 +73,9 @@ export function bytes(n: number): string {
 
 export const count = (n: number): string => n.toLocaleString(LOCALE)
 
+/** "3 photos": count formatted for the locale, French word forms translated. Pass the French singular and plural. */
 export function plural(n: number, one: string, many: string): string {
-  return `${count(n)} ${n > 1 ? many : one}`
+  return `${count(n)} ${t(isPlural(n) ? many : one)}`
 }
 
 export function exposure(v: number | null): string | null {
