@@ -13,6 +13,7 @@ import { extOf, kindOf } from '@core/media/kinds'
 import { sanitize } from '@core/export/naming'
 import { sendFile } from './files'
 import type { SharedAlbumInfo } from '@shared/types'
+import { t } from '@shared/i18n'
 
 const MAX_UPLOAD = 4 * 1024 ** 3
 
@@ -29,7 +30,7 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
   /** Resolve the share from the URL; 404 for unknown/expired tokens, 401 when a PIN is still needed. */
   const guard = (c: Context): { share: Share } | Response => {
     const s = lib.shares.resolve(c.req.param('token') ?? '')
-    if (!s) return c.json({ error: 'Ce lien de partage n’existe plus.' }, 404)
+    if (!s) return c.json({ error: t('Ce lien de partage n’existe plus.') }, 404)
     if (!unlocked(c, s)) return c.json({ error: 'locked' }, 401)
     return { share: s }
   }
@@ -44,7 +45,7 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
 
   app.get('/g/api/:token', (c) => {
     const s = lib.shares.resolve(c.req.param('token'))
-    if (!s) return c.json({ error: 'Ce lien de partage n’existe plus.' }, 404)
+    if (!s) return c.json({ error: t('Ce lien de partage n’existe plus.') }, 404)
     const album = lib.albums.get(s.albumId)!
     const locked = !unlocked(c, s)
     if (!locked) lib.shares.touch(s.id)
@@ -54,10 +55,10 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
 
   app.post('/g/api/:token/unlock', async (c) => {
     const s = lib.shares.resolve(c.req.param('token'))
-    if (!s) return c.json({ error: 'Ce lien de partage n’existe plus.' }, 404)
+    if (!s) return c.json({ error: t('Ce lien de partage n’existe plus.') }, 404)
     const { pin } = z.object({ pin: z.string().max(40) }).parse(await c.req.json())
     await new Promise((r) => setTimeout(r, 400)) // slow down guessing
-    if (!s.pinHash || !lib.shares.checkPin(s.token, s.pinHash, pin)) return c.json({ error: 'Code incorrect' }, 403)
+    if (!s.pinHash || !lib.shares.checkPin(s.token, s.pinHash, pin)) return c.json({ error: t('Code incorrect') }, 403)
     setCookie(c, `mp_${s.id}`, lib.shares.unlockCookie(s.token, s.pinHash), { httpOnly: true, sameSite: 'Lax', path: '/', maxAge: 60 * 60 * 24 * 90 })
     return c.json({ ok: true })
   })
@@ -147,10 +148,10 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
     const g = guard(c)
     if (g instanceof Response) return g
     const album = lib.albums.get(g.share.albumId)!
-    if (!g.share.canAdd || album.kind !== 'manual') return c.json({ error: 'Ce lien ne permet pas d’ajouter des photos' }, 403)
-    const author = (c.req.query('author') ?? 'Invité').slice(0, 40)
+    if (!g.share.canAdd || album.kind !== 'manual') return c.json({ error: t('Ce lien ne permet pas d’ajouter des photos') }, 403)
+    const author = (c.req.query('author') ?? t('Invité')).slice(0, 40)
     const dir = lib.sharedUploadDir(album.name)
-    if (!dir) return c.json({ error: 'Aucun dossier de photothèque disponible' }, 500)
+    if (!dir) return c.json({ error: t('Aucun dossier de photothèque disponible') }, 500)
     await mkdir(dir, { recursive: true })
     const saved: string[] = []
     const rejected: string[] = []

@@ -8,6 +8,7 @@ import { api } from '@/api/client'
 import { media } from '@/api/client'
 import { patchAssets, useAsset, useBuckets, useTileCache, useTimelineQuery } from '@/api/hooks'
 import { useUi } from '@/store'
+import { t } from '@/i18n'
 import { IconButton } from '@/components/ui'
 import { dateTime } from '@/lib/format'
 import { trashWithUndo } from '@/features/library/Timeline'
@@ -41,8 +42,8 @@ export function Viewer() {
   // Preload neighbours so arrow navigation feels instant.
   useEffect(() => {
     for (const d of [1, -1, 2]) {
-      const t = cache.get(i + d)
-      if (t && t.kind === 'photo') new Image().src = media.preview(t.id, t.v)
+      const nb = cache.get(i + d)
+      if (nb && nb.kind === 'photo') new Image().src = media.preview(nb.id, nb.v)
     }
   }, [cache, i, tile])
 
@@ -96,7 +97,7 @@ export function Viewer() {
       <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="drag absolute inset-x-0 top-0 z-10 flex h-[52px] items-center gap-2 bg-gradient-to-b from-black/60 to-transparent pr-4 pl-[84px]">
           <button onClick={closeViewer} className="no-drag flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-white/85 hover:bg-white/10">
-            <ChevronLeft className="size-4" /> Retour
+            <ChevronLeft className="size-4" /> {t('Retour')}
           </button>
           <div className="min-w-0 flex-1 text-center">
             {when && (
@@ -108,7 +109,7 @@ export function Viewer() {
           </div>
           <div className="no-drag flex items-center gap-0.5 [&_button]:text-white/80 [&_button:hover]:bg-white/10 [&_button:hover]:text-white">
             {!inTrash && (
-              <IconButton label="Favori (.)" onClick={toggleFavorite}>
+              <IconButton label={t('Favori (.)')} onClick={toggleFavorite}>
                 <Heart className={clsx('size-[18px]', tile?.favorite && 'fill-heart text-heart')} />
               </IconButton>
             )}
@@ -117,13 +118,13 @@ export function Viewer() {
                 onClick={() => {
                   const previous = detail.edit
                   void api(`/api/assets/${detail.id}/edit`, { method: 'PUT', json: { edit: null } }).then(() =>
-                    useUi.getState().toast('Photo revenue à l’original', { label: 'Annuler', run: () => void api(`/api/assets/${detail.id}/edit`, { method: 'PUT', json: { edit: previous } }) })
+                    useUi.getState().toast(t('Photo revenue à l’original'), { label: t('Annuler'), run: () => void api(`/api/assets/${detail.id}/edit`, { method: 'PUT', json: { edit: previous } }) })
                   )
                 }}
                 className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-white/85 hover:bg-white/10"
-                title="Annuler toutes les retouches de cette photo"
+                title={t('Annuler toutes les retouches de cette photo')}
               >
-                <Undo2 className="size-4" /> Revenir à l’original
+                <Undo2 className="size-4" /> {t('Revenir à l’original')}
               </button>
             )}
             {tile && !inTrash && (
@@ -134,23 +135,23 @@ export function Viewer() {
                   else useUi.getState().setVideoEditorId(tile.id)
                 }}
                 className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-white/85 hover:bg-white/10"
-                title="Modifier (E)"
+                title={t('Modifier (E)')}
               >
-                <SlidersHorizontal className="size-4" /> Modifier
+                <SlidersHorizontal className="size-4" /> {t('Modifier')}
               </button>
             )}
             {tile && (
-              <IconButton label="Exporter" onClick={() => useUi.getState().setExportIds([tile.id])}>
+              <IconButton label={t('Exporter')} onClick={() => useUi.getState().setExportIds([tile.id])}>
                 <Share className="size-[18px]" />
               </IconButton>
             )}
             {ml?.enabled && tile?.kind === 'photo' && (
               <>
-                <IconButton label="Visages (f)" onClick={() => setFacesOn((v) => !v)} active={facesOn}>
+                <IconButton label={t('Visages (f)')} onClick={() => setFacesOn((v) => !v)} active={facesOn}>
                   <ScanFace className="size-[18px]" />
                 </IconButton>
                 {ml.running.clip && (
-                  <IconButton label="Photos semblables" onClick={() => {
+                  <IconButton label={t('Photos semblables')} onClick={() => {
                     closeViewer()
                     useUi.getState().openSimilar(tile.id)
                   }}>
@@ -159,21 +160,21 @@ export function Viewer() {
                 )}
               </>
             )}
-            <IconButton label="Informations (i)" onClick={toggleInfo} active={infoOpen}>
+            <IconButton label={t('Informations (i)')} onClick={toggleInfo} active={infoOpen}>
               <Info className="size-[18px]" />
             </IconButton>
             {desktop && detail ? (
-              <IconButton label="Afficher dans le dossier" onClick={() => void desktop.reveal(detail.path)}>
+              <IconButton label={t('Afficher dans le dossier')} onClick={() => void desktop.reveal(detail.path)}>
                 <FolderOpen className="size-[18px]" />
               </IconButton>
             ) : (
               tile && (
-                <a href={media.download(tile.id)} className="grid size-8 place-items-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white" title="Télécharger">
+                <a href={media.download(tile.id)} className="grid size-8 place-items-center rounded-lg text-white/80 hover:bg-white/10 hover:text-white" title={t('Télécharger')}>
                   <Download className="size-[18px]" />
                 </a>
               )
             )}
-            <IconButton label={inTrash ? 'Restaurer' : 'Supprimer (⌫)'} onClick={trash}>
+            <IconButton label={inTrash ? t('Restaurer') : t('Supprimer (⌫)')} onClick={trash}>
               {inTrash ? <RotateCcw className="size-[18px]" /> : <Trash2 className="size-[18px]" />}
             </IconButton>
           </div>
@@ -184,25 +185,25 @@ export function Viewer() {
           {detail && detail.versionList.length > 0 && (
             <div className="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-black/55 p-1 backdrop-blur-xl">
               <button onClick={() => setVersionId(null)} className={clsx('rounded-lg px-3 py-1.5 text-[12px] font-medium', !version ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
-                {detail.edited ? 'Photo (retouchée)' : 'Original'}
+                {detail.edited ? t('Photo (retouchée)') : t('Original')}
               </button>
               {detail.versionList.map((v, k) => (
                 <button key={v.id} onClick={() => setVersionId(v.id)} className={clsx('rounded-lg px-3 py-1.5 text-[12px] font-medium', version?.id === v.id ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
-                  Copie modifiée{detail.versionList.length > 1 ? ` ${k + 1}` : ''}
+                  {detail.versionList.length > 1 ? t('Copie modifiée {n}', { n: k + 1 }) : t('Copie modifiée')}
                 </button>
               ))}
               {version && (
                 <>
                   <div className="mx-1 h-4 w-px bg-white/20" />
                   <button
-                    title="Faire de cette copie un élément séparé de la photothèque"
+                    title={t('Faire de cette copie un élément séparé de la photothèque')}
                     className="grid size-7 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
                     onClick={() => void api(`/api/assets/${version.id}/detach`, { method: 'POST' }).then(() => setVersionId(null))}
                   >
                     <Unlink className="size-3.5" />
                   </button>
                   <button
-                    title="Supprimer cette copie"
+                    title={t('Supprimer cette copie')}
                     className="grid size-7 place-items-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
                     onClick={() => void trashWithUndo([version.id], false).then(() => setVersionId(null))}
                   >
@@ -228,7 +229,7 @@ function NavButton({ side, onClick }: { side: 'left' | 'right'; onClick(): void 
   return (
     <button
       onClick={onClick}
-      aria-label={side === 'left' ? 'Précédent' : 'Suivant'}
+      aria-label={side === 'left' ? t('Précédent') : t('Suivant')}
       className={clsx(
         'group absolute top-1/2 grid h-24 w-14 -translate-y-1/2 place-items-center opacity-0 transition-opacity hover:opacity-100',
         side === 'left' ? 'left-0' : 'right-0'
@@ -299,7 +300,7 @@ function Stage({ tile, detail, facesOn }: { tile: AssetTile; detail: AssetDetail
         <div className="grid h-full place-items-center text-center text-white/70">
           <div>
             <img src={media.thumb(tile.id, tile.v)} alt="" className="mx-auto mb-4 max-h-64 rounded-lg opacity-80" />
-            Ce format vidéo ({detail.ext.toUpperCase()}) sera lisible après conversion.
+            {t('Ce format vidéo ({ext}) sera lisible après conversion.', { ext: detail.ext.toUpperCase() })}
           </div>
         </div>
       )

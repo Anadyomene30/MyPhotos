@@ -4,6 +4,7 @@ import { mkdir, rename, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import { t } from '@shared/i18n'
 
 export interface ModelFile {
   /** path relative to the models folder */
@@ -25,7 +26,9 @@ const HF = 'https://huggingface.co'
 export const MODEL_PACKS: ModelPack[] = [
   {
     id: 'faces',
-    title: 'Reconnaissance de visages',
+    get title() {
+      return t('Reconnaissance de visages')
+    },
     files: [
       { path: 'faces/det_10g.onnx', url: `${HF}/immich-app/buffalo_l/resolve/main/detection/model.onnx`, sha256: '5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91', size: 16923827 },
       { path: 'faces/w600k_r50.onnx', url: `${HF}/immich-app/buffalo_l/resolve/main/recognition/model.onnx`, sha256: '4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43', size: 174383860 }
@@ -33,7 +36,9 @@ export const MODEL_PACKS: ModelPack[] = [
   },
   {
     id: 'clip',
-    title: 'Recherche par description et catégories',
+    get title() {
+      return t('Recherche par description et catégories')
+    },
     files: [
       { path: 'clip/onnx/vision_model_quantized.onnx', url: `${HF}/Xenova/clip-vit-base-patch32/resolve/main/onnx/vision_model_quantized.onnx`, sha256: '583fd1110a514667812fee7d684952aaf82a99b959760c8d7dca7e0ab9839299', size: 89117001 },
       { path: 'clip/onnx/text_model_quantized.onnx', url: `${HF}/Xenova/clip-vit-base-patch32/resolve/main/onnx/text_model_quantized.onnx`, sha256: '73baab855d406190da9faa498cfedf65f15cf309f4cc7385b7b032e6d08e5c3a', size: 64504507 },
@@ -79,7 +84,7 @@ export async function downloadPack(dir: string, pack: ModelPack, onProgress: Dow
     }
     if (f.size && offset >= f.size) offset = 0
     const res = await fetch(f.url, { headers: offset ? { Range: `bytes=${offset}-` } : {}, signal, redirect: 'follow' })
-    if (!res.ok || !res.body) throw new Error(`Téléchargement impossible (${res.status}) : ${f.path}`)
+    if (!res.ok || !res.body) throw new Error(t('Téléchargement impossible ({status}) : {path}', { status: res.status, path: f.path }))
     if (res.status !== 206) offset = 0
     let received = offset
     const counter = new TransformStream<Uint8Array, Uint8Array>({
@@ -94,7 +99,7 @@ export async function downloadPack(dir: string, pack: ModelPack, onProgress: Dow
       const h = await sha256(part)
       if (h !== f.sha256) {
         await rm(part, { force: true })
-        throw new Error(`Fichier corrompu, réessayez : ${f.path}`)
+        throw new Error(t('Fichier corrompu, réessayez : {path}', { path: f.path }))
       }
     }
     await rename(part, target)

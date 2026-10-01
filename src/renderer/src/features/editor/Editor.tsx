@@ -7,6 +7,7 @@ import { useAsset } from '@/api/hooks'
 import { Button } from '@/components/ui'
 import { confirm } from '@/components/Confirm'
 import { useUi } from '@/store'
+import { t } from '@/i18n'
 import { autoEnhance, planGeometry } from '@shared/edit/pipeline'
 import { cloneEdit, FILTERS, isNeutral, NEUTRAL, normalizeEdit, type PhotoEdit } from '@shared/edit/types'
 import { drawGeometry, PreviewRenderer } from './renderer'
@@ -26,7 +27,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
     const img = new Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error('Impossible de charger l’image'))
+    img.onerror = () => reject(new Error(t('Impossible de charger l’image')))
     img.src = url
   })
 }
@@ -105,7 +106,7 @@ function EditorInner({ id }: { id: number }) {
 
   const dirty = edit ? JSON.stringify(edit) !== initial.current : false
   const cancel = useCallback(async () => {
-    if (dirty && !(await confirm({ title: 'Abandonner les modifications ?', message: 'Les réglages non enregistrés seront perdus.', confirmLabel: 'Abandonner', danger: true }))) return
+    if (dirty && !(await confirm({ title: t('Abandonner les modifications ?'), message: t('Les réglages non enregistrés seront perdus.'), confirmLabel: t('Abandonner'), danger: true }))) return
     close()
   }, [dirty])
 
@@ -115,7 +116,7 @@ function EditorInner({ id }: { id: number }) {
     try {
       await api(`/api/assets/${id}/edit`, { method: 'PUT', json: { edit: isNeutral(edit) ? null : edit } })
       await qc.invalidateQueries({ queryKey: ['asset', id] })
-      useUi.getState().toast('Modifications enregistrées. L’original reste intact.')
+      useUi.getState().toast(t('Modifications enregistrées. L’original reste intact.'))
       close()
     } catch (e) {
       setError((e as Error).message)
@@ -129,7 +130,7 @@ function EditorInner({ id }: { id: number }) {
     setSaving(true)
     try {
       await api(`/api/assets/${id}/edited-copy`, { method: 'POST', json: { edit } })
-      useUi.getState().toast('Copie en cours d’enregistrement. Elle sera empilée avec l’original.')
+      useUi.getState().toast(t('Copie en cours d’enregistrement. Elle sera empilée avec l’original.'))
       close()
     } catch (e) {
       setError((e as Error).message)
@@ -180,7 +181,7 @@ function EditorInner({ id }: { id: number }) {
     <div className="animate-fade-in fixed inset-0 z-[55] flex flex-col bg-[#0b0b0c] text-white select-none">
       <div className="drag flex h-[52px] shrink-0 items-center gap-2 pr-4 pl-[84px]">
         <Button variant="ghost" className="no-drag text-white/80 hover:bg-white/10 hover:text-white" onClick={() => void cancel()}>
-          Annuler
+          {t('Annuler')}
         </Button>
         <div className="flex-1 truncate text-center text-[13px] font-semibold">{detail?.name}</div>
         <button
@@ -188,30 +189,30 @@ function EditorInner({ id }: { id: number }) {
           onPointerDown={() => setCompare(true)}
           onPointerUp={() => setCompare(false)}
           onPointerLeave={() => setCompare(false)}
-          title="Maintenir pour voir l’original (touche M)"
+          title={t('Maintenir pour voir l’original (touche M)')}
         >
-          Avant / après
+          {t('Avant / après')}
         </button>
         <Button
           variant="ghost"
           className="no-drag text-white/80 hover:bg-white/10 hover:text-white"
           disabled={!edit || isNeutral(edit)}
           onClick={() => setEdit(cloneEdit(NEUTRAL))}
-          title="Revenir à l’original"
+          title={t('Revenir à l’original')}
         >
-          <RotateCcw className="size-3.5" /> Original
+          <RotateCcw className="size-3.5" /> {t('Original')}
         </Button>
         <Button
           variant="secondary"
           className="no-drag bg-white/10 text-white hover:bg-white/16"
           disabled={saving || !edit || isNeutral(edit)}
           onClick={() => void saveCopy()}
-          title="Créer un nouveau fichier avec ces retouches, empilé sous l’original"
+          title={t('Créer un nouveau fichier avec ces retouches, empilé sous l’original')}
         >
-          Enregistrer une copie
+          {t('Enregistrer une copie')}
         </Button>
-        <Button variant="primary" className="no-drag" disabled={saving || !edit} onClick={() => void save()} title="Appliquer à la photo (réversible à tout moment)">
-          {saving && <Loader2 className="size-3.5 animate-spin" />} Terminé
+        <Button variant="primary" className="no-drag" disabled={saving || !edit} onClick={() => void save()} title={t('Appliquer à la photo (réversible à tout moment)')}>
+          {saving && <Loader2 className="size-3.5 animate-spin" />} {t('Terminé')}
         </Button>
       </div>
 
@@ -222,16 +223,16 @@ function EditorInner({ id }: { id: number }) {
           <div className="relative" style={{ width: fit.w, height: fit.h, display: source ? 'block' : 'none' }}>
             <canvas ref={display} className="h-full w-full" />
             {cropping && edit && !compare && <CropOverlay edit={edit} onChange={setEdit} imgW={imgSize.w} imgH={imgSize.h} />}
-            {compare && <span className="absolute top-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-[11.5px] font-semibold">Original</span>}
+            {compare && <span className="absolute top-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-[11.5px] font-semibold">{t('Original')}</span>}
           </div>
         </div>
 
         <aside className="scroll-thin w-[300px] shrink-0 overflow-y-auto border-l border-white/10 bg-[#141416] px-4 pb-6">
           <div className="sticky top-0 z-10 -mx-4 mb-3 bg-[#141416] px-4 pt-1 pb-3">
             <div className="flex rounded-[9px] bg-white/8 p-[3px]">
-              {(['adjust', 'filters', 'crop'] as Tab[]).map((t) => (
-                <button key={t} onClick={() => setTab(t)} className={clsx('flex-1 rounded-[7px] py-1 text-[12.5px] font-medium', tab === t ? 'bg-white/16 text-white' : 'text-white/60 hover:text-white')}>
-                  {t === 'adjust' ? 'Réglages' : t === 'filters' ? 'Filtres' : 'Recadrer'}
+              {(['adjust', 'filters', 'crop'] as Tab[]).map((k) => (
+                <button key={k} onClick={() => setTab(k)} className={clsx('flex-1 rounded-[7px] py-1 text-[12.5px] font-medium', tab === k ? 'bg-white/16 text-white' : 'text-white/60 hover:text-white')}>
+                  {k === 'adjust' ? t('Ajuster') : k === 'filters' ? t('Filtres') : t('Recadrer')}
                 </button>
               ))}
             </div>
@@ -239,36 +240,36 @@ function EditorInner({ id }: { id: number }) {
           {edit && tab === 'adjust' && (
             <div className="space-y-5">
               <Button variant="secondary" className="w-full bg-white/10 text-white hover:bg-white/16" onClick={auto}>
-                <Wand2 className="size-4" /> Amélioration automatique
+                <Wand2 className="size-4" /> {t('Amélioration automatique')}
               </Button>
-              <Group title="Lumière">
-                <Slider label="Exposition" value={edit.light.exposure} min={-3} max={3} step={0.05} onChange={(v) => set('light', 'exposure', v)} format={(v) => `${v > 0 ? '+' : ''}${v.toFixed(2)} IL`} />
-                <Slider label="Éclat" value={edit.light.brilliance} onChange={(v) => set('light', 'brilliance', v)} />
-                <Slider label="Hautes lumières" value={edit.light.highlights} onChange={(v) => set('light', 'highlights', v)} />
-                <Slider label="Ombres" value={edit.light.shadows} onChange={(v) => set('light', 'shadows', v)} />
-                <Slider label="Contraste" value={edit.light.contrast} onChange={(v) => set('light', 'contrast', v)} />
-                <Slider label="Blancs" value={edit.light.whites} onChange={(v) => set('light', 'whites', v)} />
-                <Slider label="Noirs" value={edit.light.blacks} onChange={(v) => set('light', 'blacks', v)} />
+              <Group title={t('Lumière')}>
+                <Slider label={t('Exposition')} value={edit.light.exposure} min={-3} max={3} step={0.05} onChange={(v) => set('light', 'exposure', v)} format={(v) => `${v > 0 ? '+' : ''}${v.toFixed(2)} IL`} />
+                <Slider label={t('Éclat')} value={edit.light.brilliance} onChange={(v) => set('light', 'brilliance', v)} />
+                <Slider label={t('Hautes lumières')} value={edit.light.highlights} onChange={(v) => set('light', 'highlights', v)} />
+                <Slider label={t('Ombres')} value={edit.light.shadows} onChange={(v) => set('light', 'shadows', v)} />
+                <Slider label={t('Contraste')} value={edit.light.contrast} onChange={(v) => set('light', 'contrast', v)} />
+                <Slider label={t('Blancs')} value={edit.light.whites} onChange={(v) => set('light', 'whites', v)} />
+                <Slider label={t('Noirs')} value={edit.light.blacks} onChange={(v) => set('light', 'blacks', v)} />
               </Group>
-              <Group title="Couleur">
-                <Slider label="Température" value={edit.color.temperature} onChange={(v) => set('color', 'temperature', v)} />
-                <Slider label="Teinte" value={edit.color.tint} onChange={(v) => set('color', 'tint', v)} />
-                <Slider label="Vibrance" value={edit.color.vibrance} onChange={(v) => set('color', 'vibrance', v)} />
-                <Slider label="Saturation" value={edit.color.saturation} onChange={(v) => set('color', 'saturation', v)} />
+              <Group title={t('Couleur')}>
+                <Slider label={t('Température')} value={edit.color.temperature} onChange={(v) => set('color', 'temperature', v)} />
+                <Slider label={t('Teinte')} value={edit.color.tint} onChange={(v) => set('color', 'tint', v)} />
+                <Slider label={t('Vibrance')} value={edit.color.vibrance} onChange={(v) => set('color', 'vibrance', v)} />
+                <Slider label={t('Saturation')} value={edit.color.saturation} onChange={(v) => set('color', 'saturation', v)} />
                 <label className="flex items-center gap-2 pt-1 text-[12.5px] text-white/80">
                   <input type="checkbox" className="accent-[var(--accent)]" checked={edit.color.mono} onChange={(e) => set('color', 'mono', e.target.checked)} />
-                  Noir et blanc
+                  {t('Noir et blanc')}
                 </label>
               </Group>
-              <Group title="Détails">
-                <Slider label="Netteté" value={edit.detail.sharpness} min={0} onChange={(v) => set('detail', 'sharpness', v)} />
-                <Slider label="Clarté" value={edit.detail.clarity} onChange={(v) => set('detail', 'clarity', v)} />
-                <Slider label="Réduction du bruit" value={edit.detail.noise} min={0} onChange={(v) => set('detail', 'noise', v)} />
+              <Group title={t('Détails')}>
+                <Slider label={t('Netteté')} value={edit.detail.sharpness} min={0} onChange={(v) => set('detail', 'sharpness', v)} />
+                <Slider label={t('Clarté')} value={edit.detail.clarity} onChange={(v) => set('detail', 'clarity', v)} />
+                <Slider label={t('Réduction du bruit')} value={edit.detail.noise} min={0} onChange={(v) => set('detail', 'noise', v)} />
               </Group>
-              <Group title="Effets">
-                <Slider label="Vignettage" value={edit.effects.vignette} onChange={(v) => set('effects', 'vignette', v)} />
-                <Slider label="Grain" value={edit.effects.grain} min={0} onChange={(v) => set('effects', 'grain', v)} />
-                <Slider label="Délavé" value={edit.effects.fade} min={0} onChange={(v) => set('effects', 'fade', v)} />
+              <Group title={t('Effets')}>
+                <Slider label={t('Vignettage')} value={edit.effects.vignette} onChange={(v) => set('effects', 'vignette', v)} />
+                <Slider label={t('Grain')} value={edit.effects.grain} min={0} onChange={(v) => set('effects', 'grain', v)} />
+                <Slider label={t('Délavé')} value={edit.effects.fade} min={0} onChange={(v) => set('effects', 'fade', v)} />
               </Group>
             </div>
           )}
@@ -309,7 +310,7 @@ function FilterGrid({ source, edit, onPick }: { source: HTMLCanvasElement; edit:
       copy.getContext('2d')!.drawImage(small, 0, 0)
       r.render(copy, f.apply(cloneEdit(NEUTRAL)), (img) => {
         copy.getContext('2d')!.putImageData(img, 0, 0)
-        if (!cancelled) setThumbs((t) => ({ ...t, [f.id]: copy.toDataURL('image/jpeg', 0.85) }))
+        if (!cancelled) setThumbs((th) => ({ ...th, [f.id]: copy.toDataURL('image/jpeg', 0.85) }))
         next()
       })
     }
@@ -336,9 +337,9 @@ function FilterGrid({ source, edit, onPick }: { source: HTMLCanvasElement; edit:
 }
 
 const ASPECTS: Array<{ id: string; label: string; ratio: number | null | 'original' }> = [
-  { id: 'free', label: 'Libre', ratio: null },
-  { id: 'original', label: 'Original', ratio: 'original' },
-  { id: '1:1', label: 'Carré', ratio: 1 },
+  { id: 'free', label: t('Libre'), ratio: null },
+  { id: 'original', label: t('Original'), ratio: 'original' },
+  { id: '1:1', label: t('Carré'), ratio: 1 },
   { id: '4:3', label: '4:3', ratio: 4 / 3 },
   { id: '3:2', label: '3:2', ratio: 3 / 2 },
   { id: '16:9', label: '16:9', ratio: 16 / 9 },
@@ -365,15 +366,15 @@ function CropPanel({ edit, onChange, srcW, srcH }: { edit: PhotoEdit; onChange(e
     <div className="space-y-5">
       <div className="flex gap-2">
         <Button className="flex-1 bg-white/10 text-white hover:bg-white/16" onClick={() => setG({ rotate: ((g.rotate + 3) % 4) as 0 | 1 | 2 | 3, crop: null })}>
-          <RotateCcwSquare className="size-4" /> Pivoter
+          <RotateCcwSquare className="size-4" /> {t('Pivoter')}
         </Button>
         <Button className="flex-1 bg-white/10 text-white hover:bg-white/16" onClick={() => setG({ flipH: !g.flipH })}>
-          <FlipHorizontal2 className="size-4" /> Miroir
+          <FlipHorizontal2 className="size-4" /> {t('Miroir')}
         </Button>
       </div>
-      <Slider label="Redresser" value={g.straighten} min={-45} max={45} step={0.1} onChange={(v) => setG({ straighten: v })} format={(v) => `${v.toFixed(1)}°`} />
+      <Slider label={t('Redresser')} value={g.straighten} min={-45} max={45} step={0.1} onChange={(v) => setG({ straighten: v })} format={(v) => `${v.toFixed(1)}°`} />
       <section>
-        <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-white/45 uppercase">Format</h3>
+        <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-white/45 uppercase">{t('Proportions')}</h3>
         <div className="grid grid-cols-4 gap-1.5">
           {ASPECTS.map((a) => (
             <button
@@ -391,9 +392,9 @@ function CropPanel({ edit, onChange, srcW, srcH }: { edit: PhotoEdit; onChange(e
         </div>
       </section>
       <Button className="w-full bg-white/10 text-white hover:bg-white/16" onClick={() => setG({ crop: null, straighten: 0, rotate: 0, flipH: false })}>
-        <Sparkles className="size-4" /> Réinitialiser le cadrage
+        <Sparkles className="size-4" /> {t('Réinitialiser le cadrage')}
       </Button>
-      <p className="text-[11.5px] leading-relaxed text-white/45">Faites glisser le cadre ou ses coins sur l’image. Le recadrage est appliqué en quittant cet onglet.</p>
+      <p className="text-[11.5px] leading-relaxed text-white/45">{t('Faites glisser le cadre ou ses coins sur l’image. Le recadrage est appliqué en quittant cet onglet.')}</p>
     </div>
   )
 }

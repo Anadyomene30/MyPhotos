@@ -1,3 +1,4 @@
+import { t, tn } from '@/i18n'
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, onServerEvent, qs } from './client'
@@ -20,29 +21,30 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
         if (e.type === 'ml-status') qc.setQueryData(['ml-status'], e.status)
         if (e.type === 'creation-done') {
           const ui = useUi.getState()
-          if (!e.ok) ui.toast(`Création impossible : ${e.error ?? 'erreur inconnue'}`)
+          if (!e.ok) ui.toast(t('Création impossible : {error}', { error: e.error ?? t('erreur inconnue') }))
           else
-            ui.toast('Création terminée', e.assetId ? { label: 'Voir', run: () => void openAsset(e.assetId!) } : undefined)
+            ui.toast(t('Création terminée'), e.assetId ? { label: t('Voir'), run: () => void openAsset(e.assetId!) } : undefined)
         }
         if (e.type === 'share-activity') {
-          const what = e.kind === 'upload' ? 'a ajouté des photos à' : e.kind === 'comment' ? 'a commenté' : 'a aimé une photo de'
-          useUi.getState().toast(`${e.author} ${what} « ${e.albumName} »`, { label: 'Voir', run: () => useUi.getState().openAlbum(e.albumId) })
+          const vars = { author: e.author, album: e.albumName }
+          const msg = e.kind === 'upload' ? t('{author} a ajouté des photos à « {album} »', vars) : e.kind === 'comment' ? t('{author} a commenté « {album} »', vars) : t('{author} a aimé une photo de « {album} »', vars)
+          useUi.getState().toast(msg, { label: t('Voir'), run: () => useUi.getState().openAlbum(e.albumId) })
         }
         if (e.type === 'retro-done' && !e.preview) {
           const ui = useUi.getState()
-          if (!e.ok) ui.toast(`Vidéo impossible : ${e.error ?? 'erreur inconnue'}`)
-          else ui.toast('Vidéo souvenir prête', e.assetId ? { label: 'Voir', run: () => void openAsset(e.assetId!) } : undefined)
+          if (!e.ok) ui.toast(t('Vidéo impossible : {error}', { error: e.error ?? t('erreur inconnue') }))
+          else ui.toast(t('Vidéo souvenir prête'), e.assetId ? { label: t('Voir'), run: () => void openAsset(e.assetId!) } : undefined)
         }
         if (e.type === 'export-done') {
           const r = e.result
           const ui = useUi.getState()
           const msg = r.cancelled
-            ? `Export annulé (${r.exported} exporté${r.exported > 1 ? 's' : ''})`
+            ? tn(r.exported, 'Export annulé ({n} exporté)', 'Export annulé ({n} exportés)')
             : r.failed
-              ? `${r.exported} exporté${r.exported > 1 ? 's' : ''}, ${r.failed} en échec`
-              : `${r.exported.toLocaleString('fr-FR')} élément${r.exported > 1 ? 's' : ''} exporté${r.exported > 1 ? 's' : ''}`
+              ? tn(r.exported, '{n} exporté, {failed} en échec', '{n} exportés, {failed} en échec', { failed: r.failed })
+              : tn(r.exported, '{n} élément exporté', '{n} éléments exportés')
           if (r.errors.length) console.warn('Export errors', r.errors)
-          ui.toast(msg, window.desktop ? { label: 'Afficher', run: () => void window.desktop?.reveal(r.destination) } : undefined)
+          ui.toast(msg, window.desktop ? { label: t('Afficher'), run: () => void window.desktop?.reveal(r.destination) } : undefined)
         }
         if (e.type === 'library-changed') {
           bump(e.version)

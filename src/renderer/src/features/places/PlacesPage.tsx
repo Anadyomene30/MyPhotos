@@ -10,6 +10,7 @@ import { api, media } from '@/api/client'
 import { usePlaces } from '@/api/hooks'
 import { useUi } from '@/store'
 import { count, plural } from '@/lib/format'
+import { t, tn } from '@/i18n'
 
 maplibregl.setWorkerUrl(mapWorkerUrl)
 
@@ -89,7 +90,7 @@ export function PlacesPage() {
 
   const byCountry = new Map<string, typeof places>()
   for (const p of places ?? []) {
-    const k = p.country ?? 'Ailleurs'
+    const k = p.country ?? t('Ailleurs')
     byCountry.set(k, [...(byCountry.get(k) ?? []), p])
   }
 
@@ -97,13 +98,13 @@ export function PlacesPage() {
     <div className="flex h-full flex-col">
       <header className={clsx('drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line pl-5', win ? 'pr-[150px]' : 'pr-4')}>
         <MapPin className="size-[18px] text-accent" />
-        <h1 className="font-display text-[15px] font-semibold tracking-tight">Lieux</h1>
-        <span className="text-[12px] text-muted">{places ? `${plural(places.length, 'lieu', 'lieux')} · ${count(places.reduce((a, p) => a + p.count, 0))} éléments localisés` : ''}</span>
+        <h1 className="font-display text-[15px] font-semibold tracking-tight">{t('Lieux')}</h1>
+        <span className="text-[12px] text-muted">{places ? `${plural(places.length, 'lieu', 'lieux')} · ${tn(places.reduce((a, p) => a + p.count, 0), '{n} élément localisé', '{n} éléments localisés')}` : ''}</span>
       </header>
       <div className="flex min-h-0 flex-1">
         <aside className="scroll-thin w-[280px] shrink-0 overflow-y-auto border-r border-line py-2">
           {isLoading && <Loader2 className="mx-auto mt-6 size-5 animate-spin text-faint" />}
-          {places && places.length === 0 && <p className="px-4 py-6 text-center text-[12.5px] text-muted">Aucune photo avec localisation. Les photos d’iPhone et d’appareils avec GPS apparaîtront ici.</p>}
+          {places && places.length === 0 && <p className="px-4 py-6 text-center text-[12.5px] text-muted">{t('Aucune photo avec localisation. Les photos d’iPhone et d’appareils avec GPS apparaîtront ici.')}</p>}
           {[...byCountry.entries()].map(([country, list]) => (
             <section key={country} className="mb-2">
               <h2 className="px-4 pt-2 pb-1 text-[11px] font-semibold text-faint">{country}</h2>
@@ -131,7 +132,7 @@ export function PlacesPage() {
           </div>
           {!ready && (
             <div className="absolute inset-0 grid place-items-center bg-bg/60 text-[12.5px] text-muted">
-              <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> Chargement de la carte (connexion internet nécessaire)</span>
+              <span className="flex items-center gap-2"><Loader2 className="size-4 animate-spin" /> {t('Chargement de la carte (connexion internet nécessaire)')}</span>
             </div>
           )}
         </div>

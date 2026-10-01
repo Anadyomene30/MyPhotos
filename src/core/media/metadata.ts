@@ -248,11 +248,11 @@ export async function readVideoMetadata(file: string, name: string, mtime: numbe
   }
   const v = probe.streams?.find((s) => s.codec_type === 'video')
   const tags = { ...(probe.format?.tags ?? {}), ...(v?.tags ?? {}) }
-  const t = (k: string): string | null => tags[k] ?? tags[k.toLowerCase()] ?? null
+  const tg = (k: string): string | null => tags[k] ?? tags[k.toLowerCase()] ?? null
 
-  const appleDate = t('com.apple.quicktime.creationdate')
+  const appleDate = tg('com.apple.quicktime.creationdate')
   const parsedApple = appleDate ? parseDateString(appleDate) : null
-  const creation = t('creation_time')
+  const creation = tg('creation_time')
   const parsedCreation = creation ? parseDateString(creation) : null
   if (parsedApple) {
     const r = resolveWall(parsedApple.wall, parsedApple.offset)
@@ -272,7 +272,7 @@ export async function readVideoMetadata(file: string, name: string, mtime: numbe
   meta.width = w
   meta.height = h
 
-  const iso6709 = t('com.apple.quicktime.location.ISO6709') ?? t('location')
+  const iso6709 = tg('com.apple.quicktime.location.ISO6709') ?? tg('location')
   if (iso6709) {
     const m = /^([+\-]\d+(?:\.\d+)?)([+\-]\d+(?:\.\d+)?)/.exec(iso6709)
     if (m) {
@@ -280,9 +280,9 @@ export async function readVideoMetadata(file: string, name: string, mtime: numbe
       meta.lon = +m[2]!
     }
   }
-  meta.make = t('com.apple.quicktime.make')
-  meta.model = t('com.apple.quicktime.model')
-  meta.contentId = t('com.apple.quicktime.content.identifier')
+  meta.make = tg('com.apple.quicktime.make')
+  meta.model = tg('com.apple.quicktime.model')
+  meta.contentId = tg('com.apple.quicktime.content.identifier')
   meta.screenshot = /screen ?recording|enregistrement de l.écran|rpreplay/i.test(name)
   return meta
 }

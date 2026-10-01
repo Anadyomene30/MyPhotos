@@ -2,8 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 
 const desktop = {
   platform: process.platform,
-  pickFolder: (): Promise<string | null> => ipcRenderer.invoke('pick-folder'),
-  pickFile: (kind: 'audio' | 'any'): Promise<string | null> => ipcRenderer.invoke('pick-file', kind),
+  /** Labels come from the renderer, which knows the interface language. */
+  pickFolder: (labels?: { title?: string; button?: string }): Promise<string | null> => ipcRenderer.invoke('pick-folder', labels),
+  pickFile: (kind: 'audio' | 'any', labels?: { title?: string; filter?: string }): Promise<string | null> => ipcRenderer.invoke('pick-file', kind, labels),
   reveal: (path: string): Promise<void> => ipcRenderer.invoke('reveal', path),
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url)
 }

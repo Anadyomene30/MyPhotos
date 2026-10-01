@@ -4,7 +4,7 @@ import { Aperture, EyeOff, Loader2, Wand2 } from 'lucide-react'
 import { api, media } from '@/api/client'
 import { Button } from '@/components/ui'
 import { confirm } from '@/components/Confirm'
-import { count } from '@/lib/format'
+import { localeTag, t, tn } from '@/i18n'
 import { useUi } from '@/store'
 import { ignore } from './api'
 import type { CleanupGroup } from '@shared/types'
@@ -13,7 +13,7 @@ export async function startFusion(ids: number[]): Promise<void> {
   await api('/api/fusion', { method: 'POST', json: { ids } })
 }
 
-const fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+const fmt = new Intl.DateTimeFormat(localeTag(), { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 export function BracketList({ groups }: { groups: CleanupGroup[] }) {
   const [pending, setPending] = useState<Set<string>>(new Set())
@@ -36,8 +36,8 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
       <div className="grid h-full place-items-center text-center">
         <div>
           <Aperture className="mx-auto mb-3 size-10 text-faint" strokeWidth={1.4} />
-          <div className="font-display text-[18px] font-semibold">Aucune série de bracketing</div>
-          <p className="mt-1 max-w-sm text-[13px] text-muted">Les séries de photos prises coup sur coup avec des expositions différentes apparaîtront ici.</p>
+          <div className="font-display text-[18px] font-semibold">{t('Aucune série de bracketing')}</div>
+          <p className="mt-1 max-w-sm text-[13px] text-muted">{t('Les séries de photos prises coup sur coup avec des expositions différentes apparaîtront ici.')}</p>
         </div>
       </div>
     )
@@ -47,19 +47,19 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center gap-3 px-5 pb-3">
         <p className="flex-1 text-[12.5px] text-muted">
-          Séries prises au même endroit avec des expositions différentes. MyPhotos les aligne et les fusionne en une seule photo bien exposée, sans toucher aux originaux. Le résultat est rangé dans le dossier « MyPhotos Créations ».
+          {t('Séries prises au même endroit avec des expositions différentes. MyPhotos les aligne et les fusionne en une seule photo bien exposée, sans toucher aux originaux. Le résultat est rangé dans le dossier « MyPhotos Créations ».')}
         </p>
         <Button
           variant="primary"
           className="shrink-0"
           onClick={() =>
-            void confirm({ title: `Fusionner ${count(visible.length)} séries ?`, message: 'Chaque série donnera une nouvelle photo HDR. Les originaux restent intacts.', confirmLabel: 'Tout fusionner' }).then(async (ok) => {
+            void confirm({ title: tn(visible.length, 'Fusionner {n} série ?', 'Fusionner {n} séries ?'), message: t('Chaque série donnera une nouvelle photo HDR. Les originaux restent intacts.'), confirmLabel: t('Tout fusionner') }).then(async (ok) => {
               if (!ok) return
               for (const g of visible) if (!pending.has(g.key)) await fuse(g)
             })
           }
         >
-          <Wand2 className="size-4" /> Tout fusionner
+          <Wand2 className="size-4" /> {t('Tout fusionner')}
         </Button>
       </div>
       <div ref={scrollRef} className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5">
@@ -79,11 +79,11 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
                       void ignore(g.key, 'brackets')
                       setHidden((h) => new Set([...h, g.key]))
                     }}>
-                      <EyeOff className="size-3.5" /> Ignorer
+                      <EyeOff className="size-3.5" /> {t('Ignorer')}
                     </Button>
                     <Button variant="primary" className="py-1 text-[12.5px]" disabled={busy} onClick={() => void fuse(g)}>
                       {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Wand2 className="size-3.5" />}
-                      {busy ? 'Fusion…' : 'Créer la photo HDR'}
+                      {busy ? t('Fusion…') : t('Créer la photo HDR')}
                     </Button>
                   </div>
                   <div className="scroll-thin flex gap-2 overflow-x-auto pb-1">

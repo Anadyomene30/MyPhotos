@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import clsx from 'clsx'
 import { BrushCleaning, Camera, Heart, Images, MapPin, Monitor, Settings, Sparkles, Tag, Trash2, Users, Aperture } from 'lucide-react'
 import { useCategories, useMlStatus } from '@/api/hooks'
@@ -18,15 +19,15 @@ interface Item {
 }
 
 const LIBRARY: Item[] = [
-  { id: 'all', label: 'Photothèque', icon: Images, count: 'all' },
-  { id: 'favorites', label: 'Favoris', icon: Heart, count: 'favorites' }
+  { id: 'all', label: t('Photothèque'), icon: Images, count: 'all' },
+  { id: 'favorites', label: t('Favoris'), icon: Heart, count: 'favorites' }
 ]
 const TYPES: Item[] = [
   { id: 'live', label: 'Live Photos', icon: Aperture, count: 'live', hideWhenEmpty: true },
-  { id: 'screenshots', label: 'Captures d’écran', icon: Monitor, count: 'screenshots', hideWhenEmpty: true },
+  { id: 'screenshots', label: t('Captures d’écran'), icon: Monitor, count: 'screenshots', hideWhenEmpty: true },
   { id: 'raw', label: 'RAW', icon: Camera, count: 'raw', hideWhenEmpty: true }
 ]
-const OTHER: Item[] = [{ id: 'trash', label: 'Corbeille', icon: Trash2, count: 'trash' }]
+const OTHER: Item[] = [{ id: 'trash', label: t('Corbeille'), icon: Trash2, count: 'trash' }]
 
 export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: boolean }) {
   const { data } = useLibraryState()
@@ -87,14 +88,14 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
         {!mac && <span className="font-display text-[15px] font-semibold tracking-tight">MyPhotos</span>}
       </div>
       <nav className="scroll-thin flex-1 space-y-5 overflow-y-auto px-2.5 pb-4">
-        <Section title="Bibliothèque">
+        <Section title={t('Bibliothèque')}>
           {LIBRARY.map(renderItem)}
-          {pageItem('memories', 'Souvenirs', Sparkles)}
-          {ml?.enabled && pageItem('people', 'Personnes', Users, ml.persons)}
-          {pageItem('places', 'Lieux', MapPin)}
+          {pageItem('memories', t('Souvenirs'), Sparkles)}
+          {ml?.enabled && pageItem('people', t('Personnes'), Users, ml.persons)}
+          {pageItem('places', t('Lieux'), MapPin)}
         </Section>
         {cats && cats.length > 0 && (
-          <Section title="Catégories">
+          <Section title={t('Catégories')}>
             {cats.slice(0, 12).map((c) => {
               const active = page === 'library' && category === c.id
               return (
@@ -111,10 +112,10 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
             })}
           </Section>
         )}
-        {types.length > 0 && <Section title="Types de fichiers">{types}</Section>}
+        {types.length > 0 && <Section title={t('Types de fichiers')}>{types}</Section>}
         <SidebarAlbums />
-        <Section title="Autres">
-          {pageItem('cleanup', 'Nettoyage', BrushCleaning)}
+        <Section title={t('Autres')}>
+          {pageItem('cleanup', t('Nettoyage'), BrushCleaning)}
           {OTHER.map(renderItem)}
         </Section>
       </nav>
@@ -125,7 +126,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
           className="flex h-[30px] w-full items-center gap-2.5 rounded-[7px] px-2.5 text-[13px] text-fg/85 hover:bg-hover"
         >
           <Settings className="size-[17px] text-muted" strokeWidth={1.8} />
-          Réglages
+          {t('Réglages')}
         </button>
       </div>
     </aside>

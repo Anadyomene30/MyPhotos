@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { Search, X } from 'lucide-react'
@@ -52,9 +53,9 @@ export function SearchBar() {
           if (e.key === 'Enter') setSearch(value)
           e.stopPropagation()
         }}
-        placeholder={semantic ? 'Rechercher : « plage 2019 », « chien »…' : 'Rechercher'}
+        placeholder={semantic ? t('Rechercher : « plage 2019 », « chien »…') : t('Rechercher')}
         className="h-full w-full bg-transparent pr-7 pl-8 text-[12.5px] outline-none placeholder:text-faint"
-        aria-label="Rechercher"
+        aria-label={t('Rechercher')}
       />
       {value && (
         <button
@@ -63,7 +64,7 @@ export function SearchBar() {
             setSearch('')
           }}
           className="absolute right-1.5 grid size-5 place-items-center rounded-full text-faint hover:bg-line hover:text-fg"
-          aria-label="Effacer"
+          aria-label={t('Effacer')}
         >
           <X className="size-3" />
         </button>

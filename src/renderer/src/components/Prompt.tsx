@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { useEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
 import { Button } from './ui'
@@ -58,7 +59,7 @@ export function PromptHost() {
           className="mt-3 w-full rounded-lg border border-line bg-bg px-3 py-2 text-[13px] outline-none focus:border-accent"
         />
         <div className="mt-4 flex justify-end gap-2">
-          <Button onClick={() => close(null)}>Annuler</Button>
+          <Button onClick={() => close(null)}>{t('Annuler')}</Button>
           <Button variant="primary" type="submit" disabled={!value.trim()}>
             {req.confirmLabel}
           </Button>

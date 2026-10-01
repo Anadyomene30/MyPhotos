@@ -11,6 +11,7 @@ import { CATEGORIES } from '@core/ml/categories'
 import type { Row } from '@core/db'
 import type { LanStatus, LibraryFilter, ServerEvent, TimelineQuery } from '@shared/types'
 import QRCode from 'qrcode'
+import { t } from '@shared/i18n'
 import { mimeFor, sendFile } from './files'
 import { NEUTRAL_VIDEO, type VideoEdit } from '@shared/edit/video'
 
@@ -298,14 +299,14 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
   app.get('/api/lan', (c) => c.json(opts.lan?.status() ?? { enabled: false, running: false, port: 0, addresses: [], error: 'indisponible' }))
   app.put('/api/lan', async (c) => {
     const { enabled } = z.object({ enabled: z.boolean() }).parse(await c.req.json())
-    if (!opts.lan) return c.json({ error: 'Partage indisponible' }, 400)
+    if (!opts.lan) return c.json({ error: t('Partage indisponible') }, 400)
     return c.json(await opts.lan.setEnabled(enabled))
   })
   app.get('/api/albums/:id/shares', (c) => c.json(lib.shares.forAlbum(idParam(c))))
   app.post('/api/albums/:id/shares', async (c) => {
     const body = z.object({ canAdd: z.boolean(), pin: z.string().max(20).nullable().optional(), expiresInDays: z.number().int().min(1).max(3650).nullable().optional() }).parse(await c.req.json())
     const a = lib.albums.get(idParam(c))
-    if (!a) return c.json({ error: 'Album introuvable' }, 404)
+    if (!a) return c.json({ error: t('Album introuvable') }, 404)
     return c.json(lib.shares.create(a.id, { canAdd: body.canAdd && a.kind === 'manual', pin: body.pin, expiresInDays: body.expiresInDays }))
   })
   app.delete('/api/shares/:id', (c) => {
@@ -332,6 +333,11 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ ok: true })
   })
   app.get('/api/settings/owner', (c) => c.json({ name: lib.ownerName }))
+  app.put('/api/settings/locale', async (c) => {
+    const body = z.object({ pref: z.enum(['auto', 'fr', 'en']), system: z.string().max(35) }).parse(await c.req.json())
+    lib.setLocalePref(body.pref, body.system)
+    return c.json({ ok: true })
+  })
 
   app.get('/api/settings/cloud', (c) => c.json({ hasKey: Boolean(lib.setting('anthropic_api_key')) }))
   app.put('/api/settings/cloud', async (c) => {
@@ -480,7 +486,7 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
   })
   app.post('/api/retrospective', async (c) => {
     const body = retroSchema.parse(await c.req.json())
-    if (body.music && !existsSync(body.music)) return c.json({ error: 'Fichier musical introuvable' }, 400)
+    if (body.music && !existsSync(body.music)) return c.json({ error: t('Fichier musical introuvable') }, 400)
     return c.json({ jobId: lib.startRetrospective(body) })
   })
   app.get('/api/retrospective/preview', (c) => {

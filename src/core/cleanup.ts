@@ -1,6 +1,7 @@
 import type { Db } from './db'
 import { hamming } from './media/analyze'
 import { bytesLabel } from './util'
+import { localeTag, t } from '@shared/i18n'
 import type { AssetKind, CleanupGroup, CleanupItem, CleanupReport, SuggestionCategory } from '@shared/types'
 
 interface Rec {
@@ -98,10 +99,10 @@ function exactKeep(rs: Rec[]): { keep: Rec; reasons: string[] } {
   const sorted = [...rs].sort((a, b) => score(b) - score(a))
   const keep = sorted[0]!
   const reasons: string[] = []
-  if (keep.favorite) reasons.push('Favori')
-  if (keep.in_album) reasons.push('Présente dans un album')
-  if (rs.some((r) => r !== keep && (COPY_MARKERS.test(r.rel_dir) || COPY_NAME.test(r.name))) && !COPY_MARKERS.test(keep.rel_dir)) reasons.push('Les autres sont dans des dossiers ou noms de copies')
-  if (!reasons.length) reasons.push('Premier fichier importé')
+  if (keep.favorite) reasons.push(t('Favori'))
+  if (keep.in_album) reasons.push(t('Présente dans un album'))
+  if (rs.some((r) => r !== keep && (COPY_MARKERS.test(r.rel_dir) || COPY_NAME.test(r.name))) && !COPY_MARKERS.test(keep.rel_dir)) reasons.push(t('Les autres sont dans des dossiers ou noms de copies'))
+  if (!reasons.length) reasons.push(t('Premier fichier importé'))
   return { keep, reasons }
 }
 
@@ -112,11 +113,11 @@ function visualKeep(rs: Rec[]): { keep: Rec; reasons: string[] } {
   const keep = sorted[0]!
   const other = sorted[1]!
   const reasons: string[] = []
-  if (keep.favorite) reasons.push('Favori')
-  if (mp(keep) > mp(other) * 1.2) reasons.push(`Meilleure définition (${mp(keep).toFixed(1)} Mpx contre ${mp(other).toFixed(1)})`)
-  if (keep.ext !== other.ext && ORIGINAL_FORMATS.has(keep.ext)) reasons.push(`Format d’origine (${keep.ext.toUpperCase()})`)
-  if (keep.size > other.size * 1.3) reasons.push('Fichier le plus complet')
-  if (!reasons.length) reasons.push('Même image, qualité équivalente')
+  if (keep.favorite) reasons.push(t('Favori'))
+  if (mp(keep) > mp(other) * 1.2) reasons.push(t('Meilleure définition ({a} Mpx contre {b})', { a: mp(keep).toFixed(1), b: mp(other).toFixed(1) }))
+  if (keep.ext !== other.ext && ORIGINAL_FORMATS.has(keep.ext)) reasons.push(t('Format d’origine ({ext})', { ext: keep.ext.toUpperCase() }))
+  if (keep.size > other.size * 1.3) reasons.push(t('Fichier le plus complet'))
+  if (!reasons.length) reasons.push(t('Même image, qualité équivalente'))
   return { keep, reasons }
 }
 
@@ -127,13 +128,13 @@ function burstKeep(rs: Rec[]): { keep: Rec; reasons: string[] } {
   const keep = sorted[0]!
   const others = sorted.slice(1)
   const reasons: string[] = []
-  if (keep.favorite) reasons.push('Favori')
+  if (keep.favorite) reasons.push(t('Favori'))
   const avgSharp = others.reduce((a, r) => a + (r.sharpness ?? 0), 0) / others.length
-  if ((keep.sharpness ?? 0) > avgSharp * 1.25) reasons.push('La plus nette')
+  if ((keep.sharpness ?? 0) > avgSharp * 1.25) reasons.push(t('La plus nette'))
   const expo = (r: Rec): number => Math.abs((r.brightness ?? 0.47) - 0.47) + (r.clip_bright ?? 0) + Math.max(0, (r.clip_dark ?? 0) - 0.05)
-  if (others.every((r) => expo(keep) + 0.04 < expo(r))) reasons.push('La mieux exposée')
-  if (others.every((r) => mp(keep) > mp(r) * 1.2)) reasons.push('Meilleure définition')
-  if (!reasons.length) reasons.push('Meilleure qualité d’ensemble')
+  if (others.every((r) => expo(keep) + 0.04 < expo(r))) reasons.push(t('La mieux exposée'))
+  if (others.every((r) => mp(keep) > mp(r) * 1.2)) reasons.push(t('Meilleure définition'))
+  if (!reasons.length) reasons.push(t('Meilleure qualité d’ensemble'))
   return { keep, reasons }
 }
 
@@ -157,7 +158,7 @@ export interface CleanupThresholds {
 
 export const DEFAULT_THRESHOLDS: CleanupThresholds = { visualHamming: 3, burstHamming: 14, burstWindowSec: 20 }
 
-export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds = DEFAULT_THRESHOLDS, creationsSource: number | null = null): CleanupReport {
+export function buildCleanupReport(db: Db, version: number, th: CleanupThresholds = DEFAULT_THRESHOLDS, creationsSource: number | null = null): CleanupReport {
   const rows = db
     .prepare(`SELECT a.id, a.name, a.rel_dir, a.ext, a.kind, a.size, a.taken_at, a.date_source, a.width, a.height, a.duration, a.quality,
         a.sharpness, a.brightness, a.clip_dark, a.clip_bright, a.contrast, a.phash, a.ph0, a.ph1, a.ph2, a.ph3, a.qhash, a.make, a.model, a.exposure, a.fnumber, a.iso, a.source_id,
@@ -196,7 +197,7 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
   const bracketGroups = detectBrackets(timed)
   const inBracket = new Set(bracketGroups.flat().map((r) => r.id))
   const burstUF = new UnionFind()
-  const winMs = t.burstWindowSec * 1000
+  const winMs = th.burstWindowSec * 1000
   for (let i = 0; i < timed.length; i++) {
     const a = timed[i]!
     for (let j = i + 1; j < timed.length && j < i + 40; j++) {
@@ -206,8 +207,8 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
       if (a.qhash && a.qhash === b.qhash) continue
       const d = hamming(a.phash!, b.phash!)
       // same picture saved in another format or size is a visual duplicate, not a burst
-      if (d <= t.visualHamming && !sameFormat(a, b)) continue
-      if (d <= t.burstHamming) burstUF.union(a.id, b.id)
+      if (d <= th.visualHamming && !sameFormat(a, b)) continue
+      if (d <= th.burstHamming) burstUF.union(a.id, b.id)
     }
   }
   const burstGroups = burstUF.groups(timed.map((r) => r.id)).filter((g) => g.length <= 60)
@@ -241,7 +242,7 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
           if (a.qhash && a.qhash === b.qhash) continue
           const sameBurst = inBurst.has(a.id) && inBurst.get(a.id) === inBurst.get(b.id)
           if (sameBurst && sameFormat(a, b)) continue
-          if (hamming(a.phash!, b.phash!) <= t.visualHamming) visualUF.union(a.id, b.id)
+          if (hamming(a.phash!, b.phash!) <= th.visualHamming) visualUF.union(a.id, b.id)
         }
       }
     }
@@ -266,7 +267,7 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
       key: signature(g.map((r) => r.id)),
       items: byExp.map(toItem),
       keepId: mid.id,
-      reasons: [`${g.length} expositions · ${ev.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} IL d’écart`, [mid.make, mid.model?.replace(mid.make ?? '', '').trim()].filter(Boolean).join(' ')].filter(Boolean),
+      reasons: [t('{n} expositions · {ev} IL d’écart', { n: g.length, ev: ev.toLocaleString(localeTag(), { maximumFractionDigits: 1 }) }), [mid.make, mid.model?.replace(mid.make ?? '', '').trim()].filter(Boolean).join(' ')].filter(Boolean),
       reclaimable: 0
     }
     if (!ignored.has(grp.key)) brackets.push(grp)
@@ -280,12 +281,12 @@ export function buildCleanupReport(db: Db, version: number, t: CleanupThresholds
   })
   const isPhoto = (r: Rec): boolean => r.kind === 'photo' && r.sharpness !== null
   const suggestions: SuggestionCategory[] = [
-    cat('screenshots', 'Anciennes captures d’écran', 'Captures et enregistrements d’écran de plus de 3 mois, souvent inutiles une fois consultés.', eligible.filter((r) => r.is_screenshot && r.taken_at < now - 90 * 86400000)),
-    cat('blurry', 'Photos floues', 'Très peu de détails nets pour le contraste de l’image.', eligible.filter((r) => isPhoto(r) && !r.is_screenshot && (r.contrast ?? 0) > 0.08 && r.sharpness! / Math.pow((r.contrast ?? 0.1) * 255, 2) < 0.025 && r.sharpness! < 40)),
-    cat('dark', 'Photos presque noires', 'Prises par erreur, dans une poche ou objectif masqué.', eligible.filter((r) => isPhoto(r) && (r.brightness ?? 1) < 0.08 && (r.clip_dark ?? 0) > 0.7)),
-    cat('overexposed', 'Photos surexposées', 'Image en grande partie blanche.', eligible.filter((r) => isPhoto(r) && !r.is_screenshot && (r.clip_bright ?? 0) > 0.55)),
-    cat('shortVideos', 'Vidéos très courtes', 'Moins de 2 secondes, souvent déclenchées par erreur.', eligible.filter((r) => r.kind === 'video' && r.duration !== null && r.duration < 2)),
-    cat('largeVideos', 'Très grosses vidéos', `Plus de ${bytesLabel(1024 ** 3)} chacune. Pensez à les convertir en HEVC plutôt qu’à les supprimer.`, eligible.filter((r) => r.kind === 'video' && r.size > 1024 ** 3))
+    cat('screenshots', t('Anciennes captures d’écran'), t('Captures et enregistrements d’écran de plus de 3 mois, souvent inutiles une fois consultés.'), eligible.filter((r) => r.is_screenshot && r.taken_at < now - 90 * 86400000)),
+    cat('blurry', t('Photos floues'), t('Très peu de détails nets pour le contraste de l’image.'), eligible.filter((r) => isPhoto(r) && !r.is_screenshot && (r.contrast ?? 0) > 0.08 && r.sharpness! / Math.pow((r.contrast ?? 0.1) * 255, 2) < 0.025 && r.sharpness! < 40)),
+    cat('dark', t('Photos presque noires'), t('Prises par erreur, dans une poche ou objectif masqué.'), eligible.filter((r) => isPhoto(r) && (r.brightness ?? 1) < 0.08 && (r.clip_dark ?? 0) > 0.7)),
+    cat('overexposed', t('Photos surexposées'), t('Image en grande partie blanche.'), eligible.filter((r) => isPhoto(r) && !r.is_screenshot && (r.clip_bright ?? 0) > 0.55)),
+    cat('shortVideos', t('Vidéos très courtes'), t('Moins de 2 secondes, souvent déclenchées par erreur.'), eligible.filter((r) => r.kind === 'video' && r.duration !== null && r.duration < 2)),
+    cat('largeVideos', t('Très grosses vidéos'), t('Plus de {size} chacune. Pensez à les convertir en HEVC plutôt qu’à les supprimer.', { size: bytesLabel(1024 ** 3) }), eligible.filter((r) => r.kind === 'video' && r.size > 1024 ** 3))
   ].filter((c) => c.items.length > 0)
 
   const byReclaim = (a: CleanupGroup, b: CleanupGroup): number => b.reclaimable - a.reclaimable

@@ -1,3 +1,4 @@
+import { t, tn } from '@/i18n'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { api, media, qs } from '@/api/client'
@@ -277,9 +278,8 @@ export async function trashWithUndo(ids: number[], restoring: boolean): Promise<
   const ui = useUi.getState()
   await patchAssets(ids, { trashed: !restoring })
   const n = ids.length
-  const what = n > 1 ? `${n.toLocaleString('fr-FR')} éléments` : '1 élément'
-  ui.toast(restoring ? `${what} restauré${n > 1 ? 's' : ''}` : `${what} placé${n > 1 ? 's' : ''} dans la corbeille`, {
-    label: 'Annuler',
+  ui.toast(restoring ? tn(n, '{n} élément restauré', '{n} éléments restaurés') : tn(n, '{n} élément placé dans la corbeille', '{n} éléments placés dans la corbeille'), {
+    label: t('Annuler'),
     run: () => void patchAssets(ids, { trashed: restoring })
   })
 }

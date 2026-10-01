@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { useEffect } from 'react'
 import { create } from 'zustand'
 import { Button } from './ui'
@@ -43,7 +44,7 @@ export function ConfirmHost() {
         <h2 className="font-display text-[16px] font-semibold">{req.title}</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-muted">{req.message}</p>
         <div className="mt-5 flex justify-end gap-2">
-          <Button onClick={() => close(false)}>Annuler</Button>
+          <Button onClick={() => close(false)}>{t('Annuler')}</Button>
           <Button variant={req.danger ? 'danger' : 'primary'} onClick={() => close(true)} autoFocus>
             {req.confirmLabel}
           </Button>

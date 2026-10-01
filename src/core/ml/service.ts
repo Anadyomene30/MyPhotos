@@ -11,6 +11,7 @@ import { PersonClusterer } from './persons'
 import { CATEGORIES, classify } from './categories'
 import { fromBlob, toBlob, VectorStore } from './vectors'
 import type { MlStatus, PersonPair, PersonSummary, SearchHit } from '@shared/types'
+import { t } from '@shared/i18n'
 
 export interface MlEvents {
   jobs(): void
@@ -87,8 +88,8 @@ export class MlService {
 
   async download(packId: string): Promise<void> {
     const pack = MODEL_PACKS.find((p) => p.id === packId)
-    if (!pack) throw new Error('Modèle inconnu')
-    if (this.downloading) throw new Error('Un téléchargement est déjà en cours')
+    if (!pack) throw new Error(t('Modèle inconnu'))
+    if (this.downloading) throw new Error(t('Un téléchargement est déjà en cours'))
     const ctrl = new AbortController()
     this.downloading = { pack: packId, done: 0, total: pack.files.reduce((a, f) => a + f.size, 0), ctrl }
     this.lastError = null
@@ -241,7 +242,8 @@ export class MlService {
 
   /** Rebuild the searchable text (file name, place, people, categories) of some assets. */
   refreshSearchText(ids: number[]): void {
-    const labels = new Map(CATEGORIES.map((c) => [c.id, c.label]))
+    // both languages are indexed so a search works whatever language it was indexed in
+    const labels = new Map(CATEGORIES.map((c) => [c.id, [...new Set([c.labelIn('fr'), c.labelIn('en')])].join(' ')]))
     const get = this.db.prepare(`SELECT a.name, a.rel_dir, a.place_city, a.place_admin, a.place_country, a.make, a.model, a.day,
         (SELECT group_concat(p.name, ' ') FROM faces f JOIN persons p ON p.id = f.person_id WHERE f.asset_id = a.id AND p.name IS NOT NULL) AS people,
         (SELECT group_concat(c.label, ' ') FROM categories c WHERE c.asset_id = a.id) AS cats
@@ -410,7 +412,7 @@ export class MlService {
   /** Create a person from a loose face (naming someone the first time). */
   createPersonFromFace(faceId: number, name: string): number {
     const f = this.db.prepare('SELECT emb, person_id FROM faces WHERE id = ?').get(faceId) as { emb: Uint8Array; person_id: number | null } | undefined
-    if (!f) throw new Error('Visage introuvable')
+    if (!f) throw new Error(t('Visage introuvable'))
     const cl = this.clusterer_()
     const id = transaction(this.db, () => {
       if (f.person_id !== null) cl.detach(faceId)
@@ -475,7 +477,7 @@ export class MlService {
   }
 
   async writeDebugManifest(): Promise<void> {
-    await writeFile(join(this.modelsDir, 'README.txt'), 'Modèles téléchargés par MyPhotos. Supprimez ce dossier pour libérer l’espace ; ils seront retéléchargés si l’intelligence locale est activée.\n')
+    await writeFile(join(this.modelsDir, 'README.txt'), t('Modèles téléchargés par MyPhotos. Supprimez ce dossier pour libérer l’espace ; ils seront retéléchargés si l’intelligence locale est activée.') + '\n')
   }
 }
 

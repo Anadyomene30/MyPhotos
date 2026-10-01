@@ -5,10 +5,11 @@ import { media } from '@/api/client'
 import { useMemories } from '@/api/hooks'
 import { useUi } from '@/store'
 import { plural } from '@/lib/format'
+import { t } from '@/i18n'
 import type { MemorySummary } from '@shared/types'
 
 const KIND_LABEL: Record<MemorySummary['kind'], string> = {
-  year: 'Année', trip: 'Voyage', moment: 'Moment', person: 'Personne', category: 'Thème', onThisDay: 'Souvenir du jour', custom: 'Personnalisé'
+  year: t('Année'), trip: t('Voyage'), moment: t('Moment'), person: t('Personne'), category: t('Thème'), onThisDay: t('Souvenir du jour'), custom: t('Personnalisé')
 }
 
 function MemoryCard({ m, big }: { m: MemorySummary; big?: boolean }) {
@@ -42,10 +43,10 @@ export function MemoriesPage() {
     <div className="flex h-full flex-col">
       <header className={clsx('drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line pl-5', win ? 'pr-[150px]' : 'pr-4')}>
         <Sparkles className="size-[18px] text-accent" />
-        <h1 className="font-display text-[15px] font-semibold tracking-tight">Souvenirs</h1>
+        <h1 className="font-display text-[15px] font-semibold tracking-tight">{t('Souvenirs')}</h1>
         <span className="flex-1 text-[12px] text-muted">{memories ? plural(memories.length, 'souvenir composé', 'souvenirs composés') : ''}</span>
         <Button variant="primary" className="no-drag py-1 text-[12.5px]" onClick={() => useUi.getState().openRetro({ source: { type: 'all' } })}>
-          <Clapperboard className="size-4" /> Créer une vidéo souvenir
+          <Clapperboard className="size-4" /> {t('Créer une vidéo souvenir')}
         </Button>
       </header>
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5 pb-10">
@@ -53,19 +54,19 @@ export function MemoriesPage() {
         {memories && memories.length === 0 && (
           <div className="mx-auto mt-16 max-w-md text-center">
             <Sparkles className="mx-auto mb-3 size-10 text-faint" strokeWidth={1.4} />
-            <h2 className="font-display text-[18px] font-semibold">Vos souvenirs arrivent</h2>
-            <p className="mt-2 text-[13px] text-muted">MyPhotos compose des sélections automatiques (meilleures photos d’une année, voyages, personnes, thèmes) une fois la photothèque analysée.</p>
+            <h2 className="font-display text-[18px] font-semibold">{t('Vos souvenirs arrivent')}</h2>
+            <p className="mt-2 text-[13px] text-muted">{t('MyPhotos compose des sélections automatiques (meilleures photos d’une année, voyages, personnes, thèmes) une fois la photothèque analysée.')}</p>
           </div>
         )}
         {today.length > 0 && (
           <section className="mt-5">
-            <h2 className="mb-2 font-display text-[17px] font-semibold">Ce jour-là</h2>
+            <h2 className="mb-2 font-display text-[17px] font-semibold">{t('Ce jour-là')}</h2>
             <div className="grid grid-cols-4 gap-3">{today.map((m) => <MemoryCard key={m.id} m={m} />)}</div>
           </section>
         )}
         {rest.length > 0 && (
           <section className="mt-6">
-            <h2 className="mb-2 font-display text-[17px] font-semibold">Pour vous</h2>
+            <h2 className="mb-2 font-display text-[17px] font-semibold">{t('Pour vous')}</h2>
             <div className="grid grid-cols-4 gap-3">
               {rest.map((m, i) => <MemoryCard key={m.id} m={m} big={i === 0} />)}
             </div>

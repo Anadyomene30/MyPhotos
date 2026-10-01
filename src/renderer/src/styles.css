@@ -26,12 +26,14 @@
   --surface: #ffffff;
   --elevated: #ffffff;
   --fg: #1d1d1f;
-  --muted: #6e6e73;
-  --faint: #a1a1a6;
+  /* secondary text keeps ≥ 4.5:1 contrast on the background (WCAG AA) */
+  --muted: #5f5f64;
+  --faint: #727277;
   --line: rgba(0, 0, 0, 0.08);
   --hover: rgba(0, 0, 0, 0.05);
-  --accent: #0a84ff;
-  --accent-soft: rgba(10, 132, 255, 0.14);
+  /* slightly deeper blue than the dark theme's: links and white button text stay readable */
+  --accent: #0071e3;
+  --accent-soft: rgba(0, 113, 227, 0.12);
   --tile: #ececef;
   color-scheme: light;
 }
@@ -42,8 +44,8 @@
   --surface: #1c1c1f;
   --elevated: #2a2a2e;
   --fg: #f5f5f7;
-  --muted: #9a9aa0;
-  --faint: #636369;
+  --muted: #a1a1a6;
+  --faint: #8a8a90;
   --line: rgba(255, 255, 255, 0.08);
   --hover: rgba(255, 255, 255, 0.06);
   --accent: #0a84ff;
@@ -87,6 +89,13 @@ img.thumb { opacity: 0; transition: opacity 160ms ease-out; }
 img.thumb.loaded { opacity: 1; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* keyboard focus stays visible on photos and dark overlays */
+.tile-bg:focus-visible, [role='gridcell']:focus-visible { outline-offset: -3px; box-shadow: inset 0 0 0 1px #fff; }
+
+/* honour the system "reduce motion" setting */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; scroll-behavior: auto !important; }
+}
 
 /* editor sliders: invisible track, round thumb */
 .editor-range::-webkit-slider-runnable-track { height: 20px; background: transparent; }

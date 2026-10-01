@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { useState } from 'react'
 import { FolderPlus, Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -10,7 +11,7 @@ export function useAddSource() {
   const [error, setError] = useState<string | null>(null)
   const add = async (path?: string | null): Promise<void> => {
     setError(null)
-    const chosen = path ?? (window.desktop ? await window.desktop.pickFolder() : null)
+    const chosen = path ?? (window.desktop ? await window.desktop.pickFolder({ title: t('Choisir un dossier de photos'), button: t('Ajouter à la photothèque') }) : null)
     if (!chosen) return
     setBusy(true)
     try {
@@ -43,14 +44,14 @@ export function Welcome() {
             <div key={i} className="size-11 rounded-[10px] shadow-sm" style={{ background: `linear-gradient(135deg, ${c}, ${c}99)` }} />
           ))}
         </div>
-        <h1 className="font-display text-[30px] leading-tight font-bold tracking-tight">Bienvenue dans MyPhotos</h1>
+        <h1 className="font-display text-[30px] leading-tight font-bold tracking-tight">{t('Bienvenue dans MyPhotos')}</h1>
         <p className="mt-3 text-[14px] leading-relaxed text-muted">
-          Choisissez le dossier où se trouvent vos photos et vidéos. MyPhotos les lit sur place : vos fichiers ne sont ni copiés, ni déplacés, ni modifiés.
+          {t('Choisissez le dossier où se trouvent vos photos et vidéos. MyPhotos les lit sur place : vos fichiers ne sont ni copiés, ni déplacés, ni modifiés.')}
         </p>
         {desktop ? (
           <Button variant="primary" className="no-drag mt-7 px-5 py-2.5 text-[14px]" onClick={() => void add()} disabled={busy}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : <FolderPlus className="size-4" />}
-            Choisir un dossier…
+            {t('Choisir un dossier…')}
           </Button>
         ) : (
           <form
@@ -63,16 +64,16 @@ export function Welcome() {
             <input
               value={path}
               onChange={(e) => setPath(e.target.value)}
-              placeholder="/Users/vous/Pictures"
+              placeholder={t('/Users/vous/Pictures')}
               className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-[13px] outline-none focus:border-accent"
             />
             <Button variant="primary" type="submit" disabled={busy || !path.trim()}>
-              Ajouter
+              {t('Ajouter')}
             </Button>
           </form>
         )}
         {error && <p className="mt-3 text-[12.5px] text-red-500">{error}</p>}
-        <p className="mt-6 text-[12px] text-faint">Vous pourrez ajouter d’autres dossiers plus tard dans les réglages.</p>
+        <p className="mt-6 text-[12px] text-faint">{t('Vous pourrez ajouter d’autres dossiers plus tard dans les réglages.')}</p>
       </div>
     </div>
   )

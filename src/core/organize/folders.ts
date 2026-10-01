@@ -3,6 +3,7 @@ import { mkdir, rename } from 'node:fs/promises'
 import { dirname, join, relative, sep } from 'node:path'
 import type { Db, Row } from '../db'
 import { sanitize } from '../export/naming'
+import { t } from '@shared/i18n'
 
 export interface MovePlanItem {
   assetId: number
@@ -87,9 +88,9 @@ export async function applyMovePlan(db: Db, items: MovePlanItem[], onProgress?: 
   for (const [i, it] of items.entries()) {
     try {
       const root = (srcOf.get(it.assetId) as { root: string } | undefined)?.root
-      if (!root) throw new Error('source inconnue')
+      if (!root) throw new Error(t('source inconnue'))
       await mkdir(dirname(it.to), { recursive: true })
-      if (existsSync(it.to)) throw new Error('un fichier existe déjà à la destination')
+      if (existsSync(it.to)) throw new Error(t('un fichier existe déjà à la destination'))
       await rename(it.from, it.to)
       const rel = relative(root, dirname(it.to)).split(sep).join('/')
       upd.run(it.to, rel, it.assetId)

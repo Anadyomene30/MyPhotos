@@ -1,3 +1,4 @@
+import { t } from '../i18n'
 /** Non-destructive photo adjustments. Every value defaults to 0 (neutral). */
 export interface PhotoEdit {
   version: 1
@@ -67,13 +68,13 @@ const withValues = (e: PhotoEdit, patch: { light?: Partial<PhotoEdit['light']>; 
 })
 
 export const FILTERS: FilterPreset[] = [
-  { id: 'none', name: 'Original', apply: (e) => ({ ...withValues(e, {}, 'none'), light: { ...NEUTRAL.light, exposure: e.light.exposure }, filter: null }) },
-  { id: 'vivid', name: 'Éclatant', apply: (e) => withValues(e, { light: { contrast: 18, shadows: 12 }, color: { vibrance: 35, saturation: 8 } }, 'vivid') },
-  { id: 'warm', name: 'Chaleureux', apply: (e) => withValues(e, { light: { contrast: 10 }, color: { temperature: 28, vibrance: 15 } }, 'warm') },
-  { id: 'cool', name: 'Frais', apply: (e) => withValues(e, { light: { contrast: 10 }, color: { temperature: -25, vibrance: 10 } }, 'cool') },
-  { id: 'dramatic', name: 'Dramatique', apply: (e) => withValues(e, { light: { contrast: 35, highlights: -40, shadows: 20, blacks: -15 }, color: { saturation: -12 }, detail: { clarity: 35 }, effects: { vignette: -25 } }, 'dramatic') },
-  { id: 'soft', name: 'Douceur', apply: (e) => withValues(e, { light: { contrast: -18, highlights: -15, shadows: 15 }, color: { vibrance: 10 }, effects: { fade: 18 } }, 'soft') },
-  { id: 'film', name: 'Argentique', apply: (e) => withValues(e, { light: { contrast: 12, blacks: 8 }, color: { temperature: 10, saturation: -15 }, effects: { fade: 22, grain: 25, vignette: -12 } }, 'film') },
-  { id: 'mono', name: 'Noir et blanc', apply: (e) => withValues(e, { light: { contrast: 15 }, color: { mono: true } }, 'mono') },
-  { id: 'mono-hc', name: 'N&B contrasté', apply: (e) => withValues(e, { light: { contrast: 45, blacks: -20, whites: 15 }, color: { mono: true }, detail: { clarity: 25 }, effects: { grain: 15, vignette: -20 } }, 'mono-hc') }
+  { id: 'none', get name() { return t('Original') }, apply: (e) => ({ ...withValues(e, {}, 'none'), light: { ...NEUTRAL.light, exposure: e.light.exposure }, filter: null }) },
+  { id: 'vivid', get name() { return t('Éclatant') }, apply: (e) => withValues(e, { light: { contrast: 18, shadows: 12 }, color: { vibrance: 35, saturation: 8 } }, 'vivid') },
+  { id: 'warm', get name() { return t('Chaleureux') }, apply: (e) => withValues(e, { light: { contrast: 10 }, color: { temperature: 28, vibrance: 15 } }, 'warm') },
+  { id: 'cool', get name() { return t('Frais') }, apply: (e) => withValues(e, { light: { contrast: 10 }, color: { temperature: -25, vibrance: 10 } }, 'cool') },
+  { id: 'dramatic', get name() { return t('Dramatique') }, apply: (e) => withValues(e, { light: { contrast: 35, highlights: -40, shadows: 20, blacks: -15 }, color: { saturation: -12 }, detail: { clarity: 35 }, effects: { vignette: -25 } }, 'dramatic') },
+  { id: 'soft', get name() { return t('Douceur') }, apply: (e) => withValues(e, { light: { contrast: -18, highlights: -15, shadows: 15 }, color: { vibrance: 10 }, effects: { fade: 18 } }, 'soft') },
+  { id: 'film', get name() { return t('Argentique') }, apply: (e) => withValues(e, { light: { contrast: 12, blacks: 8 }, color: { temperature: 10, saturation: -15 }, effects: { fade: 22, grain: 25, vignette: -12 } }, 'film') },
+  { id: 'mono', get name() { return t('Noir et blanc') }, apply: (e) => withValues(e, { light: { contrast: 15 }, color: { mono: true } }, 'mono') },
+  { id: 'mono-hc', get name() { return t('N&B contrasté') }, apply: (e) => withValues(e, { light: { contrast: 45, blacks: -20, whites: 15 }, color: { mono: true }, detail: { clarity: 25 }, effects: { grain: 15, vignette: -20 } }, 'mono-hc') }
 ]

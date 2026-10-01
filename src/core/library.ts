@@ -22,6 +22,7 @@ import { SHARP_EXTS } from './media/kinds'
 import { MlService } from './ml/service'
 import { applyMomentPlan } from './organize/moments'
 import { DbTaskRunner } from './dbTasks'
+import { getLocale, localeTag, resolveLocale, setLocale, t, tn, type LocalePref } from '@shared/i18n'
 import { paginate, syncMemories } from './organize/memories'
 import { enrichWithClaude } from './organize/claudeTitles'
 import { applyMovePlan, buildMovePlan, type MovePlan } from './organize/folders'
@@ -61,12 +62,8 @@ export interface LibraryOptions {
 
 type Stage = 'meta' | 'thumb' | 'analyze' | 'ml'
 
-const STAGE_LABEL: Record<Stage, string> = {
-  meta: 'Lecture des métadonnées',
-  thumb: 'Création des miniatures',
-  analyze: 'Analyse des images',
-  ml: 'Reconnaissance des visages et du contenu'
-}
+const stageLabel = (stage: Stage): string =>
+  stage === 'meta' ? t('Lecture des métadonnées') : stage === 'thumb' ? t('Création des miniatures') : stage === 'analyze' ? t('Analyse des images') : t('Reconnaissance des visages et du contenu')
 
 export class Library extends EventEmitter {
   readonly db: Db
@@ -93,6 +90,7 @@ export class Library extends EventEmitter {
     mkdirSync(opts.dataDir, { recursive: true })
     this.db = openDb(join(opts.dataDir, 'library.db'))
     this.dbTasks = new DbTaskRunner(this.db, join(opts.dataDir, 'library.db'), opts.workerDir)
+    this.applyLocale()
     this.assets = new AssetRepo(this.db)
     this.albums = new AlbumRepo(this.db)
     this.shares = new ShareRepo(this.db)
@@ -171,9 +169,9 @@ export class Library extends EventEmitter {
   async addSource(path: string): Promise<Source> {
     const abs = resolve(path)
     const st = await stat(abs)
-    if (!st.isDirectory()) throw new Error('Ce chemin n’est pas un dossier')
+    if (!st.isDirectory()) throw new Error(t('Ce chemin n’est pas un dossier'))
     const overlapping = this.sources().find((s) => abs.startsWith(s.path + '/') || abs.startsWith(s.path + '\\') || s.path.startsWith(abs + '/') || s.path.startsWith(abs + '\\') || s.path === abs)
-    if (overlapping) throw new Error(`Ce dossier recoupe une source existante : ${overlapping.path}`)
+    if (overlapping) throw new Error(t('Ce dossier recoupe une source existante : {path}', { path: overlapping.path }))
     this.db.prepare('INSERT INTO sources (path, added_at) VALUES (?, ?)').run(abs, Date.now())
     this.watcher?.add(abs)
     void this.rescanAll()
@@ -322,7 +320,7 @@ export class Library extends EventEmitter {
     const select = this.db.prepare(`SELECT * FROM assets WHERE ${Library.PENDING[stage]} ORDER BY day DESC, taken_at DESC LIMIT 256`)
     let done = 0
     let failed = 0
-    const group: JobGroupState = { id: stage, label: STAGE_LABEL[stage], total: this.pendingCount(stage), done: 0, failed: 0 }
+    const group: JobGroupState = { id: stage, label: stageLabel(stage), total: this.pendingCount(stage), done: 0, failed: 0 }
     if (group.total === 0) return
     this.progress.set(stage, group)
     this.emitJobs()
@@ -594,7 +592,7 @@ export class Library extends EventEmitter {
   /** Save a memory as a real album (kept in sync by id). */
   saveMemoryAsAlbum(id: number): number {
     const r = this.db.prepare('SELECT title, asset_ids, album_id FROM memories WHERE id = ?').get(id) as { title: string; asset_ids: string; album_id: number | null } | undefined
-    if (!r) throw new Error('Souvenir introuvable')
+    if (!r) throw new Error(t('Souvenir introuvable'))
     if (r.album_id && this.albums.get(r.album_id)) return r.album_id
     const a = this.albums.create(r.title, 'manual', null, JSON.parse(r.asset_ids) as number[])
     this.db.prepare('UPDATE memories SET album_id = ? WHERE id = ?').run(a.id, id)
@@ -615,9 +613,9 @@ export class Library extends EventEmitter {
   /** Ask Claude for a better title (opt-in, needs an API key in settings). */
   async enrichMemory(id: number): Promise<{ title: string; subtitle: string }> {
     const key = this.setting('anthropic_api_key')
-    if (!key) throw new Error('Ajoutez une clé API Claude dans les réglages pour activer cette fonction')
+    if (!key) throw new Error(t('Ajoutez une clé API Claude dans les réglages pour activer cette fonction'))
     const m = this.memory(id)
-    if (!m) throw new Error('Souvenir introuvable')
+    if (!m) throw new Error(t('Souvenir introuvable'))
     const ids = m.assetIds
     const places = (this.db.prepare(`SELECT place_city AS c, count(*) AS n FROM assets WHERE id IN (SELECT value FROM json_each(?)) AND place_city IS NOT NULL GROUP BY 1 ORDER BY n DESC LIMIT 4`).all(JSON.stringify(ids)) as Array<{ c: string }>).map((r) => r.c)
     const people = (this.db.prepare(`SELECT DISTINCT p.name FROM faces f JOIN persons p ON p.id = f.person_id WHERE p.name IS NOT NULL AND f.asset_id IN (SELECT value FROM json_each(?)) LIMIT 6`).all(JSON.stringify(ids)) as Array<{ name: string }>).map((r) => r.name)
@@ -633,7 +631,7 @@ export class Library extends EventEmitter {
   }
 
   async printMemoryPdf(id: number, title: string, format: 'square' | 'a4' | 'large'): Promise<string> {
-    if (!this.opts.printPdf || !this.opts.appUrl) throw new Error('Export PDF disponible uniquement dans l’application de bureau')
+    if (!this.opts.printPdf || !this.opts.appUrl) throw new Error(t('Export PDF disponible uniquement dans l’application de bureau'))
     await mkdirAsync(this.creationsDir, { recursive: true })
     const safe = title.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 80)
     let out = join(this.creationsDir, `${safe}.pdf`)
@@ -645,7 +643,7 @@ export class Library extends EventEmitter {
   async movePlan(sourceId: number): Promise<MovePlan & { sourcePath: string }> {
     await this.ensureMoments()
     const src = this.sources().find((s) => s.id === sourceId)
-    if (!src) throw new Error('Dossier introuvable')
+    if (!src) throw new Error(t('Dossier introuvable'))
     return { ...buildMovePlan(this.db, sourceId), sourcePath: src.path }
   }
 
@@ -653,7 +651,7 @@ export class Library extends EventEmitter {
   async startMove(sourceId: number): Promise<string> {
     const plan = await this.movePlan(sourceId)
     const jobId = `move-${++this.exportSeq}`
-    const group: JobGroupState = { id: jobId, label: 'Rangement des fichiers', total: plan.items.length, done: 0, failed: 0 }
+    const group: JobGroupState = { id: jobId, label: t('Rangement des fichiers'), total: plan.items.length, done: 0, failed: 0 }
     this.progress.set(jobId, group)
     this.emitJobs()
     void applyMovePlan(this.db, plan.items, (done) => {
@@ -662,7 +660,7 @@ export class Library extends EventEmitter {
     })
       .then((r) => {
         group.failed = r.failed.length
-        this.send({ type: 'creation-done', ok: r.failed.length === 0, assetId: null, error: r.failed.length ? `${r.failed.length} fichier(s) non déplacé(s) : ${r.failed[0]!.error}` : undefined, sources: [] })
+        this.send({ type: 'creation-done', ok: r.failed.length === 0, assetId: null, error: r.failed.length ? tn(r.failed.length, '{n} fichier non déplacé : {error}', '{n} fichiers non déplacés : {error}', { error: r.failed[0]!.error }) : undefined, sources: [] })
       })
       .finally(() => {
         this.progress.delete(jobId)
@@ -706,6 +704,28 @@ export class Library extends EventEmitter {
     if (!a) return
     this.send({ type: 'share-activity', albumId, albumName: a.name, kind, author })
     this.emitChanged()
+  }
+
+  /**
+   * Language of generated content (moment and memory titles, job labels, messages). The app reports the user's
+   * preference and the system language at startup; until then French, the source language.
+   */
+  private applyLocale(): boolean {
+    const r = resolveLocale(this.setting('locale') as LocalePref | null, this.setting('locale_system') ?? 'fr-FR')
+    if (r.locale === getLocale() && r.tag === localeTag()) return false
+    setLocale(r.locale, r.tag)
+    return true
+  }
+
+  setLocalePref(pref: LocalePref, system: string): void {
+    this.setSetting('locale', pref === 'auto' ? null : pref)
+    this.setSetting('locale_system', system.slice(0, 35))
+    if (this.applyLocale()) {
+      // moment titles and cleanup reasons follow the language; memories keep the titles they were created with
+      this.momentsVersion = -1
+      this.invalidateCleanup()
+      this.emitChanged()
+    }
   }
 
   get ownerName(): string {
@@ -830,9 +850,9 @@ export class Library extends EventEmitter {
    */
   startFusion(ids: number[]): string {
     const rows = ids.map((id) => this.assets.raw(id)).filter((r): r is Row => Boolean(r) && r!.kind === 'photo')
-    if (rows.length < 2) throw new Error('Choisissez au moins deux photos de la même scène')
+    if (rows.length < 2) throw new Error(t('Choisissez au moins deux photos de la même scène'))
     const jobId = `fusion-${++this.exportSeq}`
-    const group: JobGroupState = { id: jobId, label: 'Fusion des expositions', total: 1, done: 0, failed: 0 }
+    const group: JobGroupState = { id: jobId, label: t('Fusion des expositions'), total: 1, done: 0, failed: 0 }
     this.progress.set(jobId, group)
     this.emitJobs()
     void (async () => {
@@ -877,18 +897,18 @@ export class Library extends EventEmitter {
    */
   startEditedCopy(id: number, edit: PhotoEdit): string {
     const row = this.assets.raw(id)
-    if (!row || row.kind !== 'photo') throw new Error('Photo introuvable')
+    if (!row || row.kind !== 'photo') throw new Error(t('Photo introuvable'))
     const main = (row.version_of as number | null) ?? id
     const jobId = `copy-${++this.exportSeq}`
-    this.progress.set(jobId, { id: jobId, label: 'Enregistrement de la copie', total: 1, done: 0, failed: 0 })
+    this.progress.set(jobId, { id: jobId, label: t('Enregistrement de la copie'), total: 1, done: 0, failed: 0 })
     this.emitJobs()
     void (async () => {
       try {
         const sourceId = await this.ensureCreationsSource()
         const stem = String(row.name).replace(/\.[^.]+$/, '')
-        let out = join(this.creationsDir, `${stem} (copie modifiée).jpg`)
-        for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} (copie modifiée ${i}).jpg`)
-        await renderInWorker({ input: decodeInput(row), edit: normalizeEdit(edit), output: out, quality: 95, exif: exifFromRow(row, 'MyPhotos copie modifiée') })
+        let out = join(this.creationsDir, `${stem} (${t('copie modifiée')}).jpg`)
+        for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} (${t('copie modifiée')} ${i}).jpg`)
+        await renderInWorker({ input: decodeInput(row), edit: normalizeEdit(edit), output: out, quality: 95, exif: exifFromRow(row, t('MyPhotos copie modifiée')) })
         this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'edit-copy', JSON.stringify([main]), Date.now())
         await applyChanges(this.db, sourceId, this.creationsDir, [out])
         const r = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(out) as Row | undefined
@@ -918,7 +938,7 @@ export class Library extends EventEmitter {
   /** Render a retrospective video into the creations folder. */
   startRetrospective(opts: RetroOptions): string {
     const jobId = `retro-${++this.exportSeq}`
-    const group: JobGroupState = { id: jobId, label: opts.preview ? 'Aperçu de la vidéo souvenir' : 'Vidéo souvenir', total: 100, done: 0, failed: 0, progress: 0, cancellable: true }
+    const group: JobGroupState = { id: jobId, label: opts.preview ? t('Aperçu de la vidéo souvenir') : t('Vidéo souvenir'), total: 100, done: 0, failed: 0, progress: 0, cancellable: true }
     this.progress.set(jobId, group)
     this.emitJobs()
     const ctrl = new AbortController()
@@ -927,10 +947,10 @@ export class Library extends EventEmitter {
       let out = ''
       try {
         const sourceId = await this.ensureCreationsSource()
-        const base = (opts.title?.trim() || 'Rétrospective').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 80)
+        const base = (opts.title?.trim() || t('Rétrospective')).replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_').slice(0, 80)
         const dir = opts.preview ? join(this.opts.dataDir, 'cache', 'previews') : this.creationsDir
         await mkdirAsync(dir, { recursive: true })
-        out = join(dir, `${base}${opts.preview ? ' (aperçu)' : ''}.mp4`)
+        out = join(dir, `${base}${opts.preview ? ` (${t('aperçu')})` : ''}.mp4`)
         for (let i = 2; !opts.preview && existsSync(out); i++) out = join(dir, `${base} ${i}.mp4`)
         await renderRetrospective(this.db, opts, out, (f) => {
           group.progress = f
@@ -951,7 +971,7 @@ export class Library extends EventEmitter {
         }
         this.send({ type: 'retro-done', ok: true, assetId, preview: opts.preview === true, file: out })
       } catch (e) {
-        this.send({ type: 'retro-done', ok: false, assetId: null, preview: opts.preview === true, file: null, error: ctrl.signal.aborted ? 'annulé' : (e as Error).message })
+        this.send({ type: 'retro-done', ok: false, assetId: null, preview: opts.preview === true, file: null, error: ctrl.signal.aborted ? t('annulé') : (e as Error).message })
       } finally {
         this.exports.delete(jobId)
         this.progress.delete(jobId)
@@ -964,9 +984,9 @@ export class Library extends EventEmitter {
   /** Render an edited copy of a video into the creations folder; the original is only read. */
   startVideoEdit(id: number, edit: VideoEdit): string {
     const row = this.assets.raw(id)
-    if (!row || row.kind !== 'video') throw new Error('Vidéo introuvable')
+    if (!row || row.kind !== 'video') throw new Error(t('Vidéo introuvable'))
     const jobId = `video-${++this.exportSeq}`
-    const group: JobGroupState = { id: jobId, label: `Montage de ${row.name as string}`, total: 1, done: 0, failed: 0, progress: 0, cancellable: true }
+    const group: JobGroupState = { id: jobId, label: t('Montage de {name}', { name: row.name as string }), total: 1, done: 0, failed: 0, progress: 0, cancellable: true }
     this.progress.set(jobId, group)
     this.emitJobs()
     const ctrl = new AbortController()
@@ -977,8 +997,8 @@ export class Library extends EventEmitter {
       try {
         const sourceId = await this.ensureCreationsSource()
         const stem = String(row.name).replace(/\.[^.]+$/, '')
-        out = join(this.creationsDir, `${stem} (modifiée).mp4`)
-        for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} (modifiée ${i}).mp4`)
+        out = join(this.creationsDir, `${stem} (${t('modifiée')}).mp4`)
+        for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} (${t('modifiée')} ${i}).mp4`)
         const plan = await planVideoEdit(row.path as string, out, edit, trf, new Date((row.taken_at as number) + edit.trim.start * 1000).toISOString())
         const dur = (((edit.trim.end ?? (row.duration as number | null) ?? 0) - edit.trim.start) / edit.speed) || null
         for (let p = 0; p < plan.passes.length; p++) {
@@ -1001,7 +1021,7 @@ export class Library extends EventEmitter {
         this.send({ type: 'creation-done', ok: true, assetId, sources: [id] })
       } catch (e) {
         if (out) await rmAsync(out, { force: true }).catch(() => undefined)
-        this.send({ type: 'creation-done', ok: false, assetId: null, error: ctrl.signal.aborted ? 'annulé' : (e as Error).message, sources: [id] })
+        this.send({ type: 'creation-done', ok: false, assetId: null, error: ctrl.signal.aborted ? t('annulé') : (e as Error).message, sources: [id] })
       } finally {
         await rmAsync(trf, { force: true }).catch(() => undefined)
         this.exports.delete(jobId)
@@ -1016,11 +1036,11 @@ export class Library extends EventEmitter {
 
   /** Start an export job. Refuses destinations inside a library folder (exports would be re-imported). */
   startExport(opts: ExportOptions): string {
-    if (!isAbsolute(opts.destination)) throw new Error('Choisissez un dossier de destination')
+    if (!isAbsolute(opts.destination)) throw new Error(t('Choisissez un dossier de destination'))
     const dest = resolve(opts.destination)
     for (const s of this.sources()) {
       const rel = relPath(s.path, dest)
-      if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) throw new Error('Choisissez un dossier en dehors de la photothèque, sinon les fichiers exportés y seraient réimportés.')
+      if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) throw new Error(t('Choisissez un dossier en dehors de la photothèque, sinon les fichiers exportés y seraient réimportés.'))
     }
     const ids = [...new Set(opts.ids)]
     const rows: Row[] = []
@@ -1032,7 +1052,7 @@ export class Library extends EventEmitter {
     rows.sort((a, b) => (a.taken_at as number) - (b.taken_at as number))
     const jobId = `export-${++this.exportSeq}`
     const n = rows.length
-    const group: JobGroupState = { id: jobId, label: `Export de ${n.toLocaleString('fr-FR')} élément${n > 1 ? 's' : ''}`, total: n, done: 0, failed: 0, progress: 0, cancellable: true }
+    const group: JobGroupState = { id: jobId, label: tn(n, 'Export de {n} élément', 'Export de {n} éléments'), total: n, done: 0, failed: 0, progress: 0, cancellable: true }
     this.progress.set(jobId, group)
     this.emitJobs()
     const runner = runExport(jobId, rows, { ...opts, destination: dest }, (doneUnits, totalUnits) => {
@@ -1073,7 +1093,7 @@ export class Library extends EventEmitter {
   /** Save (or clear with null) non-destructive edits; the original file is never touched. */
   async setEdit(id: number, edit: PhotoEdit | null): Promise<void> {
     const row = this.assets.raw(id)
-    if (!row || row.kind !== 'photo') throw new Error('Seules les photos peuvent être retouchées ici')
+    if (!row || row.kind !== 'photo') throw new Error(t('Seules les photos peuvent être retouchées ici'))
     const e = edit ? normalizeEdit(edit) : null
     const json = e && !isNeutral(e) ? JSON.stringify(e) : null
     this.db.prepare('UPDATE assets SET edit = ?, edited_at = ?, thumb_state = 0, analyze_state = 0, thumb_v = thumb_v + 1 WHERE id = ?').run(json, json ? Date.now() : null, id)
@@ -1103,7 +1123,7 @@ export class Library extends EventEmitter {
    * (recoverable there), then rows are deleted. Only items already in the internal trash are affected.
    */
   async emptyTrash(ids?: number[]): Promise<{ removed: number; failed: number }> {
-    if (!this.opts.moveToSystemTrash) throw new Error('Action disponible uniquement dans l’application de bureau')
+    if (!this.opts.moveToSystemTrash) throw new Error(t('Action disponible uniquement dans l’application de bureau'))
     const rows = (ids?.length
       ? this.db.prepare(`SELECT id, path, live_video, raw_companion FROM assets WHERE trashed_at IS NOT NULL AND id IN (${ids.map(() => '?').join(',')})`).all(...ids)
       : this.db.prepare('SELECT id, path, live_video, raw_companion FROM assets WHERE trashed_at IS NOT NULL').all()) as Array<{ id: number; path: string; live_video: string | null; raw_companion: string | null }>

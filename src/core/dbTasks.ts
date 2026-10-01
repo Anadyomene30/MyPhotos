@@ -6,6 +6,7 @@ import { buildCleanupReport } from './cleanup'
 import { proposeMemories, type MemoryDraft } from './organize/memories'
 import { planMoments, type MomentPlan } from './organize/moments'
 import type { CleanupReport } from '@shared/types'
+import { getLocale, localeTag, setLocale, type Locale } from '@shared/i18n'
 
 /**
  * Read-only computations over the whole library. At 200k assets each takes seconds, so the backend runs them in a
@@ -20,6 +21,10 @@ export interface DbTaskResult {
   cleanup: CleanupReport
   memories: MemoryDraft[]
   moments: MomentPlan
+}
+
+export function applyTaskLocale(locale: Locale, tag: string): void {
+  setLocale(locale, tag)
 }
 
 export function runDbTask(db: Db, t: DbTask): DbTaskResult[DbTask['task']] {
@@ -80,7 +85,8 @@ export class DbTaskRunner {
     const id = ++this.seq
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject })
-      this.worker!.postMessage({ id, t })
+      // the worker has its own module state: send the language of generated text with each task
+      this.worker!.postMessage({ id, t, locale: getLocale(), tag: localeTag() })
     })
   }
 

@@ -6,5 +6,9 @@ export const common: Record<string, string> = {
   Ko: 'KB',
   Mo: 'MB',
   Go: 'GB',
-  To: 'TB'
+  To: 'TB',
+  Langue: 'Language',
+  Auto: 'Auto',
+  'Langue du système': 'System language',
+  Réglages: 'Settings'
 }

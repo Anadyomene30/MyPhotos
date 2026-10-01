@@ -11,6 +11,7 @@ import { renderPhoto, parseEdit } from '../edit/render'
 import { select } from '../organize/memories'
 import { fromBlob } from '../ml/vectors'
 import type { RetroOptions } from '@shared/types'
+import { t } from '@shared/i18n'
 
 /**
  * Retrospective video: a paced slideshow of the best photos (and short video excerpts) of a period,
@@ -176,7 +177,7 @@ export interface RetroProgress {
 /** Render the whole retrospective into `output`. */
 export async function renderRetrospective(db: Db, opts: RetroOptions, output: string, onProgress: RetroProgress, signal: AbortSignal): Promise<{ seconds: number; segments: number }> {
   const segs = planSequence(db, opts)
-  if (segs.filter((s) => s.type !== 'title').length < 3) throw new Error('Pas assez de photos pour cette vidéo')
+  if (segs.filter((s) => s.type !== 'title').length < 3) throw new Error(t('Pas assez de photos pour cette vidéo'))
   const preview = opts.preview === true
   const { w, h } = frameSize(opts.format, preview ? 360 : opts.resolution)
   const fps = preview ? 15 : 30
@@ -236,7 +237,7 @@ export async function renderRetrospective(db: Db, opts: RetroOptions, output: st
           }
           clips[i] = clip
           done++
-          onProgress((done / segs.length) * 0.8, 'Préparation des images')
+          onProgress((done / segs.length) * 0.8, t('Préparation des images'))
         })
       )
     )

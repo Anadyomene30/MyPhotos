@@ -3,6 +3,7 @@ import type { ServerType } from '@hono/node-server'
 import { serve } from '@hono/node-server'
 import type { Hono } from 'hono'
 import type { LanStatus } from '@shared/types'
+import { t } from '@shared/i18n'
 
 /** Private IPv4 addresses family members can reach on the local network. */
 export function lanAddresses(): string[] {
@@ -37,7 +38,7 @@ export class LanServer {
     return new Promise((resolve) => {
       const s = serve({ fetch: this.app.fetch, hostname: '0.0.0.0', port: this.port }, () => resolve())
       s.on('error', (e: NodeJS.ErrnoException) => {
-        this.error = e.code === 'EADDRINUSE' ? `Le port ${this.port} est déjà utilisé` : e.message
+        this.error = e.code === 'EADDRINUSE' ? t('Le port {port} est déjà utilisé', { port: this.port }) : e.message
         this.server = null
         resolve()
       })

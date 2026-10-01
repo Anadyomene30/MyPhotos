@@ -1,3 +1,4 @@
+import { t, localeTag } from '@/i18n'
 import { useEffect, useState } from 'react'
 import { Plus, Sparkles, X } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -9,24 +10,24 @@ import type { SmartRule, SmartRules } from '@shared/types'
 type Field = SmartRule['field']
 
 const FIELDS: Array<{ value: Field; label: string }> = [
-  { value: 'kind', label: 'Type' },
-  { value: 'year', label: 'Année' },
-  { value: 'month', label: 'Mois (toutes années)' },
-  { value: 'dateRange', label: 'Période' },
-  { value: 'favorite', label: 'Est un favori' },
-  { value: 'live', label: 'Est une Live Photo' },
-  { value: 'screenshot', label: 'Est une capture d’écran' },
-  { value: 'raw', label: 'Est un fichier RAW' },
-  { value: 'hasLocation', label: 'A une localisation' },
-  { value: 'noLocation', label: 'N’a pas de localisation' },
-  { value: 'camera', label: 'Appareil' },
-  { value: 'folder', label: 'Dossier' },
-  { value: 'name', label: 'Nom du fichier' },
-  { value: 'ext', label: 'Extension' },
-  { value: 'album', label: 'Album' }
+  { value: 'kind', label: t('Type') },
+  { value: 'year', label: t('Année') },
+  { value: 'month', label: t('Mois (toutes années)') },
+  { value: 'dateRange', label: t('Période') },
+  { value: 'favorite', label: t('Est un favori') },
+  { value: 'live', label: t('Est une Live Photo') },
+  { value: 'screenshot', label: t('Est une capture d’écran') },
+  { value: 'raw', label: t('Est un fichier RAW') },
+  { value: 'hasLocation', label: t('A une localisation') },
+  { value: 'noLocation', label: t('N’a pas de localisation') },
+  { value: 'camera', label: t('Appareil') },
+  { value: 'folder', label: t('Dossier') },
+  { value: 'name', label: t('Nom du fichier') },
+  { value: 'ext', label: t('Extension') },
+  { value: 'album', label: t('Album') }
 ]
 
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+const MONTHS = Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat(localeTag(), { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, i, 1))))
 
 function defaultRule(field: Field): SmartRule {
   const y = new Date().getFullYear()
@@ -51,17 +52,17 @@ function RuleEditor({ rule, onChange }: { rule: SmartRule; onChange(r: SmartRule
     case 'kind':
       return (
         <select className={select} value={rule.value} onChange={(e) => onChange({ ...rule, value: e.target.value as 'photo' | 'video' })}>
-          <option value="photo">Photo</option>
-          <option value="video">Vidéo</option>
+          <option value="photo">{t('Photo')}</option>
+          <option value="video">{t('Vidéo')}</option>
         </select>
       )
     case 'year':
       return (
         <>
           <select className={select} value={rule.op} onChange={(e) => onChange({ ...rule, op: e.target.value as 'is' | 'before' | 'after' })}>
-            <option value="is">est</option>
-            <option value="before">avant</option>
-            <option value="after">après</option>
+            <option value="is">{t('est')}</option>
+            <option value="before">{t('avant')}</option>
+            <option value="after">{t('après')}</option>
           </select>
           <input className={`${input} max-w-24`} type="number" value={rule.value} onChange={(e) => onChange({ ...rule, value: Number(e.target.value) })} />
         </>
@@ -78,7 +79,7 @@ function RuleEditor({ rule, onChange }: { rule: SmartRule; onChange(r: SmartRule
       return (
         <>
           <input className={input} type="date" value={rule.from} onChange={(e) => onChange({ ...rule, from: e.target.value })} />
-          <span className="text-muted">au</span>
+          <span className="text-muted">{t('au')}</span>
           <input className={input} type="date" value={rule.to} onChange={(e) => onChange({ ...rule, to: e.target.value })} />
         </>
       )
@@ -88,8 +89,8 @@ function RuleEditor({ rule, onChange }: { rule: SmartRule; onChange(r: SmartRule
       return (
         <>
           <select className={select} value={rule.op} onChange={(e) => onChange({ ...rule, op: e.target.value as 'contains' | 'notContains' })}>
-            <option value="contains">contient</option>
-            <option value="notContains">ne contient pas</option>
+            <option value="contains">{t('contient')}</option>
+            <option value="notContains">{t('ne contient pas')}</option>
           </select>
           <input className={input} value={rule.value} placeholder={rule.field === 'camera' ? 'iPhone, Canon…' : ''} onChange={(e) => onChange({ ...rule, value: e.target.value })} />
         </>
@@ -100,11 +101,11 @@ function RuleEditor({ rule, onChange }: { rule: SmartRule; onChange(r: SmartRule
       return (
         <>
           <select className={select} value={rule.op} onChange={(e) => onChange({ ...rule, op: e.target.value as 'in' | 'notIn' })}>
-            <option value="in">est dans</option>
-            <option value="notIn">n’est pas dans</option>
+            <option value="in">{t('est dans')}</option>
+            <option value="notIn">{t('n’est pas dans')}</option>
           </select>
           <select className={`${select} min-w-0 flex-1`} value={rule.value} onChange={(e) => onChange({ ...rule, value: Number(e.target.value) })}>
-            <option value={0} disabled>Choisir…</option>
+            <option value={0} disabled>{t('Choisir…')}</option>
             {(albums ?? []).filter((a) => a.kind === 'manual').map((a) => (
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}
@@ -140,7 +141,7 @@ export function SmartAlbumEditor() {
     if (existing) {
       await albumsApi.update(existing.id, { name, rules: clean })
     } else {
-      const a = await albumsApi.create(name || 'Album intelligent', { kind: 'smart', rules: clean })
+      const a = await albumsApi.create(name || t('Album intelligent'), { kind: 'smart', rules: clean })
       openAlbum(a.id)
     }
     await qc.invalidateQueries({ queryKey: ['albums'] })
@@ -157,23 +158,23 @@ export function SmartAlbumEditor() {
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Nom de l’album intelligent"
+            placeholder={t('Nom de l’album intelligent')}
             className="min-w-0 flex-1 bg-transparent font-display text-[16px] font-semibold outline-none focus-visible:outline-none"
           />
-          <IconButton label="Fermer" onClick={close}>
+          <IconButton label={t('Fermer')} onClick={close}>
             <X className="size-4" />
           </IconButton>
         </div>
         <div className="space-y-3 p-5">
           <div className="flex items-center gap-2 text-[13px]">
-            Inclure les éléments qui respectent
+            {t('Inclure les éléments qui respectent')}
             <Segmented<'all' | 'any'>
               size="sm"
               value={rules.match}
               onChange={(match) => setRules({ ...rules, match })}
-              options={[{ value: 'all', label: 'toutes' }, { value: 'any', label: 'au moins une' }]}
+              options={[{ value: 'all', label: t('toutes') }, { value: 'any', label: t('au moins une') }]}
             />
-            des règles :
+            {t('des règles :')}
           </div>
           <div className="space-y-2">
             {rules.rules.map((r, i) => (
@@ -200,21 +201,21 @@ export function SmartAlbumEditor() {
                   }}
                 />
                 <div className="flex-1" />
-                <IconButton label="Retirer la règle" onClick={() => setRules({ ...rules, rules: rules.rules.filter((_, j) => j !== i) })}>
+                <IconButton label={t('Retirer la règle')} onClick={() => setRules({ ...rules, rules: rules.rules.filter((_, j) => j !== i) })}>
                   <X className="size-3.5" />
                 </IconButton>
               </div>
             ))}
           </div>
           <Button variant="ghost" className="px-2 py-1 text-[12.5px]" onClick={() => setRules({ ...rules, rules: [...rules.rules, defaultRule('year')] })}>
-            <Plus className="size-3.5" /> Ajouter une règle
+            <Plus className="size-3.5" /> {t('Ajouter une règle')}
           </Button>
-          <p className="text-[12px] text-faint">L’album se met à jour tout seul quand de nouvelles photos correspondent.</p>
+          <p className="text-[12px] text-faint">{t('L’album se met à jour tout seul quand de nouvelles photos correspondent.')}</p>
         </div>
         <div className="flex justify-end gap-2 border-t border-line px-5 py-3.5">
-          <Button onClick={close}>Annuler</Button>
+          <Button onClick={close}>{t('Annuler')}</Button>
           <Button variant="primary" onClick={() => void save()}>
-            {existing ? 'Enregistrer' : 'Créer l’album'}
+            {existing ? t('Enregistrer') : t('Créer l’album')}
           </Button>
         </div>
       </div>

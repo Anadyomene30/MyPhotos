@@ -11,12 +11,40 @@ function files(dir: string): string[] {
   })
 }
 
-const LIT = `'((?:[^'\\\\]|\\\\.)*)'`
-const PATTERNS = [
-  new RegExp(`\\bt\\(\\s*${LIT}`, 'g'),
-  new RegExp(`\\btIn\\([^,()]+,\\s*${LIT}`, 'g'),
-  new RegExp(`\\b(?:tn|plural)\\([^,]+,\\s*${LIT}\\s*,\\s*${LIT}`, 'g')
-]
+/** Top-level arguments of the call whose "(" is at `open`, as raw source text (strings and nesting respected). */
+function callArgs(src: string, open: number): string[] {
+  const args: string[] = []
+  let depth = 0
+  let cur = ''
+  for (let i = open + 1; i < src.length; i++) {
+    const c = src[i]!
+    if (c === "'" || c === '"' || c === '`') {
+      let j = i + 1
+      while (j < src.length && src[j] !== c) j += src[j] === '\\' ? 2 : 1
+      cur += src.slice(i, j + 1)
+      i = j
+      continue
+    }
+    if (c === '(' || c === '[' || c === '{') depth++
+    else if (c === ')' || c === ']' || c === '}') {
+      if (depth === 0) {
+        args.push(cur.trim())
+        return args
+      }
+      depth--
+    } else if (c === ',' && depth === 0) {
+      args.push(cur.trim())
+      cur = ''
+      continue
+    }
+    cur += c
+  }
+  return args
+}
+
+/** Which arguments hold French source strings, per function. */
+const KEY_ARGS: Record<string, number[]> = { t: [0], tIn: [1], tn: [1, 2], plural: [1, 2] }
+const literal = (a: string | undefined): string | null => (a && /^'(?:[^'\\]|\\.)*'$/.test(a) ? a.slice(1, -1).replace(/\\'/g, "'") : null)
 
 /** Every French string passed to t / tn / plural / tIn, with the file it comes from. */
 export function usedKeys(): Map<string, string> {
@@ -24,9 +52,11 @@ export function usedKeys(): Map<string, string> {
   for (const f of ['src/renderer/src', 'src/core', 'src/server', 'src/shared'].flatMap((d) => files(join(process.cwd(), d)))) {
     if (f.includes(`${join('shared', 'i18n')}`)) continue
     const src = readFileSync(f, 'utf8')
-    for (const re of PATTERNS) {
-      for (const m of src.matchAll(re)) {
-        for (const k of m.slice(1)) if (k !== undefined) keys.set(k.replace(/\\'/g, "'"), f.replace(process.cwd() + '/', ''))
+    for (const m of src.matchAll(/(?<![\w.$])(tIn|tn|plural|t)\(/g)) {
+      const args = callArgs(src, m.index + m[0].length - 1)
+      for (const i of KEY_ARGS[m[1]!]!) {
+        const k = literal(args[i])
+        if (k !== null) keys.set(k, f.replace(process.cwd() + '/', ''))
       }
     }
   }

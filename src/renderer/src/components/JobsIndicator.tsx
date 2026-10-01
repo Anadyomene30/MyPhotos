@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { Loader2, X } from 'lucide-react'
 import { api } from '@/api/client'
 import { count } from '@/lib/format'
@@ -10,7 +11,7 @@ export function JobsIndicator({ jobs, scanning }: { jobs: JobGroupState[]; scann
       {scanning && (
         <div className="flex items-center gap-2 text-[12px] text-muted">
           <Loader2 className="size-3.5 animate-spin" />
-          Analyse des dossiers…
+          {t('Analyse des dossiers…')}
         </div>
       )}
       {jobs.map((j) => {
@@ -22,7 +23,7 @@ export function JobsIndicator({ jobs, scanning }: { jobs: JobGroupState[]; scann
               <span className="flex shrink-0 items-center gap-1 text-faint tabular-nums">
                 {count(j.done)} / {count(j.total)}
                 {j.cancellable && (
-                  <button onClick={() => void api(`/api/jobs/${j.id}`, { method: 'DELETE' })} className="rounded p-0.5 hover:bg-line hover:text-fg" aria-label="Annuler" title="Annuler">
+                  <button onClick={() => void api(`/api/jobs/${j.id}`, { method: 'DELETE' })} className="rounded p-0.5 hover:bg-line hover:text-fg" aria-label={t('Annuler')} title={t('Annuler')}>
                     <X className="size-3" />
                   </button>
                 )}

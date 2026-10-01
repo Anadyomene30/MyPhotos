@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { useRef, useState } from 'react'
 import clsx from 'clsx'
 import { FolderHeart, Plus, Sparkles, Users } from 'lucide-react'
@@ -29,7 +30,7 @@ export function SidebarAlbums() {
 
   const newAlbum = async (): Promise<void> => {
     setMenu(false)
-    const name = await promptText({ title: 'Nouvel album', placeholder: 'Nom de l’album', confirmLabel: 'Créer' })
+    const name = await promptText({ title: t('Nouvel album'), placeholder: t('Nom de l’album'), confirmLabel: t('Créer') })
     if (!name) return
     const a = await albumsApi.create(name)
     openAlbum(a.id)
@@ -38,18 +39,18 @@ export function SidebarAlbums() {
   return (
     <div>
       <div className="group/h flex items-center justify-between pr-1 pl-2.5 pb-1">
-        <span className="text-[11px] font-semibold text-faint">Albums</span>
+        <span className="text-[11px] font-semibold text-faint">{t('Albums')}</span>
         <button
           ref={plus}
           onClick={() => setMenu((m) => !m)}
           className="no-drag grid size-5 place-items-center rounded-md text-faint opacity-0 transition-opacity group-hover/h:opacity-100 hover:bg-hover hover:text-fg"
-          aria-label="Nouvel album"
-          title="Nouvel album"
+          aria-label={t('Nouvel album')}
+          title={t('Nouvel album')}
         >
           <Plus className="size-3.5" />
         </button>
         <Popover anchor={plus.current} open={menu} onClose={() => setMenu(false)} align="start" width={220}>
-          <MenuItem icon={<FolderHeart className="size-4" />} onClick={() => void newAlbum()}>Nouvel album…</MenuItem>
+          <MenuItem icon={<FolderHeart className="size-4" />} onClick={() => void newAlbum()}>{t('Nouvel album…')}</MenuItem>
           <MenuItem
             icon={<Sparkles className="size-4" />}
             onClick={() => {
@@ -57,7 +58,7 @@ export function SidebarAlbums() {
               setSmartEditor({ albumId: null })
             }}
           >
-            Nouvel album intelligent…
+            {t('Nouvel album intelligent…')}
           </MenuItem>
         </Popover>
       </div>
@@ -107,7 +108,7 @@ export function SidebarAlbums() {
         })}
         {albums && albums.length === 0 && (
           <button onClick={() => void newAlbum()} className="no-drag flex h-[30px] w-full items-center gap-2.5 rounded-[7px] px-2.5 text-left text-[12.5px] text-faint hover:bg-hover hover:text-fg">
-            <Plus className="size-[15px]" /> Créer un album
+            <Plus className="size-[15px]" /> {t('Créer un album')}
           </button>
         )}
       </div>

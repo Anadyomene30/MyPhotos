@@ -2,6 +2,8 @@
  * Requests from the backend process to the Electron main process (things only Electron can do,
  * like moving files to the operating system trash). Absent when running headless.
  */
+import { t } from '@shared/i18n'
+
 type Parent = { postMessage(m: unknown): void; on(ev: 'message', fn: (e: { data: unknown }) => void): void }
 
 const parent = (process as unknown as { parentPort?: Parent }).parentPort
@@ -21,7 +23,7 @@ parent?.on('message', (e) => {
 export const hasHost = Boolean(parent)
 
 export function hostCall<T>(method: string, args: unknown): Promise<T> {
-  if (!parent) return Promise.reject(new Error('Action disponible uniquement dans l’application de bureau'))
+  if (!parent) return Promise.reject(new Error(t('Action disponible uniquement dans l’application de bureau')))
   const id = ++seq
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject })

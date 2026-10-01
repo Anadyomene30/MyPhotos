@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import clsx from 'clsx'
+import { t } from '@/i18n'
 
 /** Centered slider: double-click resets to zero. The fill starts from the neutral point. */
 export const Slider = memo(function Slider({ label, value, min = -100, max = 100, step = 1, onChange, format }: {
@@ -16,7 +17,7 @@ export const Slider = memo(function Slider({ label, value, min = -100, max = 100
   const left = Math.min(zero, pos) * 100
   const width = Math.abs(pos - zero) * 100
   return (
-    <div className="group py-1" onDoubleClick={() => onChange(0)} title="Double-cliquer pour réinitialiser">
+    <div className="group py-1" onDoubleClick={() => onChange(0)} title={t('Double-cliquer pour réinitialiser')}>
       <div className="mb-1 flex items-center justify-between text-[12px]">
         <span className={clsx(value !== 0 ? 'text-white' : 'text-white/60')}>{label}</span>
         <span className={clsx('tabular-nums', value !== 0 ? 'text-white/90' : 'text-white/35')}>{format ? format(value) : value > 0 ? `+${value}` : value}</span>

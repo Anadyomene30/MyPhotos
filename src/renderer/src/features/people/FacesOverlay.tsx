@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { useQueryClient } from '@tanstack/react-query'
 import { mlApi, useFaces, usePersons } from '@/api/hooks'
 import { useUi } from '@/store'
+import { t } from '@/i18n'
 import { MenuItem, MenuSeparator, Popover } from '@/components/Popover'
 import { promptText } from '@/components/Prompt'
 import type { FaceInfo } from '@shared/types'
@@ -26,7 +27,7 @@ export function FacesOverlay({ assetId, rect, visible }: { assetId: number; rect
 
   const name = async (f: FaceInfo): Promise<void> => {
     setOpen(null)
-    const n = await promptText({ title: 'Qui est-ce ?', placeholder: 'Prénom', confirmLabel: 'Nommer' })
+    const n = await promptText({ title: t('Qui est-ce ?'), placeholder: t('Prénom'), confirmLabel: t('Nommer') })
     if (!n) return
     const existing = persons?.find((p) => p.name?.toLowerCase() === n.toLowerCase())
     if (existing) await mlApi.moveFace(f.id, existing.id)
@@ -49,11 +50,11 @@ export function FacesOverlay({ assetId, rect, visible }: { assetId: number; rect
             }}
             className={clsx('absolute rounded-md border-2 transition-colors', visible ? 'border-white/80 hover:border-white' : 'border-transparent hover:border-white/60')}
             style={{ left: rect.left + f.x * rect.width, top: rect.top + f.y * rect.height, width: f.w * rect.width, height: f.h * rect.height }}
-            title={f.personName ?? 'Nommer cette personne'}
+            title={f.personName ?? t('Nommer cette personne')}
           >
             {(visible || f.personName) && (
               <span className={clsx('absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap', f.personName ? 'bg-white text-black' : 'bg-black/60 text-white/90')}>
-                {f.personName ?? (f.suggestions[0]?.name ? `${f.suggestions[0].name} ?` : 'Nommer')}
+                {f.personName ?? (f.suggestions[0]?.name ? t('{name} ?', { name: f.suggestions[0].name }) : t('Nommer'))}
               </span>
             )}
           </button>
@@ -71,10 +72,10 @@ export function FacesOverlay({ assetId, rect, visible }: { assetId: number; rect
                   void mlApi.moveFace(open.id, s.personId).then(refresh)
                 }}
               >
-                C’est {s.name} ({Math.round(s.score * 100)} %)
+                {t('C’est {name} ({score} %)', { name: s.name ?? '', score: Math.round(s.score * 100) })}
               </MenuItem>
             ))}
-            <MenuItem onClick={() => void name(open)}>{open.personName ? 'Renommer / autre personne…' : 'Nommer cette personne…'}</MenuItem>
+            <MenuItem onClick={() => void name(open)}>{open.personName ? t('Renommer / autre personne…') : t('Nommer cette personne…')}</MenuItem>
             {open.personId !== null && (
               <>
                 <MenuItem onClick={() => {
@@ -82,20 +83,20 @@ export function FacesOverlay({ assetId, rect, visible }: { assetId: number; rect
                   useUi.getState().closeViewer()
                   useUi.getState().openPerson(open.personId!)
                 }}>
-                  Voir toutes ses photos
+                  {t('Voir toutes ses photos')}
                 </MenuItem>
                 <MenuItem onClick={() => {
                   setOpen(null)
                   void mlApi.setCover(open.personId!, open.id).then(refresh)
                 }}>
-                  Utiliser comme photo de profil
+                  {t('Utiliser comme photo de profil')}
                 </MenuItem>
                 <MenuSeparator />
                 <MenuItem danger onClick={() => {
                   setOpen(null)
                   void mlApi.moveFace(open.id, null).then(refresh)
                 }}>
-                  Ce n’est pas {open.personName ?? 'cette personne'}
+                  {open.personName ? t('Ce n’est pas {name}', { name: open.personName }) : t('Ce n’est pas cette personne')}
                 </MenuItem>
               </>
             )}

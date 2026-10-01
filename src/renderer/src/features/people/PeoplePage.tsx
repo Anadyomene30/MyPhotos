@@ -6,7 +6,8 @@ import { mlApi, useMlStatus, usePersons } from '@/api/hooks'
 import { Button, IconButton } from '@/components/ui'
 import { confirm } from '@/components/Confirm'
 import { useUi } from '@/store'
-import { count, plural } from '@/lib/format'
+import { t, tn } from '@/i18n'
+import { plural } from '@/lib/format'
 import type { PersonSummary } from '@shared/types'
 import { SamePersonPrompt } from './SamePerson'
 
@@ -38,7 +39,7 @@ function NameEditor({ person, onDone }: { person: PersonSummary; onDone(): void 
       onClick={(e) => e.stopPropagation()}
       className="flex items-center gap-1"
     >
-      <input ref={ref} value={v} onChange={(e) => setV(e.target.value)} placeholder="Nom" className="w-full min-w-0 rounded-md border border-accent bg-bg px-2 py-0.5 text-center text-[12.5px] outline-none" onKeyDown={(e) => e.key === 'Escape' && onDone()} />
+      <input ref={ref} value={v} onChange={(e) => setV(e.target.value)} placeholder={t('Nom')} className="w-full min-w-0 rounded-md border border-accent bg-bg px-2 py-0.5 text-center text-[12.5px] outline-none" onKeyDown={(e) => e.key === 'Escape' && onDone()} />
       <button type="submit" className="grid size-6 shrink-0 place-items-center rounded-md bg-accent text-white"><Check className="size-3.5" /></button>
     </form>
   )
@@ -74,9 +75,9 @@ export function PeoplePage() {
     const withName = list.filter((p) => ids.includes(p.id) && p.name)
     const into = withName[0]?.id ?? ids[0]!
     const ok = await confirm({
-      title: `Fusionner ${ids.length} personnes ?`,
-      message: withName.length > 1 ? `Les visages seront regroupés sous « ${withName[0]!.name} ». Les autres noms seront perdus.` : 'Les visages seront regroupés en une seule personne.',
-      confirmLabel: 'Fusionner'
+      title: t('Fusionner {n} personnes ?', { n: ids.length }),
+      message: withName.length > 1 ? t('Les visages seront regroupés sous « {name} ». Les autres noms seront perdus.', { name: withName[0]!.name ?? '' }) : t('Les visages seront regroupés en une seule personne.'),
+      confirmLabel: t('Fusionner')
     })
     if (!ok) return
     await mlApi.merge(into, ids.filter((i) => i !== into))
@@ -101,7 +102,7 @@ export function PeoplePage() {
               e.stopPropagation()
               toggle(p.id, true)
             }}
-            aria-label="Sélectionner"
+            aria-label={t('Sélectionner')}
           >
             <Check className="size-3.5" strokeWidth={3} />
           </button>
@@ -111,7 +112,7 @@ export function PeoplePage() {
               e.stopPropagation()
               setEditing(p.id)
             }}
-            aria-label="Nommer"
+            aria-label={t('Nommer')}
           >
             <Pencil className="size-3.5" />
           </button>
@@ -120,7 +121,7 @@ export function PeoplePage() {
           <NameEditor person={p} onDone={() => setEditing(null)} />
         ) : (
           <div className="w-full">
-            <div className={clsx('truncate text-[13px] font-medium', !p.name && 'text-muted italic')}>{p.name ?? 'Sans nom'}</div>
+            <div className={clsx('truncate text-[13px] font-medium', !p.name && 'text-muted italic')}>{p.name ?? t('Sans nom')}</div>
             <div className="text-[11.5px] text-faint">{plural(p.photos, 'photo', 'photos')}</div>
           </div>
         )}
@@ -132,43 +133,43 @@ export function PeoplePage() {
     <div className="flex h-full flex-col">
       <header className={clsx('drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line pl-5', win ? 'pr-[150px]' : 'pr-4')}>
         <Users className="size-[18px] text-accent" />
-        <h1 className="font-display text-[15px] font-semibold tracking-tight">Personnes</h1>
+        <h1 className="font-display text-[15px] font-semibold tracking-tight">{t('Personnes')}</h1>
         <span className="text-[12px] text-muted">{persons ? plural(named.length + unnamed.length, 'personne', 'personnes') : ''}</span>
         <div className="flex-1" />
         {selected.size > 0 && (
           <div className="no-drag flex items-center gap-2">
-            <span className="text-[12.5px]">{selected.size} sélectionnée{selected.size > 1 ? 's' : ''}</span>
+            <span className="text-[12.5px]">{tn(selected.size, '{n} sélectionnée', '{n} sélectionnées')}</span>
             <Button variant="primary" className="py-1" disabled={selected.size < 2} onClick={() => void merge()}>
-              <Merge className="size-4" /> Fusionner
+              <Merge className="size-4" /> {t('Fusionner')}
             </Button>
             <Button variant="ghost" className="py-1" onClick={() => {
               const ids = [...selected]
               const anyVisible = list.some((p) => ids.includes(p.id) && !p.hidden)
               void Promise.all(ids.map((id) => mlApi.hidePerson(id, anyVisible))).then(() => setSelected(new Set()))
             }}>
-              <EyeOff className="size-4" /> Masquer
+              <EyeOff className="size-4" /> {t('Masquer')}
             </Button>
-            <IconButton label="Annuler la sélection" onClick={() => setSelected(new Set())}>
+            <IconButton label={t('Annuler la sélection')} onClick={() => setSelected(new Set())}>
               <X className="size-4" />
             </IconButton>
           </div>
         )}
         <label className="no-drag flex items-center gap-1.5 text-[12px] text-muted">
-          <input type="checkbox" className="accent-[var(--accent)]" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} /> Masquées
+          <input type="checkbox" className="accent-[var(--accent)]" checked={showHidden} onChange={(e) => setShowHidden(e.target.checked)} /> {t('Masquées')}
         </label>
       </header>
 
       {status && !status.enabled && (
         <div className="m-5 rounded-2xl border border-line bg-surface p-6 text-center dark:bg-[#1a1a1d]">
           <Sparkles className="mx-auto mb-3 size-9 text-accent" strokeWidth={1.5} />
-          <h2 className="font-display text-[17px] font-semibold">La reconnaissance des visages est désactivée</h2>
-          <p className="mx-auto mt-2 max-w-md text-[13px] text-muted">Activez l’intelligence locale dans les réglages. Tout se passe sur cet ordinateur, aucune photo n’est envoyée sur internet.</p>
-          <Button variant="primary" className="mt-4" onClick={() => useUi.getState().setSettingsOpen(true)}>Ouvrir les réglages</Button>
+          <h2 className="font-display text-[17px] font-semibold">{t('La reconnaissance des visages est désactivée')}</h2>
+          <p className="mx-auto mt-2 max-w-md text-[13px] text-muted">{t('Activez l’intelligence locale dans les réglages. Tout se passe sur cet ordinateur, aucune photo n’est envoyée sur internet.')}</p>
+          <Button variant="primary" className="mt-4" onClick={() => useUi.getState().setSettingsOpen(true)}>{t('Ouvrir les réglages')}</Button>
         </div>
       )}
       {status?.enabled && status.pending > 0 && (
         <div className="mx-5 mt-4 flex items-center gap-2 rounded-xl bg-hover px-4 py-2.5 text-[12.5px] text-muted">
-          <Loader2 className="size-4 animate-spin" /> Analyse en cours : {count(status.pending)} éléments restants. Les personnes apparaissent au fur et à mesure.
+          <Loader2 className="size-4 animate-spin" /> {tn(status.pending, 'Analyse en cours : {n} élément restant. Les personnes apparaissent au fur et à mesure.', 'Analyse en cours : {n} éléments restants. Les personnes apparaissent au fur et à mesure.')}
         </div>
       )}
 
@@ -182,24 +183,24 @@ export function PeoplePage() {
         )}
         {unnamed.length > 0 && (
           <section className="mt-4">
-            <h2 className="mb-1 px-3 text-[12px] font-semibold text-faint">{named.length ? 'À nommer' : 'Double-cliquez sur une personne pour la nommer'}</h2>
+            <h2 className="mb-1 px-3 text-[12px] font-semibold text-faint">{named.length ? t('À nommer') : t('Double-cliquez sur une personne pour la nommer')}</h2>
             <div className="flex flex-wrap">{unnamed.map((p) => <Card key={p.id} p={p} />)}</div>
           </section>
         )}
         {others.length > 0 && (
           <section className="mt-4">
             <button onClick={() => setShowOthers((v) => !v)} className="mb-1 flex items-center gap-1.5 px-3 text-[12px] font-semibold text-faint hover:text-fg">
-              <ChevronRight className={clsx('size-3.5 transition-transform', showOthers && 'rotate-90')} /> Autres visages · {others.length}
+              <ChevronRight className={clsx('size-3.5 transition-transform', showOthers && 'rotate-90')} /> {t('Autres visages · {n}', { n: others.length })}
             </button>
             {showOthers && <div className="flex flex-wrap">{others.map((p) => <Card key={p.id} p={p} />)}</div>}
           </section>
         )}
         {persons && list.length === 0 && status?.enabled && status.pending === 0 && (
-          <p className="mt-10 text-center text-[13px] text-muted">Aucune personne reconnue pour l’instant.</p>
+          <p className="mt-10 text-center text-[13px] text-muted">{t('Aucune personne reconnue pour l’instant.')}</p>
         )}
         {persons && (
           <button onClick={() => setShowAll((v) => !v)} className="mt-6 flex items-center gap-1.5 px-3 text-[12px] text-accent hover:underline">
-            <Eye className="size-3.5" /> {showAll ? 'Masquer les personnes vues une seule fois' : 'Afficher les personnes vues une seule fois'}
+            <Eye className="size-3.5" /> {showAll ? t('Masquer les personnes vues une seule fois') : t('Afficher les personnes vues une seule fois')}
           </button>
         )}
       </div>

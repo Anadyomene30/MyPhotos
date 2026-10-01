@@ -8,6 +8,8 @@ import { Button, IconButton } from '@/components/ui'
 import { confirm } from '@/components/Confirm'
 import { promptText } from '@/components/Prompt'
 import { useUi } from '@/store'
+import { plural } from '@/lib/format'
+import { t } from '@/i18n'
 import type { AssetTile, MemoryDetail, MemoryPage } from '@shared/types'
 import { justify } from '@shared/edit/justify'
 
@@ -15,17 +17,17 @@ import { justify } from '@shared/edit/justify'
 function Page({ page, tiles, m, onOpen, printMode }: { page: MemoryPage; tiles: Map<number, AssetTile>; m: MemoryDetail; onOpen(id: number): void; printMode: boolean }) {
   /** Photo in a frame. Full-bleed frames crop around the focal point (faces, or the most detailed area). */
   const img = (id: number, cls = '', slotRatio = 1, fill = false): React.JSX.Element => {
-    const t = tiles.get(id)
-    const r = t?.ratio ?? 1.5
+    const tile = tiles.get(id)
+    const r = tile?.ratio ?? 1.5
     const cover = fill || Math.abs(Math.log(r / slotRatio)) < 0.35
     return (
       <button onClick={() => onOpen(id)} className={clsx('block h-full w-full overflow-hidden', cls)} style={{ background: cover ? 'rgba(0,0,0,0.2)' : m.theme.bg }}>
-        {t && (
+        {tile && (
           <img
-            src={media.preview(id, t.v)}
+            src={media.preview(id, tile.v)}
             alt=""
             className={clsx('h-full w-full', cover ? 'object-cover' : 'object-contain')}
-            style={{ objectPosition: `${t.fx * 100}% ${t.fy * 100}%` }}
+            style={{ objectPosition: `${tile.fx * 100}% ${tile.fy * 100}%` }}
             draggable={false}
             loading={printMode ? 'eager' : 'lazy'}
           />
@@ -50,7 +52,7 @@ function Page({ page, tiles, m, onOpen, printMode }: { page: MemoryPage; tiles: 
     case 'title':
       return (
         <div className="flex h-full w-full flex-col items-center justify-center px-[12%] text-center" style={{ background: m.theme.accent, color: light ? '#fff' : '#111' }}>
-          <p className="text-[clamp(11px,1.2vw,14px)] font-semibold tracking-[0.3em] uppercase opacity-70">Souvenir</p>
+          <p className="text-[clamp(11px,1.2vw,14px)] font-semibold tracking-[0.3em] uppercase opacity-70">{t('Souvenir')}</p>
           <h2 className="mt-4 font-display text-[clamp(24px,3.6vw,46px)] leading-tight font-bold">{page.text}</h2>
           {page.sub && <p className="mt-3 text-[clamp(13px,1.5vw,18px)] opacity-80">{page.sub}</p>}
         </div>
@@ -81,7 +83,7 @@ function Page({ page, tiles, m, onOpen, printMode }: { page: MemoryPage; tiles: 
           <div className="flex gap-[2%] px-[15%]">
             {page.ids.map((id) => <div key={id} className="aspect-square w-[22%] overflow-hidden rounded-full shadow-lg">{img(id, '', 1, true)}</div>)}
           </div>
-          <p className="font-display text-[clamp(16px,2vw,26px)] font-semibold">{m.count} photos · MyPhotos</p>
+          <p className="font-display text-[clamp(16px,2vw,26px)] font-semibold">{plural(m.count, 'photo', 'photos')} · MyPhotos</p>
         </div>
       )
   }
@@ -170,44 +172,44 @@ export function MemoryBook({ id, printMode = false }: { id: number; printMode?: 
   return (
     <div className="animate-fade-in fixed inset-0 z-[55] flex flex-col text-white" style={{ background: m.theme.bg }}>
       <div className="drag flex h-[52px] shrink-0 items-center gap-2 bg-black/30 pr-4 pl-[84px] backdrop-blur-xl">
-        <button onClick={close} className="no-drag flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-white/85 hover:bg-white/10"><X className="size-4" /> Fermer</button>
+        <button onClick={close} className="no-drag flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-white/85 hover:bg-white/10"><X className="size-4" /> {t('Fermer')}</button>
         <div className="min-w-0 flex-1 truncate text-center text-[13px] font-semibold">{m.title}</div>
         <div className="no-drag flex items-center gap-1 [&_button]:text-white/80 [&_button:hover]:bg-white/10 [&_button:hover]:text-white">
-          <IconButton label="Renommer" onClick={() => void promptText({ title: 'Titre du souvenir', initial: m.title, confirmLabel: 'Renommer' }).then((t) => { if (t) void run('rename', () => memoriesApi.update(m.id, { title: t })) })}>
+          <IconButton label={t('Renommer')} onClick={() => void promptText({ title: t('Titre du souvenir'), initial: m.title, confirmLabel: t('Renommer') }).then((title) => { if (title) void run('rename', () => memoriesApi.update(m.id, { title })) })}>
             <Pencil className="size-[18px]" />
           </IconButton>
-          <IconButton label="Titre suggéré par Claude (clé API requise)" onClick={() => void run('enrich', () => memoriesApi.enrich(m.id), 'Titre mis à jour par Claude')} disabled={busy === 'enrich'}>
+          <IconButton label={t('Titre suggéré par Claude (clé API requise)')} onClick={() => void run('enrich', () => memoriesApi.enrich(m.id), t('Titre mis à jour par Claude'))} disabled={busy === 'enrich'}>
             {busy === 'enrich' ? <Loader2 className="size-[18px] animate-spin" /> : <Wand2 className="size-[18px]" />}
           </IconButton>
-          <IconButton label="Nouvelle sélection" onClick={() => void run('regen', () => memoriesApi.regenerate(m.id), 'Sélection renouvelée')}>
+          <IconButton label={t('Nouvelle sélection')} onClick={() => void run('regen', () => memoriesApi.regenerate(m.id), t('Sélection renouvelée'))}>
             <RefreshCw className="size-[18px]" />
           </IconButton>
-          <IconButton label={m.pinned ? 'Désépingler' : 'Épingler'} active={m.pinned} onClick={() => void run('pin', () => memoriesApi.update(m.id, { pinned: !m.pinned }))}>
+          <IconButton label={m.pinned ? t('Désépingler') : t('Épingler')} active={m.pinned} onClick={() => void run('pin', () => memoriesApi.update(m.id, { pinned: !m.pinned }))}>
             <Pin className={clsx('size-[18px]', m.pinned && 'fill-white')} />
           </IconButton>
-          <IconButton label="Ne plus proposer" onClick={() => void confirm({ title: 'Retirer ce souvenir ?', message: 'Il ne sera plus proposé. Vos photos ne sont pas touchées.', confirmLabel: 'Retirer', danger: true }).then((ok) => { if (ok) void run('dismiss', () => memoriesApi.update(m.id, { dismissed: true })).then(close) })}>
+          <IconButton label={t('Ne plus proposer')} onClick={() => void confirm({ title: t('Retirer ce souvenir ?'), message: t('Il ne sera plus proposé. Vos photos ne sont pas touchées.'), confirmLabel: t('Retirer'), danger: true }).then((ok) => { if (ok) void run('dismiss', () => memoriesApi.update(m.id, { dismissed: true })).then(close) })}>
             <Trash2 className="size-[18px]" />
           </IconButton>
-          <IconButton label="Créer une vidéo" onClick={() => useUi.getState().openRetro({ source: { type: 'ids', value: m.assetIds }, title: m.title, subtitle: m.subtitle ?? undefined })}>
+          <IconButton label={t('Créer une vidéo')} onClick={() => useUi.getState().openRetro({ source: { type: 'ids', value: m.assetIds }, title: m.title, subtitle: m.subtitle ?? undefined })}>
             <Clapperboard className="size-[18px]" />
           </IconButton>
           <div className="mx-1 h-5 w-px bg-white/20" />
-          <Button variant="secondary" className="no-drag bg-white/12 text-white hover:bg-white/20" onClick={() => void run('album', () => memoriesApi.saveAlbum(m.id), 'Album créé à partir du souvenir')}>
-            <FolderHeart className="size-4" /> {m.albumId ? 'Album lié' : 'Enregistrer en album'}
+          <Button variant="secondary" className="no-drag bg-white/12 text-white hover:bg-white/20" onClick={() => void run('album', () => memoriesApi.saveAlbum(m.id), t('Album créé à partir du souvenir'))}>
+            <FolderHeart className="size-4" /> {m.albumId ? t('Album lié') : t('Enregistrer en album')}
           </Button>
           {window.desktop && (
             <Button variant="primary" className="no-drag" disabled={busy === 'pdf'} onClick={() => void run('pdf', async () => {
               const r = await api<{ file: string }>(`/api/memories/${m.id}/pdf`, { method: 'POST', json: { format: 'square' } })
-              useUi.getState().toast('Livre photo PDF créé', { label: 'Afficher', run: () => void window.desktop?.reveal(r.file) })
+              useUi.getState().toast(t('Livre photo PDF créé'), { label: t('Afficher'), run: () => void window.desktop?.reveal(r.file) })
             })}>
-              {busy === 'pdf' ? <Loader2 className="size-4 animate-spin" /> : <BookOpen className="size-4" />} Livre photo PDF
+              {busy === 'pdf' ? <Loader2 className="size-4 animate-spin" /> : <BookOpen className="size-4" />} {t('Livre photo PDF')}
             </Button>
           )}
         </div>
       </div>
       <div ref={scroller} className="scroll-thin min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-6">
         {pages}
-        <p className="pb-4 text-center text-[11.5px] text-white/40"><Sparkles className="mr-1 inline size-3" /> Sélection automatique : cliquez sur une photo pour l’ouvrir, « Nouvelle sélection » pour en proposer une autre.</p>
+        <p className="pb-4 text-center text-[11.5px] text-white/40"><Sparkles className="mr-1 inline size-3" /> {t('Sélection automatique : cliquez sur une photo pour l’ouvrir, « Nouvelle sélection » pour en proposer une autre.')}</p>
       </div>
     </div>
   )

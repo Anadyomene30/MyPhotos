@@ -1,3 +1,4 @@
+import { t } from '@/i18n'
 import { useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useLibraryState, useServerEvents } from '@/api/hooks'
@@ -56,7 +57,7 @@ function MainApp() {
     return (
       <div className="grid h-full place-items-center p-8 text-center text-[13px] text-muted">
         <div>
-          <p className="font-semibold text-fg">Impossible de joindre la photothèque.</p>
+          <p className="font-semibold text-fg">{t('Impossible de joindre la photothèque.')}</p>
           <p className="mt-1">{(error as Error).message}</p>
         </div>
       </div>

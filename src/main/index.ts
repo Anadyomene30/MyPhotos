@@ -144,17 +144,21 @@ function createWindow(): BrowserWindow {
   return win
 }
 
-ipcMain.handle('pick-folder', async () => {
+const label = (v: unknown, max = 120): string | undefined => (typeof v === 'string' && v.trim() ? v.slice(0, max) : undefined)
+type Labels = { title?: unknown; button?: unknown; filter?: unknown } | undefined
+
+// the renderer sends translated labels; system defaults otherwise
+ipcMain.handle('pick-folder', async (_e, labels: Labels) => {
   const r = await dialog.showOpenDialog(mainWindow!, {
-    title: 'Choisir un dossier de photos',
-    buttonLabel: 'Ajouter à la photothèque',
+    title: label(labels?.title),
+    buttonLabel: label(labels?.button, 40),
     properties: ['openDirectory', 'createDirectory']
   })
   return r.canceled ? null : (r.filePaths[0] ?? null)
 })
-ipcMain.handle('pick-file', async (_e, kind: string) => {
-  const filters = kind === 'audio' ? [{ name: 'Musique', extensions: ['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'aiff'] }] : []
-  const r = await dialog.showOpenDialog(mainWindow!, { title: kind === 'audio' ? 'Choisir une musique' : 'Choisir un fichier', properties: ['openFile'], filters })
+ipcMain.handle('pick-file', async (_e, kind: string, labels: Labels) => {
+  const filters = kind === 'audio' ? [{ name: label(labels?.filter, 40) ?? 'Audio', extensions: ['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'aiff'] }] : []
+  const r = await dialog.showOpenDialog(mainWindow!, { title: label(labels?.title), properties: ['openFile'], filters })
   return r.canceled ? null : (r.filePaths[0] ?? null)
 })
 ipcMain.handle('reveal', (_e, path: string) => {

@@ -1,5 +1,6 @@
 import type { Db, Row } from '../db'
 import { transaction } from '../db'
+import { t, tn } from '@shared/i18n'
 
 /**
  * Moments: the library cut into events by time gaps and distance, titled by place and date.
@@ -90,45 +91,57 @@ function draftOf(items: MomentInput[]): MomentDraft {
   return { items, start: items[0]!.takenAt, end: items[items.length - 1]!.takenAt, city: top(cities), country: top(countries), lat: n ? lat / n : null, lon: n ? lon / n : null }
 }
 
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-const WEEKDAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+export const monthName = (m: number): string =>
+  [t('janvier'), t('février'), t('mars'), t('avril'), t('mai'), t('juin'), t('juillet'), t('août'), t('septembre'), t('octobre'), t('novembre'), t('décembre')][m - 1]!
+const weekdayName = (wd: number): string =>
+  [t('dimanche'), t('lundi'), t('mardi'), t('mercredi'), t('jeudi'), t('vendredi'), t('samedi')][wd]!
+const capitalize = (x: string): string => x[0]!.toUpperCase() + x.slice(1)
 
 function parts(day: string): { y: number; m: number; d: number; wd: number } {
   const [y, m, d] = day.split('-').map(Number) as [number, number, number]
   return { y, m, d, wd: new Date(Date.UTC(y, m - 1, d)).getUTCDay() }
 }
 
-/** "12 août 2019", "12–15 août 2019", "30 août – 2 septembre 2019" */
+/** "12 août 2019", "12–15 août 2019", "30 août – 2 septembre 2019" (English: "August 12, 2019", ...) */
 export function dateRangeLabel(dayStart: string, dayEnd: string): string {
   const a = parts(dayStart)
   const b = parts(dayEnd)
-  const dd = (n: number): string => (n === 1 ? '1er' : String(n))
-  if (dayStart === dayEnd) return `${dd(a.d)} ${MONTHS[a.m - 1]} ${a.y}`
-  if (a.y === b.y && a.m === b.m) return `${dd(a.d)}–${dd(b.d)} ${MONTHS[a.m - 1]} ${a.y}`
-  if (a.y === b.y) return `${dd(a.d)} ${MONTHS[a.m - 1]} – ${dd(b.d)} ${MONTHS[b.m - 1]} ${a.y}`
-  return `${dd(a.d)} ${MONTHS[a.m - 1]} ${a.y} – ${dd(b.d)} ${MONTHS[b.m - 1]} ${b.y}`
+  const dd = (n: number): string => (n === 1 ? t('1er') : String(n))
+  if (dayStart === dayEnd) return t('{d} {month} {year}', { d: dd(a.d), month: monthName(a.m), year: a.y })
+  if (a.y === b.y && a.m === b.m) return t('{d1}–{d2} {month} {year}', { d1: dd(a.d), d2: dd(b.d), month: monthName(a.m), year: a.y })
+  if (a.y === b.y) return t('{d1} {m1} – {d2} {m2} {year}', { d1: dd(a.d), m1: monthName(a.m), d2: dd(b.d), m2: monthName(b.m), year: a.y })
+  return t('{d1} {m1} {y1} – {d2} {m2} {y2}', { d1: dd(a.d), m1: monthName(a.m), y1: a.y, d2: dd(b.d), m2: monthName(b.m), y2: b.y })
 }
 
-const HOLIDAYS: Array<[number, number, string]> = [[12, 25, 'Noël'], [12, 24, 'Réveillon de Noël'], [12, 31, 'Réveillon du Nouvel An'], [1, 1, 'Nouvel An'], [7, 14, '14 Juillet'], [10, 31, 'Halloween'], [2, 14, 'Saint-Valentin']]
+/** Name of a special day, when the date is one. */
+function holidayName(month: number, day: number): string | undefined {
+  if (month === 12 && day === 25) return t('Noël')
+  if (month === 12 && day === 24) return t('Réveillon de Noël')
+  if (month === 12 && day === 31) return t('Réveillon du Nouvel An')
+  if (month === 1 && day === 1) return t('Nouvel An')
+  if (month === 7 && day === 14) return t('14 Juillet')
+  if (month === 10 && day === 31) return t('Halloween')
+  if (month === 2 && day === 14) return t('Saint-Valentin')
+  return undefined
+}
 
 /** Title and subtitle for a moment. Place first, otherwise the weekday and a special day when any. */
 export function momentTitle(d: { dayStart: string; dayEnd: string; city: string | null; country: string | null; homeCity: string | null; n: number }): { title: string; subtitle: string } {
   const a = parts(d.dayStart)
   const range = dateRangeLabel(d.dayStart, d.dayEnd)
-  const holiday = HOLIDAYS.find(([m, dd]) => m === a.m && dd === a.d)?.[2]
+  const holiday = holidayName(a.m, a.d)
   const multi = d.dayStart !== d.dayEnd
   const weekend = !multi && (a.wd === 0 || a.wd === 6)
   if (d.city) {
     const away = d.homeCity && d.city !== d.homeCity
     const where = d.country && d.country !== 'France' && away ? `${d.city}, ${d.country}` : d.city
-    if (holiday) return { title: `${holiday} à ${d.city}`, subtitle: range }
-    if (multi && away) return { title: `Séjour à ${d.city}`, subtitle: `${where} · ${range}` }
-    return { title: where, subtitle: `${weekend ? WEEKDAYS[a.wd]![0]!.toUpperCase() + WEEKDAYS[a.wd]!.slice(1) + ' ' : ''}${range}` }
+    if (holiday) return { title: t('{holiday} à {city}', { holiday, city: d.city }), subtitle: range }
+    if (multi && away) return { title: t('Séjour à {city}', { city: d.city }), subtitle: `${where} · ${range}` }
+    return { title: where, subtitle: weekend ? t('{weekday} {range}', { weekday: capitalize(weekdayName(a.wd)), range }) : range }
   }
   if (holiday) return { title: holiday, subtitle: range }
-  if (multi) return { title: range, subtitle: `${d.n} éléments` }
-  const wd = WEEKDAYS[a.wd]!
-  return { title: `${wd[0]!.toUpperCase()}${wd.slice(1)} ${range}`, subtitle: `${d.n} éléments` }
+  if (multi) return { title: range, subtitle: tn(d.n, '{n} élément', '{n} éléments') }
+  return { title: t('{weekday} {range}', { weekday: capitalize(weekdayName(a.wd)), range }), subtitle: tn(d.n, '{n} élément', '{n} éléments') }
 }
 
 /** The city where most photos were taken, over the whole library. */
@@ -196,8 +209,8 @@ export function planMoments(db: Db): MomentPlan {
     const dayStart = m.items[0]!.day
     const dayEnd = m.items[m.items.length - 1]!.day
     const sig = sigOf(m)
-    const t = momentTitle({ dayStart, dayEnd, city: m.city, country: m.country, homeCity: home, n: m.items.length })
-    plan.moments.push({ sig, title: custom.get(sig) ?? t.title, subtitle: t.subtitle, start: m.start, end: m.end, dayStart, dayEnd, city: m.city, country: m.country, lat: m.lat, lon: m.lon, coverId: cover(m.items), ids: m.items.map((x) => x.id), trip: null })
+    const mt = momentTitle({ dayStart, dayEnd, city: m.city, country: m.country, homeCity: home, n: m.items.length })
+    plan.moments.push({ sig, title: custom.get(sig) ?? mt.title, subtitle: mt.subtitle, start: m.start, end: m.end, dayStart, dayEnd, city: m.city, country: m.country, lat: m.lat, lon: m.lon, coverId: cover(m.items), ids: m.items.map((x) => x.id), trip: null })
   }
 
   // trips: consecutive moments away from home, spanning ≥ 2 calendar days, with ≤ 2 days of gap
@@ -213,13 +226,13 @@ export function planMoments(db: Db): MomentPlan {
       if (days >= 2 && n >= 8) {
         const cities = [...new Set(run.map((i) => drafts[i]!.city).filter((c): c is string => Boolean(c)))]
         const country = run.map((i) => drafts[i]!.country).find(Boolean) ?? null
-        const where = cities.length === 0 ? (country ?? 'ailleurs') : cities.length === 1 ? cities[0]! : cities.length === 2 ? `${cities[0]} et ${cities[1]}` : `${cities[0]}, ${cities[1]} et ${cities.length - 2} autres`
+        const where = cities.length === 0 ? (country ?? t('ailleurs')) : cities.length === 1 ? cities[0]! : cities.length === 2 ? t('{a} et {b}', { a: cities[0]!, b: cities[1]! }) : tn(cities.length - 2, '{a}, {b} et {n} autre', '{a}, {b} et {n} autres', { a: cities[0]!, b: cities[1]! })
         const a = parts(dayStart)
-        const title = `${days >= 7 ? 'Voyage' : 'Escapade'} à ${where}`
-        const sub = `${MONTHS[a.m - 1]![0]!.toUpperCase()}${MONTHS[a.m - 1]!.slice(1)} ${a.y} · ${dateRangeLabel(dayStart, dayEnd)}`
-        const t = plan.trips.length
+        const title = days >= 7 ? t('Voyage à {where}', { where }) : t('Escapade à {where}', { where })
+        const sub = `${capitalize(monthName(a.m))} ${a.y} · ${dateRangeLabel(dayStart, dayEnd)}`
+        const tripIdx = plan.trips.length
         plan.trips.push({ sig: `${dayStart}:${first.items[0]!.id}`, title: `${title} · ${sub}`, start: first.start, end: last.end, cities, n, coverId: cover(run.flatMap((i) => drafts[i]!.items)) })
-        for (const i of run) plan.moments[i]!.trip = t
+        for (const i of run) plan.moments[i]!.trip = tripIdx
       }
     }
     run = []

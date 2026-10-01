@@ -2,7 +2,8 @@ import sharp from 'sharp'
 import type { Db, Row } from '../db'
 import { transaction } from '../db'
 import { fromBlob } from '../ml/vectors'
-import { dateRangeLabel } from './moments'
+import { dateRangeLabel, monthName } from './moments'
+import { t } from '@shared/i18n'
 import type { MemoryKind, MemoryPage, MemoryTheme } from '@shared/types'
 
 /**
@@ -26,8 +27,6 @@ interface Cand {
   clip: Float32Array | null
   ratio: number
 }
-
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 
 function loadCandidates(db: Db, where: string, params: Array<string | number>): Cand[] {
   const rows = db
@@ -215,16 +214,16 @@ export function proposeMemories(db: Db, now = new Date()): MemoryDraft[] {
   const years = db.prepare("SELECT substr(day, 1, 4) AS y, count(*) AS n FROM assets WHERE hidden = 0 AND missing_at IS NULL AND trashed_at IS NULL AND kind = 'photo' GROUP BY 1 HAVING n >= 24 ORDER BY 1 DESC").all() as Array<{ y: string; n: number }>
   for (const yr of years) {
     if (Number(yr.y) >= y) continue
-    const d = pick(loadCandidates(db, 'a.day >= ? AND a.day <= ?', [`${yr.y}-01-01`, `${yr.y}-12-31`]), 32, `year:${yr.y}`, 'year', `${yr.y} en images`, `Les meilleures photos de ${yr.y}`, 10)
+    const d = pick(loadCandidates(db, 'a.day >= ? AND a.day <= ?', [`${yr.y}-01-01`, `${yr.y}-12-31`]), 32, `year:${yr.y}`, 'year', t('{year} en images', { year: yr.y }), t('Les meilleures photos de {year}', { year: yr.y }), 10)
     if (d) out.push(d)
   }
 
   // trips
   const trips = db.prepare('SELECT id, title, start_at, end_at, cities FROM trips ORDER BY start_at DESC').all() as Array<{ id: number; title: string; start_at: number; end_at: number; cities: string }>
-  for (const t of trips) {
-    const cands = loadCandidates(db, 'a.id IN (SELECT ma.asset_id FROM moment_assets ma JOIN moments m ON m.id = ma.moment_id WHERE m.trip_id = ?)', [t.id])
-    const [title, sub] = t.title.split(' · ')
-    const d = pick(cands, 28, `trip:${Math.floor(t.start_at / 86400000)}`, 'trip', title!, sub ?? null, 8)
+  for (const trip of trips) {
+    const cands = loadCandidates(db, 'a.id IN (SELECT ma.asset_id FROM moment_assets ma JOIN moments m ON m.id = ma.moment_id WHERE m.trip_id = ?)', [trip.id])
+    const [title, sub] = trip.title.split(' · ')
+    const d = pick(cands, 28, `trip:${Math.floor(trip.start_at / 86400000)}`, 'trip', title!, sub ?? null, 8)
     if (d) out.push(d)
   }
 
@@ -233,7 +232,7 @@ export function proposeMemories(db: Db, now = new Date()): MemoryDraft[] {
   for (const m of moments) {
     const cands = loadCandidates(db, 'a.id IN (SELECT asset_id FROM moment_assets WHERE moment_id = ?)', [m.id])
     const [yy, mm] = m.day_start.split('-').map(Number) as [number, number]
-    const title = /\d/.test(m.title) ? m.title : `${m.title}, ${MONTHS[mm - 1]} ${yy}`
+    const title = /\d/.test(m.title) ? m.title : t('{title}, {month} {year}', { title: m.title, month: monthName(mm), year: yy })
     const d = pick(cands, 20, `moment:${m.day_start}:${m.id}`, 'moment', title, m.subtitle, 8)
     if (d) out.push(d)
   }
@@ -246,12 +245,19 @@ export function proposeMemories(db: Db, now = new Date()): MemoryDraft[] {
     const y0 = p.d0.slice(0, 4)
     const y1 = p.d1.slice(0, 4)
     const cands = loadCandidates(db, 'a.id IN (SELECT asset_id FROM faces WHERE person_id = ?)', [p.id])
-    const d = pick(cands, 30, `person:${p.id}`, 'person', y0 === y1 ? `${p.name} en ${y0}` : `${p.name} au fil des ans`, y0 === y1 ? null : `${y0} – ${y1}`, 12)
+    const d = pick(cands, 30, `person:${p.id}`, 'person', y0 === y1 ? t('{name} en {year}', { name: p.name, year: y0 }) : t('{name} au fil des ans', { name: p.name }), y0 === y1 ? null : `${y0} – ${y1}`, 12)
     if (d) out.push(d)
   }
 
   // categories with a personality
-  const CATS: Array<[string, string, string]> = [['pets', 'Vos animaux', 'Les compagnons de toutes ces années'], ['sunset', 'Ciels et couchers de soleil', 'Quand la lumière fait tout'], ['food', 'À table', 'Bons moments et bonnes assiettes'], ['beach', 'Au bord de l’eau', 'Plages, mer et vacances'], ['mountain', 'En altitude', 'Les montagnes'], ['party', 'Les fêtes', 'Anniversaires, mariages et soirées']]
+  const CATS: Array<[string, string, string]> = [
+    ['pets', t('Vos animaux'), t('Les compagnons de toutes ces années')],
+    ['sunset', t('Ciels et couchers de soleil'), t('Quand la lumière fait tout')],
+    ['food', t('À table'), t('Bons moments et bonnes assiettes')],
+    ['beach', t('Au bord de l’eau'), t('Plages, mer et vacances')],
+    ['mountain', t('En altitude'), t('Les montagnes')],
+    ['party', t('Les fêtes'), t('Anniversaires, mariages et soirées')]
+  ]
   for (const [id, title, sub] of CATS) {
     const cands = loadCandidates(db, 'a.id IN (SELECT asset_id FROM categories WHERE label = ? AND score >= 0.5)', [id])
     const d = pick(cands, 24, `category:${id}`, 'category', title, sub, 15)
@@ -269,7 +275,7 @@ export function proposeMemories(db: Db, now = new Date()): MemoryDraft[] {
     const cands = loadCandidates(db, 'a.day >= ? AND a.day <= ?', [f(from), f(to)])
     if (cands.length < 6) continue
     const days = [...new Set(cands.map((c) => c.day))].sort()
-    const d = pick(cands, 16, `ago:${yy}:${m}:${Math.floor(dd / 7)}`, 'onThisDay', back === 1 ? 'Il y a un an' : `Il y a ${back} ans`, `${dateRangeLabel(days[0]!, days[days.length - 1]!)}`, 6)
+    const d = pick(cands, 16, `ago:${yy}:${m}:${Math.floor(dd / 7)}`, 'onThisDay', back === 1 ? t('Il y a un an') : t('Il y a {n} ans', { n: back }), `${dateRangeLabel(days[0]!, days[days.length - 1]!)}`, 6)
     if (d) out.push(d)
   }
   return out

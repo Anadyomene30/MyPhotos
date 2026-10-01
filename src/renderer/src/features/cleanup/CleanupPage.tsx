@@ -7,6 +7,7 @@ import { media } from '@/api/client'
 import { Button } from '@/components/ui'
 import { confirm } from '@/components/Confirm'
 import { bytes, count, plural } from '@/lib/format'
+import { t, tn } from '@/i18n'
 import { useCleanupReport, ignore, resolveExact, trashIds } from './api'
 import { GroupCard } from './GroupCard'
 import { GroupReview } from './GroupReview'
@@ -24,10 +25,10 @@ export function CleanupPage() {
     <div className="flex h-full flex-col">
       <header className={clsx('drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line pl-5', win ? 'pr-[150px]' : 'pr-4')}>
         <BrushCleaning className="size-[18px] text-accent" />
-        <h1 className="font-display text-[15px] font-semibold tracking-tight">Nettoyage</h1>
+        <h1 className="font-display text-[15px] font-semibold tracking-tight">{t('Nettoyage')}</h1>
         {report && report.analyzed < report.total && (
           <span className="flex items-center gap-1.5 text-[12px] text-muted">
-            <Loader2 className="size-3.5 animate-spin" /> Analyse en cours · {count(report.analyzed)} / {count(report.total)}
+            <Loader2 className="size-3.5 animate-spin" /> {t('Analyse en cours · {done} / {total}', { done: count(report.analyzed), total: count(report.total) })}
           </span>
         )}
       </header>
@@ -58,11 +59,11 @@ function SummaryCards({ report, active, onSelect }: { report: CleanupReport; act
   const sugBytes = report.suggestions.reduce((a, c) => a + c.bytes, 0)
   const sugCount = report.suggestions.reduce((a, c) => a + c.items.length, 0)
   const cards: Array<{ id: Tab; icon: React.ReactNode; title: string; value: string; sub: string }> = [
-    { id: 'brackets', icon: <Aperture className="size-4" />, title: 'Bracketing', value: count(report.brackets.length), sub: report.brackets.length ? 'séries à fusionner en HDR' : 'Aucune série' },
-    { id: 'exact', icon: <Copy className="size-4" />, title: 'Doublons exacts', value: count(report.exact.length), sub: report.exact.length ? `${bytes(sum(report.exact))} récupérables` : 'Aucun fichier en double' },
-    { id: 'visual', icon: <Layers className="size-4" />, title: 'Mêmes images', value: count(report.visual.length), sub: report.visual.length ? `autre format ou taille · ${bytes(sum(report.visual))}` : 'Aucune version en double' },
-    { id: 'similar', icon: <Sparkles className="size-4" />, title: 'Photos similaires', value: count(report.similar.length), sub: report.similar.length ? 'rafales : garder la meilleure' : 'Aucune rafale' },
-    { id: 'suggestions', icon: <Trash2 className="size-4" />, title: 'À trier', value: count(sugCount), sub: sugCount ? `${bytes(sugBytes)} au total` : 'Rien à signaler' }
+    { id: 'brackets', icon: <Aperture className="size-4" />, title: t('Bracketing'), value: count(report.brackets.length), sub: report.brackets.length ? t('séries à fusionner en HDR') : t('Aucune série') },
+    { id: 'exact', icon: <Copy className="size-4" />, title: t('Doublons exacts'), value: count(report.exact.length), sub: report.exact.length ? t('{size} récupérables', { size: bytes(sum(report.exact)) }) : t('Aucun fichier en double') },
+    { id: 'visual', icon: <Layers className="size-4" />, title: t('Mêmes images'), value: count(report.visual.length), sub: report.visual.length ? t('autre format ou taille · {size}', { size: bytes(sum(report.visual)) }) : t('Aucune version en double') },
+    { id: 'similar', icon: <Sparkles className="size-4" />, title: t('Photos similaires'), value: count(report.similar.length), sub: report.similar.length ? t('rafales : garder la meilleure') : t('Aucune rafale') },
+    { id: 'suggestions', icon: <Trash2 className="size-4" />, title: t('À trier'), value: count(sugCount), sub: sugCount ? t('{size} au total', { size: bytes(sugBytes) }) : t('Rien à signaler') }
   ]
   return (
     <div className="grid shrink-0 grid-cols-5 gap-3 px-5 pt-4 pb-3">
@@ -135,9 +136,11 @@ function GroupList({ mode, groups }: { mode: 'exact' | 'visual' | 'similar'; gro
     const removeCount = visible.reduce((a, g) => a + g.items.filter((i) => !(keeps.get(g.key) ?? new Set()).has(i.id)).length, 0)
     const removeBytes = visible.reduce((a, g) => a + g.items.filter((i) => !(keeps.get(g.key) ?? new Set()).has(i.id)).reduce((s, i) => s + i.size, 0), 0)
     const ok = await confirm({
-      title: 'Appliquer toutes les suggestions ?',
-      message: `${plural(removeCount, 'élément sera placé', 'éléments seront placés')} dans la corbeille de MyPhotos (${bytes(removeBytes)}). Vous pourrez les restaurer pendant 30 jours.${mode === 'exact' ? ' Chaque copie est vérifiée octet par octet avant suppression.' : ''}`,
-      confirmLabel: 'Tout appliquer'
+      title: t('Appliquer toutes les suggestions ?'),
+      message:
+        tn(removeCount, '{n} élément sera placé dans la corbeille de MyPhotos ({size}). Vous pourrez le restaurer pendant 30 jours.', '{n} éléments seront placés dans la corbeille de MyPhotos ({size}). Vous pourrez les restaurer pendant 30 jours.', { size: bytes(removeBytes) }) +
+        (mode === 'exact' ? ' ' + t('Chaque copie est vérifiée octet par octet avant suppression.') : ''),
+      confirmLabel: t('Tout appliquer')
     })
     if (ok) await apply(visible)
   }
@@ -147,8 +150,8 @@ function GroupList({ mode, groups }: { mode: 'exact' | 'visual' | 'similar'; gro
       <div className="grid h-full place-items-center text-center">
         <div className="animate-fade-in">
           <Sparkles className="mx-auto mb-3 size-10 text-emerald-500" strokeWidth={1.4} />
-          <div className="font-display text-[18px] font-semibold">Tout est propre ici</div>
-          <p className="mt-1 text-[13px] text-muted">{mode === 'similar' ? 'Aucune rafale à trier.' : 'Aucun doublon détecté.'}</p>
+          <div className="font-display text-[18px] font-semibold">{t('Tout est propre ici')}</div>
+          <p className="mt-1 text-[13px] text-muted">{mode === 'similar' ? t('Aucune rafale à trier.') : t('Aucun doublon détecté.')}</p>
         </div>
       </div>
     )
@@ -158,12 +161,12 @@ function GroupList({ mode, groups }: { mode: 'exact' | 'visual' | 'similar'; gro
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center gap-3 px-5 pb-3">
         <p className="flex-1 text-[12.5px] text-muted">
-          {mode === 'exact' && 'Fichiers strictement identiques. La copie suggérée est celle qui n’est pas dans un dossier de copies. Cliquez sur une autre pour la garder à sa place.'}
-          {mode === 'visual' && 'La même image en plusieurs fichiers (autre format, taille réduite, version retouchée). La suggestion garde la meilleure définition.'}
-          {mode === 'similar' && 'Photos prises à quelques secondes d’intervalle. La plus nette et la mieux exposée est suggérée. Cliquez pour garder ou supprimer chaque photo.'}
+          {mode === 'exact' && t('Fichiers strictement identiques. La copie suggérée est celle qui n’est pas dans un dossier de copies. Cliquez sur une autre pour la garder à sa place.')}
+          {mode === 'visual' && t('La même image en plusieurs fichiers (autre format, taille réduite, version retouchée). La suggestion garde la meilleure définition.')}
+          {mode === 'similar' && t('Photos prises à quelques secondes d’intervalle. La plus nette et la mieux exposée est suggérée. Cliquez pour garder ou supprimer chaque photo.')}
         </p>
         <Button variant="primary" className="shrink-0" onClick={() => void applyAll()}>
-          Tout appliquer ({count(visible.length)} groupes)
+          {tn(visible.length, 'Tout appliquer ({n} groupe)', 'Tout appliquer ({n} groupes)')}
         </Button>
       </div>
       <div ref={scrollRef} className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5">
@@ -216,7 +219,7 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
       <div className="grid h-full place-items-center text-center">
         <div>
           <Sparkles className="mx-auto mb-3 size-10 text-emerald-500" strokeWidth={1.4} />
-          <div className="font-display text-[18px] font-semibold">Rien à trier</div>
+          <div className="font-display text-[18px] font-semibold">{t('Rien à trier')}</div>
         </div>
       </div>
     )
@@ -240,21 +243,21 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
             <div className="truncate text-[12px] text-muted">{current.description}</div>
           </div>
           <Button variant="ghost" className="px-2 py-1 text-[12px]" onClick={() => setChecked(checked.size === items.length ? new Set() : new Set(items.map((i) => i.id)))}>
-            {checked.size === items.length ? 'Tout décocher' : 'Tout cocher'}
+            {checked.size === items.length ? t('Tout décocher') : t('Tout cocher')}
           </Button>
           {current.id !== 'largeVideos' && (
             <Button variant="ghost" className="px-2 py-1 text-[12px]" disabled={!selected.length} onClick={() => {
               for (const i of selected) void ignore(`item:${i.id}`, current.id)
               setRemoved(new Set([...removed, ...selected.map((i) => i.id)]))
             }}>
-              Ne plus proposer
+              {t('Ne plus proposer')}
             </Button>
           )}
           <Button variant="primary" disabled={!selected.length} onClick={() => {
             const ids = selected.map((i) => i.id)
             void trashIds(ids).then(() => setRemoved(new Set([...removed, ...ids])))
           }}>
-            Supprimer {selected.length ? `${count(selected.length)} · ${bytes(selected.reduce((a, i) => a + i.size, 0))}` : ''}
+            {selected.length ? t('Supprimer {n} · {size}', { n: count(selected.length), size: bytes(selected.reduce((a, i) => a + i.size, 0)) }) : t('Supprimer')}
           </Button>
         </div>
         <div className="scroll-thin grid min-h-0 flex-1 grid-cols-[repeat(auto-fill,minmax(130px,1fr))] content-start gap-2 overflow-y-auto p-3">
