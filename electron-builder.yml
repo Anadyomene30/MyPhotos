@@ -35,6 +35,9 @@ mac:
     # Apple Silicon. An Intel build needs sharp's darwin-x64 binaries installed first (npm i --os=darwin --cpu=x64 sharp)
     - target: dmg
       arch: [arm64]
+    # the zip feeds latest-mac.yml, which the updater reads
+    - target: zip
+      arch: [arm64]
   hardenedRuntime: true
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
