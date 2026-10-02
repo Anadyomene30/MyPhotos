@@ -31,6 +31,7 @@
     "extract-raw-preview": "^1.1.0",
     "fdir": "^6.5.0",
     "hono": "^4.13.12",
+    "libraw-wasm": "1.6.0",
     "maplibre-gl": "^6.11.2",
     "onnxruntime-node": "1.30",
     "qrcode": "^1.5.4",

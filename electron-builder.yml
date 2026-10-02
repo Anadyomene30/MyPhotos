@@ -24,6 +24,8 @@ asarUnpack:
   - node_modules/sharp/**
   - node_modules/@img/**
   - node_modules/onnxruntime-node/**
+  # read as bytes by src/core/media/raw16.ts
+  - node_modules/libraw-wasm/**
 npmRebuild: false
 afterPack: build/afterPack.cjs
 mac:

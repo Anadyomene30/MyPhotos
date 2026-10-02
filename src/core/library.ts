@@ -19,7 +19,7 @@ import { normalizeEdit, isNeutral, type PhotoEdit } from '@shared/edit/types'
 import { mkdir as mkdirAsync } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import sharp from 'sharp'
-import { SHARP_EXTS } from './media/kinds'
+import { RAW_EXTS, SHARP_EXTS } from './media/kinds'
 import { MlService } from './ml/service'
 import { applyMomentPlan } from './organize/moments'
 import { DbTaskRunner } from './dbTasks'
@@ -937,17 +937,25 @@ export class Library extends EventEmitter {
       }
       let assetId: number | null = null
       let out: string | null = null
+      let master: string | null = null
       const abort = (this.fusionAbort = new AbortController())
       try {
         const sourceId = await this.ensureCreationsSource()
         const ref = [...rows].sort((a, b) => (a.exposure as number) - (b.exposure as number))[Math.floor(rows.length / 2)]!
         const stem = String(ref.name).replace(/\.[^.]+$/, '')
-        out = join(this.creationsDir, `${stem} HDR.jpg`)
-        for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} HDR ${i}.jpg`)
+        let name = `${stem} HDR`
+        for (let i = 2; existsSync(join(this.creationsDir, `${name}.jpg`)) || existsSync(join(this.creationsDir, `${name}.tif`)); i++) name = `${stem} HDR ${i}`
+        out = join(this.creationsDir, `${name}.jpg`)
+        master = join(this.creationsDir, `${name}.tif`)
         const exif = exifFromRow(ref, 'MyPhotos HDR')
-        await fuseInWorker({ inputs: rows.map(decodeInput), output: out, maxSize: 4096, align: true, exif }, undefined, abort.signal)
-        this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'hdr', JSON.stringify(ids), Date.now())
-        await applyChanges(this.db, sourceId, this.creationsDir, [out])
+        // frames shot RAW + JPEG are developed from the RAW: the sensor's range, and a 16-bit master for grading
+        const raws = rows.map((r) => (RAW_EXTS.has(String(r.ext)) ? String(r.path) : (r.raw_companion as string | null)))
+        const fromRaw = raws.every((p): p is string => Boolean(p) && existsSync(p!))
+        const res = await fuseInWorker({ inputs: rows.map(decodeInput), raws: fromRaw ? raws : undefined, output: out, master, maxSize: 4096, align: true, exif }, undefined, abort.signal)
+        const now = Date.now()
+        this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'hdr', JSON.stringify(ids), now)
+        if (res.master) this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(res.master, 'hdr-master', JSON.stringify(ids), now)
+        await applyChanges(this.db, sourceId, this.creationsDir, res.master ? [out, res.master] : [out])
         const row = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(out) as Row | undefined
         if (row) {
           await this.indexMeta(row)
@@ -965,7 +973,7 @@ export class Library extends EventEmitter {
       } catch (e) {
         if (abort.signal.aborted) {
           // stopped mid-way: the half-written result is MyPhotos' own file, never a source
-          if (out && existsSync(out)) await rmAsync(out, { force: true }).catch(() => undefined)
+          for (const f of [out, master]) if (f && existsSync(f)) await rmAsync(f, { force: true }).catch(() => undefined)
           this.send({ type: 'creation-done', ok: false, cancelled: true, assetId: null, sources: ids })
           return
         }

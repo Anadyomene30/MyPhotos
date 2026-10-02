@@ -14,7 +14,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         // native/ML runtimes stay external so their binaries resolve from node_modules
-        external: ['onnxruntime-node', '@huggingface/transformers', 'sharp', 'extract-raw-preview', 'exifr', 'fdir', 'xxhash-wasm', 'hono', '@hono/node-server', 'zod', 'electron-updater'],
+        external: ['onnxruntime-node', '@huggingface/transformers', 'sharp', 'extract-raw-preview', 'exifr', 'fdir', 'xxhash-wasm', 'hono', '@hono/node-server', 'zod', 'electron-updater', /^libraw-wasm\//],
         input: {
           index: resolve('src/main/index.ts'),
           backend: resolve('src/backend/index.ts'),
