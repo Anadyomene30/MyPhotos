@@ -61,6 +61,8 @@ export interface LibraryOptions {
   appUrl?: () => string
   /** the launcher's machine-wide household pre-setting (foyer.local.json), read only; absent in tests */
   householdPreset?: string | null
+  /** free space below which HDR fusions skip their 16-bit master (default 5 GB; tests set 0) */
+  masterMinFree?: number
 }
 
 type Stage = 'meta' | 'thumb' | 'analyze' | 'ml'
@@ -976,7 +978,7 @@ export class Library extends EventEmitter {
         const raws = rows.map((r) => (RAW_EXTS.has(String(r.ext)) ? String(r.path) : (r.raw_companion as string | null)))
         const fromRaw = raws.every((p): p is string => Boolean(p) && existsSync(p!))
         const fs = mastersHere ? await statfs(mastersDir) : null
-        const roomForMaster = fs !== null && fs.bavail * fs.bsize >= MASTER_MIN_FREE
+        const roomForMaster = fs !== null && fs.bavail * fs.bsize >= (this.opts.masterMinFree ?? MASTER_MIN_FREE)
         if (fromRaw && !mastersHere) warning = t('Photo HDR créée sans master 16 bits : le dossier des masters est introuvable (disque débranché ?).')
         else if (fromRaw && !roomForMaster) warning = t('Photo HDR créée sans master 16 bits : il reste moins de 5 Go sur le disque.')
         const res = await fuseInWorker({ inputs: rows.map(decodeInput), raws: fromRaw ? raws : undefined, output: out, master: roomForMaster ? master : undefined, maxSize: 4096, align: true, exif }, undefined, abort.signal)

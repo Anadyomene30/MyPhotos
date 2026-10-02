@@ -26,6 +26,8 @@ describe.runIf(existsSync(join(DIR, 'IMG_5444.CR2')))('HDR fusion from RAW', () 
       autoIndex: false,
       watch: false,
       creationsDir: join(dataDir, 'creations'),
+      // whatever the free space on the machine running the tests
+      masterMinFree: 0,
       moveToSystemTrash: async (paths) => {
         for (const p of paths) if (!p.startsWith(DIR)) rmSync(p, { force: true })
         return []
