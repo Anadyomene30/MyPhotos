@@ -24,7 +24,7 @@ export interface AppOptions {
   devOrigin?: string
 }
 
-const FILTERS = ['all', 'photos', 'videos', 'live', 'screenshots', 'favorites', 'raw', 'trash'] as const
+const FILTERS = ['all', 'photos', 'videos', 'live', 'screenshots', 'favorites', 'raw', 'hdr', 'trash'] as const
 
 function timelineQuery(c: Context): TimelineQuery {
   const f = c.req.query('filter') as LibraryFilter | undefined

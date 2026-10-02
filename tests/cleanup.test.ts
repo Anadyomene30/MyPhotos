@@ -104,6 +104,11 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
     await done
     expect(results).toEqual([true, true, true])
     expect(lib.jobs().some((j) => j.id.startsWith('fusion'))).toBe(false)
+    // the fusions are listed under their own filter, their sources are not
+    const hdr = lib.assets.page({ filter: 'hdr' }, 0, 100)
+    expect(hdr.length).toBe(1 + n)
+    expect(hdr.every((a) => lib.assets.detail(a.id)!.name.includes('HDR'))).toBe(true)
+    expect(lib.assets.counts().hdr).toBe(1 + n)
   }, 180000)
 
   it('verifies bytes before trashing copies and supports ignoring groups', async () => {

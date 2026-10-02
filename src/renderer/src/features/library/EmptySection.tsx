@@ -10,6 +10,7 @@ const COPY = {
   live: { title: t('Aucune Live Photo'), text: t('Les Live Photos d’iPhone (HEIC + MOV) sont détectées automatiquement.') },
   screenshots: { title: t('Aucune capture d’écran'), text: '' },
   raw: { title: t('Aucun fichier RAW'), text: '' },
+  hdr: { title: t('Aucune photo HDR'), text: t('Les séries fusionnées depuis Nettoyage › Bracketing apparaissent ici.') },
   trash: { title: t('La corbeille est vide'), text: t('Les éléments supprimés restent ici 30 jours. Vos fichiers ne sont jamais effacés sans confirmation.') }
 } as const
 

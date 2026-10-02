@@ -64,6 +64,7 @@ export type LibraryFilter =
   | 'screenshots'
   | 'favorites'
   | 'raw'
+  | 'hdr'
   | 'trash'
 
 export type KindFilter = 'all' | 'photo' | 'video'
@@ -182,6 +183,8 @@ export interface LibraryCounts {
   screenshots: number
   favorites: number
   raw: number
+  /** HDR photos MyPhotos fused from exposure series */
+  hdr: number
   trash: number
 }
 

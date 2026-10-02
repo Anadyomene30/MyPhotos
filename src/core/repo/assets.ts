@@ -7,6 +7,9 @@ import type { AssetDetail, AssetKind, AssetTile, DayBucket, LibraryCounts, Libra
 const VISIBLE = 'assets.hidden = 0 AND assets.missing_at IS NULL AND assets.trashed_at IS NULL'
 const ORDER = 'day DESC, taken_at DESC, id DESC'
 
+/** photos MyPhotos fused from an exposure series */
+const HDR = "assets.path IN (SELECT path FROM creations WHERE kind = 'hdr')"
+
 export function filterWhere(q: TimelineQuery, albumCond?: { sql: string; params: Array<string | number> }): { sql: string; params: Array<string | number> } {
   const parts: string[] = []
   const params: Array<string | number> = []
@@ -19,6 +22,7 @@ export function filterWhere(q: TimelineQuery, albumCond?: { sql: string; params:
   if (f === 'screenshots') parts.push('is_screenshot = 1')
   if (f === 'favorites') parts.push('favorite = 1')
   if (f === 'raw') parts.push('is_raw = 1')
+  if (f === 'hdr') parts.push(HDR)
   if (q.kind === 'photo') parts.push("assets.kind = 'photo'")
   if (q.kind === 'video') parts.push("assets.kind = 'video'")
   if (q.year) {
@@ -147,7 +151,8 @@ export class AssetRepo {
         GROUP BY kind, is_live, is_screenshot, favorite, is_raw`)
       .all() as Array<{ kind: string; is_live: number; is_screenshot: number; favorite: number; is_raw: number; n: number }>
     const trash = this.stmts.get('SELECT count(*) AS n FROM assets WHERE trashed_at IS NOT NULL AND hidden = 0 AND missing_at IS NULL').get() as { n: number }
-    const c: LibraryCounts = { all: 0, photos: 0, videos: 0, live: 0, screenshots: 0, favorites: 0, raw: 0, trash: trash.n }
+    const hdr = this.stmts.get(`SELECT count(*) AS n FROM assets WHERE ${VISIBLE} AND ${HDR}`).get() as { n: number }
+    const c: LibraryCounts = { all: 0, photos: 0, videos: 0, live: 0, screenshots: 0, favorites: 0, raw: 0, hdr: hdr.n, trash: trash.n }
     for (const r of rows) {
       c.all += r.n
       if (r.kind === 'photo') c.photos += r.n

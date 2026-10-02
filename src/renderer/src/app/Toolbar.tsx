@@ -22,7 +22,7 @@ import type { KindFilter, LibraryFilter } from '@shared/types'
 
 const TITLES: Record<LibraryFilter, string> = {
   all: t('Photothèque'), photos: t('Photos'), videos: t('Vidéos'), live: 'Live Photos',
-  screenshots: t('Captures d’écran'), favorites: t('Favoris'), raw: 'RAW', trash: t('Corbeille')
+  screenshots: t('Captures d’écran'), favorites: t('Favoris'), raw: 'RAW', hdr: t('Photos HDR'), trash: t('Corbeille')
 }
 
 export function Toolbar() {

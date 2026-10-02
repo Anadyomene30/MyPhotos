@@ -1,6 +1,6 @@
 import { t } from '@/i18n'
 import clsx from 'clsx'
-import { BrushCleaning, Camera, Heart, Images, MapPin, Monitor, Settings, Sparkles, Tag, Trash2, Users, Aperture } from 'lucide-react'
+import { BrushCleaning, Camera, Heart, Images, MapPin, Monitor, Settings, Sparkles, Tag, Trash2, Users, Aperture, Wand2 } from 'lucide-react'
 import { useCategories, useMlStatus } from '@/api/hooks'
 import type { ComponentType } from 'react'
 import { useLibraryState } from '@/api/hooks'
@@ -25,7 +25,8 @@ const LIBRARY: Item[] = [
 const TYPES: Item[] = [
   { id: 'live', label: 'Live Photos', icon: Aperture, count: 'live', hideWhenEmpty: true },
   { id: 'screenshots', label: t('Captures d’écran'), icon: Monitor, count: 'screenshots', hideWhenEmpty: true },
-  { id: 'raw', label: 'RAW', icon: Camera, count: 'raw', hideWhenEmpty: true }
+  { id: 'raw', label: 'RAW', icon: Camera, count: 'raw', hideWhenEmpty: true },
+  { id: 'hdr', label: t('Photos HDR'), icon: Wand2, count: 'hdr', hideWhenEmpty: true }
 ]
 const OTHER: Item[] = [{ id: 'trash', label: t('Corbeille'), icon: Trash2, count: 'trash' }]
 
