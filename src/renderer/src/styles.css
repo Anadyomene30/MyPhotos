@@ -97,11 +97,13 @@
   --heart: #ff375f; /* the favourite heart is a symbol on a photo, not a control: it keeps Apple Photos' red */
   --stage: #0b0b0c; /* viewer and editors: a neutral near-black stage, so photos are judged on true colours */
   --stage-panel: #151517; /* side panels on that stage */
+  --charcoal: var(--dh-fg); /* ink of the charcoal shadow under the drawn globe (Brume, rule 4) */
   color-scheme: light;
 }
 
 :root.dark {
   --accent-soft: color-mix(in srgb, var(--dh-accent) 22%, transparent);
+  --charcoal: #05090c; /* a shadow stays dark at night: the house drawings' night ink */
   color-scheme: dark;
 }
 
@@ -131,6 +133,7 @@ body, .brume {
 /* L'étiquette: main screen titles as a dark band, bold, lowercase (Brume, rule 1) */
 .etiquette {
   display: inline-block;
+  flex-shrink: 0; /* in a title row, the subtitle gives way first */
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -66,7 +66,7 @@ export function Toolbar() {
     return () => ro.disconnect()
   }, [])
   // narrow window: icons instead of labels, collapsed search, no zoom slider
-  const compact = width < 900
+  const compact = width < 1040 // leaves the title label room before the controls
   const counts = data?.counts
 
   const subtitle = (() => {

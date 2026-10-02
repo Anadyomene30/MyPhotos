@@ -1,7 +1,7 @@
 // MyPhotos' object, the globe, standing on its charcoal shadow (design/DIRECTION-ARTISTIQUE.md,
 // rules 4 and 5). Product-owned copy of the house's vector sketch (Passage, dessins.tsx), which
 // stands in for the real illustration until the house delivers it. Colours come from the theme:
-// the accent for the globe, the ink for the stand and the shadow.
+// the accent for the globe, the ink for the stand, the charcoal for the shadow.
 import type { ReactElement } from 'react'
 
 const ACCENT = { fill: 'var(--dh-accent)' }
@@ -28,7 +28,7 @@ function Ombre({ width }: { width: number }) {
       <path
         key={i}
         d={`M${x1.toFixed(0)} ${y.toFixed(1)} L${Math.min(196, x1 + L).toFixed(0)} ${(y + r() * 2 - 1).toFixed(1)}`}
-        style={{ stroke: 'var(--dh-fg)' }}
+        style={{ stroke: 'var(--charcoal)' }}
         strokeWidth={[1, 1.4, 1.8][Math.floor(r() * 3)]}
         strokeDasharray={dash}
         opacity={(0.45 + r() * 0.35).toFixed(2)}
@@ -45,7 +45,7 @@ function Ombre({ width }: { width: number }) {
           <feComponentTransfer in="m" result="t">
             <feFuncA type="discrete" tableValues="0 1" />
           </feComponentTransfer>
-          <feFlood style={{ floodColor: 'var(--dh-fg)' }} />
+          <feFlood style={{ floodColor: 'var(--charcoal)' }} />
           <feComposite in2="t" operator="in" />
         </filter>
         <radialGradient id="mp-stipR">
