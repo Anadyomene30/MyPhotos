@@ -23,7 +23,7 @@ const selectCls = 'w-full rounded-card border border-line bg-bg px-2.5 py-1.5 te
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-muted">{label}</span>
+      <span className="mb-1 block text-[12px] text-muted">{label}</span>
       {children}
     </label>
   )
@@ -106,7 +106,7 @@ export function ExportDialog() {
         <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
           <Upload className="size-4 text-accent" />
           <div className="min-w-0 flex-1">
-            <h2 id="export-title" className="font-display text-[16px] font-semibold">{tn(ids.length, 'Exporter {n} élément', 'Exporter {n} éléments')}</h2>
+            <h2 id="export-title" className="font-display text-[16px] font-bold">{tn(ids.length, 'Exporter {n} élément', 'Exporter {n} éléments')}</h2>
             {summary && <p className="text-[12px] text-muted">{[photos ? plural(photos, 'photo', 'photos') : '', videos ? plural(videos, 'vidéo', 'vidéos') : '', bytes(summary.bytes)].filter(Boolean).join(' · ')}</p>}
           </div>
           <IconButton label={t('Fermer')} onClick={close}>
@@ -129,7 +129,7 @@ export function ExportDialog() {
                 )}
               >
                 <span className={preset === p.id ? 'text-accent' : 'text-muted'}>{ICONS[p.id]}</span>
-                <span className="text-[12.5px] font-semibold">{p.title}</span>
+                <span className="text-[12.5px] font-bold">{p.title}</span>
                 <span className="text-[10.5px] leading-tight text-muted">{p.subtitle}</span>
               </button>
             ))}
@@ -140,7 +140,7 @@ export function ExportDialog() {
             {preset === 'custom' && <span className="ml-1 text-muted">{t('(personnalisé)')}</span>}
           </div>
 
-          <button onClick={() => setAdvanced((a) => !a)} className="flex items-center gap-1.5 text-[12.5px] font-medium text-accent">
+          <button onClick={() => setAdvanced((a) => !a)} className="flex items-center gap-1.5 text-[12.5px] text-accent">
             <ChevronDown className={clsx('size-4 transition-transform', advanced && 'rotate-180')} />
             {t('Réglages détaillés')}
           </button>
@@ -149,7 +149,7 @@ export function ExportDialog() {
             <div className="animate-fade-in space-y-5">
               {photos > 0 && (
                 <section className="space-y-3">
-                  <h3 className="text-[13px] font-semibold">{t('Photos')}</h3>
+                  <h3 className="text-[13px] font-bold">{t('Photos')}</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label={t('Format')}>
                       <select className={selectCls} value={s.photo.format} onChange={(e) => update({ photo: { ...s.photo, format: e.target.value as ExportSettings['photo']['format'] } })}>
@@ -171,7 +171,7 @@ export function ExportDialog() {
               )}
               {videos > 0 && (
                 <section className="space-y-3">
-                  <h3 className="text-[13px] font-semibold">{t('Vidéos')}</h3>
+                  <h3 className="text-[13px] font-bold">{t('Vidéos')}</h3>
                   <div className="grid grid-cols-2 gap-3">
                     <Field label={t('Format')}>
                       <select className={selectCls} value={s.video.format} onChange={(e) => update({ video: { ...s.video, format: e.target.value as ExportSettings['video']['format'] } })}>

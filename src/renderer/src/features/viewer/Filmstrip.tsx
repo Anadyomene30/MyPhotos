@@ -121,8 +121,8 @@ export function Filmstrip({ cache, index, total, onSelect }: { cache: TileCache;
               data-index={j}
               title={isCurrent ? undefined : t('Photo {n} sur {total}', { n: (j + 1).toLocaleString(), total: total.toLocaleString() })}
               className={clsx(
-                'absolute top-[10px] overflow-hidden bg-white/10 ease-out',
-                scrubbing ? 'duration-75' : 'duration-200',
+                'absolute top-[10px] overflow-hidden bg-white/10',
+                scrubbing ? 'duration-75' : 'duration-(--dh-motion-state)',
                 'transition-[transform,width,border-radius,opacity]',
                 isCurrent ? 'z-10 rounded-[4px] ring-1 ring-white/70' : 'rounded-[2px] opacity-75 hover:opacity-100'
               )}

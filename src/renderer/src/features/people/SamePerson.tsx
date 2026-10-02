@@ -16,7 +16,7 @@ function Side({ p, faces }: { p: PersonSummary; faces: number[] }) {
         ))}
       </div>
       <div className="max-w-[130px] truncate text-center text-[12.5px]">
-        <span className={p.name ? 'font-semibold' : 'text-muted italic'}>{p.name ?? t('Sans nom')}</span>
+        <span className={p.name ? 'font-bold' : 'text-muted italic'}>{p.name ?? t('Sans nom')}</span>
         <span className="text-faint"> · {plural(p.photos, 'photo', 'photos')}</span>
       </div>
     </div>
@@ -53,7 +53,7 @@ export function SamePersonPrompt() {
         <Side p={pair.b} faces={pair.bFaces} />
       </div>
       <div className="min-w-[200px] flex-1">
-        <h2 className="font-display text-[16px] font-semibold">{t('Est-ce la même personne ?')}</h2>
+        <h2 className="font-display text-[16px] font-bold">{t('Est-ce la même personne ?')}</h2>
         <p className="mt-1 text-[12.5px] text-muted">
           {t('MyPhotos a parfois séparé une même personne en deux, par exemple à des âges différents.')} {pending.length > 1 ? tn(pending.length, '{n} suggestion à vérifier.', '{n} suggestions à vérifier.') : t('Dernière suggestion.')}
         </p>

@@ -32,7 +32,7 @@ export function AddToAlbumButton({ ids }: { ids: number[] }) {
         <SquareStack className="size-[17px]" />
       </IconButton>
       <Popover anchor={ref.current} open={open} onClose={() => setOpen(false)}>
-        <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-semibold text-faint">{t('Ajouter à un album')}</div>
+        <div className="px-2.5 pt-1.5 pb-1 text-[11px] font-bold text-faint">{t('Ajouter à un album')}</div>
         <div className="scroll-thin max-h-72 overflow-y-auto">
           {manual.map((a) => (
             <MenuItem

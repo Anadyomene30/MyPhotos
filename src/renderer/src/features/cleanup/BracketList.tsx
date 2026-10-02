@@ -36,7 +36,7 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
       <div className="grid h-full place-items-center text-center">
         <div>
           <Aperture className="mx-auto mb-3 size-10 text-faint" strokeWidth={1.4} />
-          <div className="font-display text-[18px] font-semibold">{t('Aucune série de bracketing')}</div>
+          <div className="font-display text-[18px] font-bold">{t('Aucune série de bracketing')}</div>
           <p className="mt-1 max-w-sm text-[13px] text-muted">{t('Les séries de photos prises coup sur coup avec des expositions différentes apparaîtront ici.')}</p>
         </div>
       </div>
@@ -72,7 +72,7 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
                 <div className="rounded-card border border-line bg-surface p-4">
                   <div className="mb-3 flex items-center gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-semibold">{g.reasons[0]}</div>
+                      <div className="text-[13px] font-bold">{g.reasons[0]}</div>
                       <div className="truncate text-[12px] text-muted">{[fmt.format(g.items[0]!.takenAt), g.reasons[1]].filter(Boolean).join(' · ')}</div>
                     </div>
                     <Button variant="ghost" className="px-2 py-1 text-[12px]" onClick={() => {
@@ -90,7 +90,7 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
                     {g.items.map((i) => (
                       <div key={i.id} className="tile-bg relative h-[140px] shrink-0 overflow-hidden rounded-lg" style={{ width: 140 * ((i.width ?? 3) / (i.height ?? 2)) }}>
                         <img src={media.thumb(i.id, i.v)} alt="" className="h-full w-full object-cover" draggable={false} />
-                        <span className="absolute bottom-1.5 left-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[10.5px] font-semibold text-white">{i.name}</span>
+                        <span className="absolute bottom-1.5 left-1.5 rounded bg-black/55 px-1.5 py-0.5 text-[10.5px] font-bold text-white">{i.name}</span>
                       </div>
                     ))}
                   </div>

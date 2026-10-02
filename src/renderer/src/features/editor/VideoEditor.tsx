@@ -181,7 +181,7 @@ function VideoEditorInner({ id }: { id: number }) {
     <div className="animate-fade-in fixed inset-0 z-[55] flex flex-col bg-stage text-white select-none">
       <div className="drag flex h-[52px] shrink-0 items-center gap-2 pr-4 pl-[84px]">
         <Button variant="ghost" className="no-drag text-white/80 hover:bg-white/10 hover:text-white" onClick={close}>{t('Annuler')}</Button>
-        <div className="flex-1 truncate text-center text-[13px] font-semibold">{detail?.name}</div>
+        <div className="flex-1 truncate text-center text-[13px] font-bold">{detail?.name}</div>
         <span className="text-[12px] text-white/50">{t('Durée finale {d}', { d: fmtDuration(outDur) })}</span>
         <Button variant="primary" className="no-drag" disabled={busy || !detail} onClick={() => void render()}>{t('Créer la vidéo')}</Button>
       </div>
@@ -191,7 +191,7 @@ function VideoEditorInner({ id }: { id: number }) {
             <video
               ref={video}
               src={media.original(id)}
-              className="max-h-full max-w-full transition-[filter,transform] duration-150"
+              className="max-h-full max-w-full transition-[filter,transform]"
               style={{ filter: cssPreviewFilter(e), transform }}
               onTimeUpdate={onTime}
               onPlay={() => setPlaying(true)}
@@ -226,7 +226,7 @@ function VideoEditorInner({ id }: { id: number }) {
           <div className="sticky top-0 z-10 -mx-4 mb-3 bg-stage-panel px-4 pt-1 pb-3">
             <div className="grid grid-cols-4 rounded-[9px] bg-white/8 p-[3px]">
               {(['color', 'image', 'speed', 'output'] as Tab[]).map((k) => (
-                <button key={k} onClick={() => setTab(k)} className={clsx('rounded-[7px] py-1 text-[12px] font-medium', tab === k ? 'bg-white/16 text-white' : 'text-white/60 hover:text-white')}>
+                <button key={k} onClick={() => setTab(k)} className={clsx('rounded-[7px] py-1 text-[12px]', tab === k ? 'bg-white/16 text-white' : 'text-white/60 hover:text-white')}>
                   {k === 'color' ? t('Couleur') : k === 'image' ? t('Image') : k === 'speed' ? t('Vitesse') : t('Sortie')}
                 </button>
               ))}
@@ -256,7 +256,7 @@ function VideoEditorInner({ id }: { id: number }) {
                 </Button>
               </div>
               <section>
-                <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-white/45 uppercase">{t('Proportions')}</h3>
+                <h3 className="mb-2 text-[11px] font-bold tracking-wide text-white/45 uppercase">{t('Proportions')}</h3>
                 <div className="grid grid-cols-5 gap-1.5">
                   {CROPS.map((c) => (
                     <button key={c.label} onClick={() => setE((x) => ({ ...x, crop: cropFor(c.ratio) }))} className="rounded-md bg-white/8 py-1.5 text-[11px] text-white/80 hover:bg-white/16">{c.label}</button>
@@ -277,7 +277,7 @@ function VideoEditorInner({ id }: { id: number }) {
           {tab === 'speed' && (
             <div className="space-y-5">
               <section>
-                <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-white/45 uppercase">{t('Vitesse')}</h3>
+                <h3 className="mb-2 text-[11px] font-bold tracking-wide text-white/45 uppercase">{t('Vitesse')}</h3>
                 <div className="grid grid-cols-4 gap-1.5">
                   {[0.25, 0.5, 1, 1.5, 2, 4, 8, 16].map((s) => (
                     <button key={s} onClick={() => setE((x) => ({ ...x, speed: s }))} className={clsx('rounded-md py-1.5 text-[12px]', e.speed === s ? 'bg-accent text-on-accent' : 'bg-white/8 text-white/80 hover:bg-white/16')}>
@@ -287,7 +287,7 @@ function VideoEditorInner({ id }: { id: number }) {
                 </div>
               </section>
               <section className="space-y-2">
-                <h3 className="text-[11px] font-semibold tracking-wide text-white/45 uppercase">{t('Son')}</h3>
+                <h3 className="text-[11px] font-bold tracking-wide text-white/45 uppercase">{t('Son')}</h3>
                 <Button className="w-full bg-white/10 text-white hover:bg-white/16" onClick={() => setE((x) => ({ ...x, audio: { ...x.audio, mute: !x.audio.mute } }))}>
                   {e.audio.mute ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />} {e.audio.mute ? t('Son coupé') : t('Son activé')}
                 </Button>

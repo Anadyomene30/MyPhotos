@@ -56,7 +56,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
         onClick={() => setSection(it.id)}
         className={clsx(
           'no-drag flex h-[30px] w-full items-center gap-2.5 rounded-card px-2.5 text-left text-[13px] transition-colors',
-          active ? 'bg-accent-soft font-medium text-fg' : 'text-fg/85 hover:bg-hover'
+          active ? 'bg-accent-soft font-bold text-fg' : 'text-fg/85 hover:bg-hover'
         )}
       >
         <Icon className={clsx('size-[17px] shrink-0', active ? 'text-accent' : 'text-muted')} strokeWidth={1.8} />
@@ -73,7 +73,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
       onClick={() => openPage(id)}
       className={clsx(
         'no-drag flex h-[30px] w-full items-center gap-2.5 rounded-card px-2.5 text-left text-[13px] transition-colors',
-        page === id ? 'bg-accent-soft font-medium text-fg' : 'text-fg/85 hover:bg-hover'
+        page === id ? 'bg-accent-soft font-bold text-fg' : 'text-fg/85 hover:bg-hover'
       )}
     >
       <Icon className={clsx('size-[17px] shrink-0', page === id ? 'text-accent' : 'text-muted')} strokeWidth={1.8} />
@@ -85,7 +85,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
   return (
     <aside className="drag flex h-full w-[236px] shrink-0 flex-col border-r border-line bg-panel">
       <div className={clsx('flex items-center px-4', mac ? 'h-[52px] justify-end' : 'h-[52px]')}>
-        {!mac && <span className="font-display text-[15px] font-semibold tracking-tight">MyPhotos</span>}
+        {!mac && <span className="font-display text-[15px] font-bold tracking-tight">MyPhotos</span>}
       </div>
       <nav className="scroll-thin flex-1 space-y-5 overflow-y-auto px-2.5 pb-4">
         <Section title={t('Bibliothèque')}>
@@ -102,7 +102,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
                 <button
                   key={c.id}
                   onClick={() => openCategory(c.id)}
-                  className={clsx('no-drag flex h-[28px] w-full items-center gap-2.5 rounded-card px-2.5 text-left text-[12.5px] transition-colors', active ? 'bg-accent-soft font-medium' : 'text-fg/80 hover:bg-hover')}
+                  className={clsx('no-drag flex h-[28px] w-full items-center gap-2.5 rounded-card px-2.5 text-left text-[12.5px] transition-colors', active ? 'bg-accent-soft font-bold' : 'text-fg/80 hover:bg-hover')}
                 >
                   <Tag className={clsx('size-[15px] shrink-0', active ? 'text-accent' : 'text-faint')} strokeWidth={1.8} />
                   <span className="flex-1 truncate">{c.label}</span>
@@ -136,7 +136,7 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="px-2.5 pb-1 text-[11px] font-semibold text-faint">{title}</div>
+      <div className="px-2.5 pb-1 text-[11px] font-bold text-faint">{title}</div>
       <div className="space-y-px">{children}</div>
     </div>
   )

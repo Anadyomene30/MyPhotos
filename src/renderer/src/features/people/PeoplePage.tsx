@@ -121,7 +121,7 @@ export function PeoplePage() {
           <NameEditor person={p} onDone={() => setEditing(null)} />
         ) : (
           <div className="w-full">
-            <div className={clsx('truncate text-[13px] font-medium', !p.name && 'text-muted italic')}>{p.name ?? t('Sans nom')}</div>
+            <div className={clsx('truncate text-[13px]', !p.name && 'text-muted italic')}>{p.name ?? t('Sans nom')}</div>
             <div className="text-[11.5px] text-faint">{plural(p.photos, 'photo', 'photos')}</div>
           </div>
         )}
@@ -161,7 +161,7 @@ export function PeoplePage() {
       {status && !status.enabled && (
         <div className="m-5 rounded-card border border-line bg-surface p-6 text-center">
           <Sparkles className="mx-auto mb-3 size-9 text-accent" strokeWidth={1.5} />
-          <h2 className="font-display text-[17px] font-semibold">{t('La reconnaissance des visages est désactivée')}</h2>
+          <h2 className="font-display text-[17px] font-bold">{t('La reconnaissance des visages est désactivée')}</h2>
           <p className="mx-auto mt-2 max-w-md text-[13px] text-muted">{t('Activez l’intelligence locale dans les réglages. Tout se passe sur cet ordinateur, aucune photo n’est envoyée sur internet.')}</p>
           <Button variant="primary" className="mt-4" onClick={() => useUi.getState().setSettingsOpen(true)}>{t('Ouvrir les réglages')}</Button>
         </div>
@@ -182,13 +182,13 @@ export function PeoplePage() {
         )}
         {unnamed.length > 0 && (
           <section className="mt-4">
-            <h2 className="mb-1 px-3 text-[12px] font-semibold text-faint">{named.length ? t('À nommer') : t('Double-cliquez sur une personne pour la nommer')}</h2>
+            <h2 className="mb-1 px-3 text-[12px] font-bold text-faint">{named.length ? t('À nommer') : t('Double-cliquez sur une personne pour la nommer')}</h2>
             <div className="flex flex-wrap">{unnamed.map((p) => <Card key={p.id} p={p} />)}</div>
           </section>
         )}
         {others.length > 0 && (
           <section className="mt-4">
-            <button onClick={() => setShowOthers((v) => !v)} className="mb-1 flex items-center gap-1.5 px-3 text-[12px] font-semibold text-faint hover:text-fg">
+            <button onClick={() => setShowOthers((v) => !v)} className="mb-1 flex items-center gap-1.5 px-3 text-[12px] font-bold text-faint hover:text-fg">
               <ChevronRight className={clsx('size-3.5 transition-transform', showOthers && 'rotate-90')} /> {t('Autres visages · {n}', { n: others.length })}
             </button>
             {showOthers && <div className="flex flex-wrap">{others.map((p) => <Card key={p.id} p={p} />)}</div>}

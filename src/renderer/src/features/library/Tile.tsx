@@ -52,7 +52,7 @@ export const Tile = memo(function Tile({ tile, index, size, selected, compact, f
           )}
           {tile.live && <LiveIcon className="pointer-events-none absolute left-1.5 top-1.5 size-4 text-white drop-shadow" />}
           {tile.kind === 'video' && (
-            <div className="pointer-events-none absolute bottom-1 right-1.5 flex items-center gap-1 text-[11px] font-semibold text-white drop-shadow">
+            <div className="pointer-events-none absolute bottom-1 right-1.5 flex items-center gap-1 text-[11px] font-bold text-white drop-shadow">
               <Play className="size-3 fill-white" />
               {duration(tile.duration)}
             </div>

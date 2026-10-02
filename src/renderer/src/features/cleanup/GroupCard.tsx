@@ -30,17 +30,17 @@ function ItemCard({ item, keep, suggested, size, onToggle, showPath }: {
       <div className="tile-bg relative" style={{ height: size * 0.75 }}>
         <img src={media.thumb(item.id, item.v)} alt="" draggable={false} className={clsx('h-full w-full object-cover transition', !keep && 'grayscale-[40%]')} />
         {suggested && (
-          <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10.5px] font-semibold text-white shadow">
+          <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10.5px] font-bold text-white shadow">
             <Star className="size-3 fill-white" /> {t('Suggérée')}
           </span>
         )}
         <span className={clsx('absolute top-2 right-2 grid size-6 place-items-center rounded-full shadow', keep ? 'bg-emerald-500 text-white' : 'bg-black/55 text-white')}>
           {keep ? <Check className="size-3.5" strokeWidth={3} /> : <Trash2 className="size-3.5" />}
         </span>
-        {item.kind === 'video' && <span className="absolute right-2 bottom-2 rounded bg-black/55 px-1.5 text-[11px] font-semibold text-white">{duration(item.duration)}</span>}
+        {item.kind === 'video' && <span className="absolute right-2 bottom-2 rounded bg-black/55 px-1.5 text-[11px] font-bold text-white">{duration(item.duration)}</span>}
       </div>
       <div className="space-y-0.5 bg-surface px-2.5 py-2 dark:bg-elevated">
-        <div className="truncate text-[12px] font-medium">{item.name}</div>
+        <div className="truncate text-[12px]">{item.name}</div>
         <div className="truncate text-[11px] text-muted">
           {[item.width && item.height ? `${item.width}×${item.height}` : null, bytes(item.size), item.ext.toUpperCase()].filter(Boolean).join(' · ')}
         </div>
@@ -70,11 +70,11 @@ export const GroupCard = memo(function GroupCard({ group, keepIds, onToggle, onA
     <div className="rounded-card border border-line bg-surface p-4">
       <div className="mb-3 flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold">
+          <div className="text-[13px] font-bold">
             {mode === 'similar' ? t('{n} photos très proches', { n: group.items.length }) : mode === 'visual' ? t('{n} versions de la même image', { n: group.items.length }) : t('{n} copies identiques', { n: group.items.length })}
           </div>
           <div className="truncate text-[12px] text-muted">
-            <span className="font-medium text-emerald-600 dark:text-emerald-400">{group.reasons.join(' · ')}</span>
+            <span className="text-emerald-600 dark:text-emerald-400">{group.reasons.join(' · ')}</span>
           </div>
         </div>
         {onReview && (

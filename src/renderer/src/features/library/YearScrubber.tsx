@@ -20,7 +20,7 @@ export function YearScrubber({ groups, grouping, onJump }: { groups: Group[]; gr
           <button
             key={y.year}
             onClick={() => onJump(y.group)}
-            className="rounded-card px-1.5 py-0.5 text-[11px] font-semibold text-muted tabular-nums hover:bg-hover hover:text-fg"
+            className="rounded-card px-1.5 py-0.5 text-[11px] font-bold text-muted tabular-nums hover:bg-hover hover:text-fg"
           >
             {y.year}
           </button>

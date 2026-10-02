@@ -15,7 +15,7 @@ export function LanguageSettings() {
   }
   return (
     <section className="flex items-center justify-between gap-3">
-      <h3 className="flex items-center gap-2 text-[13px] font-semibold">
+      <h3 className="flex items-center gap-2 text-[13px] font-bold">
         <Languages className="size-4 text-accent" /> {t('Langue')}
       </h3>
       <Segmented<LocalePref>

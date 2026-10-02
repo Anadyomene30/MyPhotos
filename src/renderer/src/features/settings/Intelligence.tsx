@@ -16,7 +16,7 @@ export function IntelligenceSettings() {
   return (
     <section>
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-[13px] font-semibold"><Sparkles className="size-4 text-accent" /> {t('Intelligence locale')}</h3>
+        <h3 className="flex items-center gap-2 text-[13px] font-bold"><Sparkles className="size-4 text-accent" /> {t('Intelligence locale')}</h3>
         <label className="flex items-center gap-2 text-[12.5px]">
           <input type="checkbox" className="accent-[var(--accent)]" checked={s.enabled} onChange={() => void toggle()} />
           {s.enabled ? t('Activée') : t('Désactivée')}

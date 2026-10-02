@@ -49,7 +49,7 @@ function PinGate({ onUnlock }: { onUnlock(): void }) {
       }}
     >
       <Lock className="mx-auto size-10 text-muted" strokeWidth={1.4} />
-      <h1 className="text-[20px] font-semibold">{t('Album protégé')}</h1>
+      <h1 className="text-[20px] font-bold">{t('Album protégé')}</h1>
       <input autoFocus inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} placeholder={t('Code')} className="w-full rounded-card border border-line bg-surface px-4 py-3 text-center text-[18px] tracking-[0.4em] outline-none focus:border-accent" />
       {err && <p className="text-[13px] text-red-500">{err}</p>}
       <button className="w-full rounded-pill bg-accent py-3 font-bold text-on-accent">{t('Ouvrir')}</button>
@@ -105,7 +105,7 @@ export function GuestApp() {
     return (
       <div className="grid min-h-full place-items-center p-8 text-center">
         <div>
-          <h1 className="text-[20px] font-semibold">{t('Lien indisponible')}</h1>
+          <h1 className="text-[20px] font-bold">{t('Lien indisponible')}</h1>
           <p className="mt-2 text-muted">{error}</p>
         </div>
       </div>
@@ -167,7 +167,7 @@ export function GuestApp() {
               <img src={`${base}/thumb/${it.id}?v=${it.v}`} alt="" loading="lazy" className="h-full w-full object-cover" style={{ objectPosition: `${it.fx * 100}% ${it.fy * 100}%` }} />
               {it.kind === 'video' && <Play className="absolute right-1.5 bottom-1.5 size-4 fill-white text-white drop-shadow" />}
               {it.likes.length > 0 && (
-                <span className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded-full bg-black/45 px-1.5 py-0.5 text-[10.5px] font-semibold text-white">
+                <span className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded-full bg-black/45 px-1.5 py-0.5 text-[10.5px] font-bold text-white">
                   <Heart className="size-3 fill-heart text-heart" /> {it.likes.length}
                 </span>
               )}
@@ -196,7 +196,7 @@ export function GuestApp() {
               cb()
             }}
           >
-            <h2 className="text-[17px] font-semibold">{t('Comment vous appelez-vous ?')}</h2>
+            <h2 className="text-[17px] font-bold">{t('Comment vous appelez-vous ?')}</h2>
             <p className="text-[13px] text-muted">{t('Votre prénom accompagne vos photos, commentaires et cœurs.')}</p>
             <input name="n" autoFocus className="w-full rounded-card border border-line bg-surface px-3 py-2.5 outline-none focus:border-accent" placeholder={t('Prénom')} />
             <div className="flex justify-end gap-2">
@@ -286,7 +286,7 @@ function GuestViewer({ items, index, onIndex, onClose, withName, onChanged }: {
       {showComments && (
         <div className="max-h-[40vh] overflow-y-auto border-t border-white/10 bg-stage-panel p-3">
           {comments.map((c) => (
-            <p key={c.id} className="py-1 text-[14px]"><span className="font-semibold">{c.author}</span> <span className="text-white/85">{c.text}</span></p>
+            <p key={c.id} className="py-1 text-[14px]"><span className="font-bold">{c.author}</span> <span className="text-white/85">{c.text}</span></p>
           ))}
           {comments.length === 0 && <p className="py-1 text-[13px] text-white/50">{t('Aucun commentaire pour l’instant.')}</p>}
           <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); send() }}>

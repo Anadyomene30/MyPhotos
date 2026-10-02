@@ -43,7 +43,7 @@ export function ConfirmHost() {
   return (
     <div className="animate-fade-in fixed inset-0 z-[60] grid place-items-center bg-black/35" onMouseDown={() => close(false)}>
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="confirm-title" className="animate-pop-in w-[400px] max-w-[92vw] rounded-sheet border border-line bg-elevated p-5" onMouseDown={(e) => e.stopPropagation()}>
-        <h2 id="confirm-title" className="font-display text-[16px] font-semibold">{req.title}</h2>
+        <h2 id="confirm-title" className="font-display text-[16px] font-bold">{req.title}</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-muted">{req.message}</p>
         <div className="mt-5 flex justify-end gap-2">
           <Button onClick={() => close(false)}>{t('Annuler')}</Button>

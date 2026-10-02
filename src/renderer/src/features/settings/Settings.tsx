@@ -50,7 +50,7 @@ export function Settings() {
     <div className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/30" onMouseDown={() => setOpen(false)}>
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="settings-title" className="animate-pop-in flex max-h-[88vh] w-[560px] max-w-[92vw] flex-col rounded-sheet border border-line bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
-          <h2 id="settings-title" className="font-display text-[16px] font-semibold">{t('Réglages')}</h2>
+          <h2 id="settings-title" className="font-display text-[16px] font-bold">{t('Réglages')}</h2>
           <IconButton label={t('Fermer')} onClick={() => setOpen(false)}>
             <X className="size-4" />
           </IconButton>
@@ -58,7 +58,7 @@ export function Settings() {
         <div className="scroll-thin space-y-6 overflow-y-auto p-5">
           <section>
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-[13px] font-semibold">{t('Dossiers de la photothèque')}</h3>
+              <h3 className="text-[13px] font-bold">{t('Dossiers de la photothèque')}</h3>
               <Button variant="ghost" className="px-2 py-1 text-[12px]" onClick={() => void api('/api/rescan', { method: 'POST' })}>
                 <RefreshCw className="size-3.5" /> {t('Réanalyser')}
               </Button>
@@ -100,7 +100,7 @@ export function Settings() {
           <LanguageSettings />
           <UpdateSettings />
           <section className="flex items-center justify-between">
-            <h3 className="text-[13px] font-semibold">{t('Apparence')}</h3>
+            <h3 className="text-[13px] font-bold">{t('Apparence')}</h3>
             <Segmented<Theme>
               size="sm"
               value={theme}

@@ -73,14 +73,14 @@ export function ShareDialog() {
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="share-title" className="animate-pop-in flex max-h-[92vh] w-[620px] max-w-[95vw] flex-col rounded-sheet border border-line bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
           <Share2 className="size-4 text-accent" />
-          <h2 id="share-title" className="flex-1 font-display text-[16px] font-semibold">{t('Partager avec la famille')}</h2>
+          <h2 id="share-title" className="flex-1 font-display text-[16px] font-bold">{t('Partager avec la famille')}</h2>
           <IconButton label={t('Fermer')} onClick={close}><X className="size-4" /></IconButton>
         </div>
         <div className="scroll-thin space-y-5 overflow-y-auto p-5">
           <section className="flex items-start gap-3 rounded-card bg-hover p-3.5">
             <Wifi className="mt-0.5 size-5 text-accent" />
             <div className="min-w-0 flex-1 text-[12.5px] leading-relaxed">
-              <div className="text-[13px] font-semibold">{lan?.running ? t('Partage sur le réseau local actif') : t('Partage sur le réseau local désactivé')}</div>
+              <div className="text-[13px] font-bold">{lan?.running ? t('Partage sur le réseau local actif') : t('Partage sur le réseau local désactivé')}</div>
               {t('Les personnes connectées au même Wi-Fi ouvrent le lien ou scannent le QR code avec leur téléphone. Rien ne passe par internet. Pour un accès hors de la maison, utilisez Tailscale (voir l’aide).')}
               {lan?.error && <div className="mt-1 text-red-500">{lan.error}</div>}
             </div>
@@ -106,7 +106,7 @@ export function ShareDialog() {
                 <div key={l.id} className="flex gap-4 rounded-card border border-line p-3.5">
                   <img src={`${apiBase}/api/qr?t=${apiToken}&text=${encodeURIComponent(url(l))}`} alt="QR code" className="size-32 shrink-0 rounded-lg bg-white p-1" />
                   <div className="min-w-0 flex-1 space-y-2">
-                    <div className="flex items-center gap-2 text-[13px] font-semibold">
+                    <div className="flex items-center gap-2 text-[13px] font-bold">
                       <Link2 className="size-4 text-accent" /> {l.canAdd ? t('Voir et ajouter des photos') : t('Voir seulement')}{l.hasPin ? ` · ${t('protégé par code')}` : ''}
                     </div>
                     <div className="truncate rounded-card bg-bg px-2.5 py-1.5 font-mono text-[11.5px]" title={url(l)}>{url(l)}</div>
@@ -121,7 +121,7 @@ export function ShareDialog() {
                 </div>
               ))}
               <section className="space-y-2.5 rounded-card border border-dashed border-line p-3.5">
-                <div className="text-[13px] font-semibold">{t('Nouveau lien')}</div>
+                <div className="text-[13px] font-bold">{t('Nouveau lien')}</div>
                 <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" className="accent-[var(--accent)]" checked={canAdd} onChange={(e) => setCanAdd(e.target.checked)} /> {t('Les invités peuvent ajouter leurs photos')}</label>
                 <label className="flex items-center gap-2 text-[13px]">
                   {t('Code d’accès (facultatif)')}

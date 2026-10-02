@@ -30,7 +30,7 @@ export function JobsIndicator({ jobs, scanning }: { jobs: JobGroupState[]; scann
               </span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-line">
-              <div className="h-full rounded-full bg-accent transition-[width] duration-300" style={{ width: `${pct}%` }} />
+              <div className="h-full rounded-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
             </div>
           </div>
         )

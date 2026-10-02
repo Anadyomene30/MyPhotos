@@ -48,7 +48,7 @@ export function UpdateSettings() {
   return (
     <section>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 text-[13px] font-semibold">
+        <h3 className="flex items-center gap-2 text-[13px] font-bold">
           <RefreshCw className="size-4 text-accent" /> {t('Mises à jour')}
         </h3>
         <span className="text-[12px] text-muted">{t('Version {version}', { version: info.version })}</span>
@@ -101,7 +101,7 @@ export function UpdateNotice() {
     <div role="status" className="animate-pop-in fixed right-5 bottom-5 z-40 w-[300px] rounded-sheet border border-line bg-elevated p-4">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-semibold">{t('Nouvelle version de MyPhotos')}</div>
+          <div className="text-[13px] font-bold">{t('Nouvelle version de MyPhotos')}</div>
           <p className="mt-1 text-[12px] leading-relaxed text-muted">
             {s.status === 'ready'
               ? t('La version {version} est prête. Redémarrez pour l’installer, ou elle s’installera à la fermeture.', { version: s.version })

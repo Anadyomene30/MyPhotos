@@ -29,7 +29,7 @@ export function InfoPanel({ detail: d }: { detail: AssetDetail }) {
 
   return (
     <aside className="animate-fade-in scroll-thin w-[320px] shrink-0 overflow-y-auto border-l border-white/10 bg-stage-panel px-5 pt-16 pb-6 text-[13px] select-text">
-      <h3 className="mb-1 truncate text-[15px] font-semibold" title={d.name}>{d.name}</h3>
+      <h3 className="mb-1 truncate text-[15px] font-bold" title={d.name}>{d.name}</h3>
       <div className="divide-y divide-white/8">
         <Row icon={<Calendar className="size-4" />}>
           <div>{when.date}</div>

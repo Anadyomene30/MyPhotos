@@ -41,7 +41,7 @@ export function GroupReview({ group, keepIds, onToggle, onClose, onApply }: {
     <div className="animate-fade-in fixed inset-0 z-50 flex flex-col bg-stage text-white">
       <div className="drag flex h-[52px] shrink-0 items-center gap-3 pr-4 pl-[84px]">
         <div className="min-w-0 flex-1 text-[13px]">
-          <span className="font-semibold">{tn(items.length, '{n} photo', '{n} photos')}</span>
+          <span className="font-bold">{tn(items.length, '{n} photo', '{n} photos')}</span>
           <span className="ml-2 text-emerald-400">{group.reasons.join(' · ')}</span>
         </div>
         <div className="no-drag flex items-center gap-1 [&_button]:text-white/80 [&_button:hover]:bg-white/10">
@@ -62,9 +62,9 @@ export function GroupReview({ group, keepIds, onToggle, onClose, onApply }: {
             <img src={media.preview(it.id, it.v)} alt="" className="absolute inset-0 h-full w-full object-contain" draggable={false} />
             <div className="absolute top-3 left-3 flex gap-2">
               {it.id === group.keepId && (
-                <span className="flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[11.5px] font-semibold shadow"><Star className="size-3 fill-white" /> {t('Suggérée')}</span>
+                <span className="flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[11.5px] font-bold shadow"><Star className="size-3 fill-white" /> {t('Suggérée')}</span>
               )}
-              <span className={clsx('rounded-full px-2.5 py-1 text-[11.5px] font-semibold shadow', keepIds.has(it.id) ? 'bg-white/90 text-black' : 'bg-red-500 text-white')}>
+              <span className={clsx('rounded-full px-2.5 py-1 text-[11.5px] font-bold shadow', keepIds.has(it.id) ? 'bg-white/90 text-black' : 'bg-red-500 text-white')}>
                 {keepIds.has(it.id) ? t('Gardée') : t('Supprimée')}
               </span>
             </div>

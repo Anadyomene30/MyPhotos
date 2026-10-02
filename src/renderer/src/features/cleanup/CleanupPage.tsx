@@ -72,7 +72,7 @@ function SummaryCards({ report, active, onSelect }: { report: CleanupReport; act
           onClick={() => onSelect(c.id)}
           className={clsx('rounded-card border px-4 py-3 text-left transition-colors', active === c.id ? 'border-accent bg-accent-soft' : 'border-line hover:bg-hover')}
         >
-          <div className={clsx('flex items-center gap-2 text-[12.5px] font-medium', active === c.id ? 'text-accent' : 'text-muted')}>
+          <div className={clsx('flex items-center gap-2 text-[12.5px]', active === c.id ? 'text-accent' : 'text-muted')}>
             {c.icon}
             {c.title}
           </div>
@@ -149,7 +149,7 @@ function GroupList({ mode, groups }: { mode: 'exact' | 'visual' | 'similar'; gro
       <div className="grid h-full place-items-center text-center">
         <div className="animate-fade-in">
           <Sparkles className="mx-auto mb-3 size-10 text-emerald-500" strokeWidth={1.4} />
-          <div className="font-display text-[18px] font-semibold">{t('Tout est propre ici')}</div>
+          <div className="font-display text-[18px] font-bold">{t('Tout est propre ici')}</div>
           <p className="mt-1 text-[13px] text-muted">{mode === 'similar' ? t('Aucune rafale à trier.') : t('Aucun doublon détecté.')}</p>
         </div>
       </div>
@@ -218,7 +218,7 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
       <div className="grid h-full place-items-center text-center">
         <div>
           <Sparkles className="mx-auto mb-3 size-10 text-emerald-500" strokeWidth={1.4} />
-          <div className="font-display text-[18px] font-semibold">{t('Rien à trier')}</div>
+          <div className="font-display text-[18px] font-bold">{t('Rien à trier')}</div>
         </div>
       </div>
     )
@@ -230,7 +230,7 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
       <div className="w-60 shrink-0 space-y-1">
         {categories.map((c) => (
           <button key={c.id} onClick={() => setCat(c.id)} className={clsx('w-full rounded-card px-3 py-2 text-left transition-colors', c.id === current.id ? 'bg-accent-soft' : 'hover:bg-hover')}>
-            <div className="text-[13px] font-medium">{c.title}</div>
+            <div className="text-[13px]">{c.title}</div>
             <div className="text-[11.5px] text-muted">{plural(c.items.length, 'élément', 'éléments')} · {bytes(c.bytes)}</div>
           </button>
         ))}
@@ -238,7 +238,7 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
       <div className="flex min-w-0 flex-1 flex-col rounded-card border border-line bg-surface">
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-semibold">{current.title}</div>
+            <div className="text-[13px] font-bold">{current.title}</div>
             <div className="truncate text-[12px] text-muted">{current.description}</div>
           </div>
           <Button variant="ghost" className="px-2 py-1 text-[12px]" onClick={() => setChecked(checked.size === items.length ? new Set() : new Set(items.map((i) => i.id)))}>
@@ -273,7 +273,7 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
               title={`${i.name} · ${bytes(i.size)}`}
             >
               <img src={media.thumb(i.id, i.v)} alt="" className="h-full w-full object-cover" draggable={false} />
-              {i.kind === 'video' && <span className="absolute right-1.5 bottom-1.5 rounded bg-black/55 px-1 text-[10.5px] font-semibold text-white">{bytes(i.size)}</span>}
+              {i.kind === 'video' && <span className="absolute right-1.5 bottom-1.5 rounded bg-black/55 px-1 text-[10.5px] font-bold text-white">{bytes(i.size)}</span>}
               {checked.has(i.id) && (
                 <span className="absolute top-1.5 right-1.5 grid size-5 place-items-center rounded-full bg-accent text-on-accent ring-2 ring-white">
                   <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth={2.4}><path d="M3.5 8.5l3 3 6-7" /></svg>

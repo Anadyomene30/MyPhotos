@@ -183,9 +183,9 @@ function EditorInner({ id }: { id: number }) {
         <Button variant="ghost" className="no-drag text-white/80 hover:bg-white/10 hover:text-white" onClick={() => void cancel()}>
           {t('Annuler')}
         </Button>
-        <div className="flex-1 truncate text-center text-[13px] font-semibold">{detail?.name}</div>
+        <div className="flex-1 truncate text-center text-[13px] font-bold">{detail?.name}</div>
         <button
-          className="no-drag rounded-lg px-3 py-1.5 text-[12.5px] font-medium text-white/80 hover:bg-white/10"
+          className="no-drag rounded-lg px-3 py-1.5 text-[12.5px] text-white/80 hover:bg-white/10"
           onPointerDown={() => setCompare(true)}
           onPointerUp={() => setCompare(false)}
           onPointerLeave={() => setCompare(false)}
@@ -223,7 +223,7 @@ function EditorInner({ id }: { id: number }) {
           <div className="relative" style={{ width: fit.w, height: fit.h, display: source ? 'block' : 'none' }}>
             <canvas ref={display} className="h-full w-full" />
             {cropping && edit && !compare && <CropOverlay edit={edit} onChange={setEdit} imgW={imgSize.w} imgH={imgSize.h} />}
-            {compare && <span className="absolute top-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-[11.5px] font-semibold">{t('Original')}</span>}
+            {compare && <span className="absolute top-3 left-3 rounded-full bg-black/60 px-2.5 py-1 text-[11.5px] font-bold">{t('Original')}</span>}
           </div>
         </div>
 
@@ -231,7 +231,7 @@ function EditorInner({ id }: { id: number }) {
           <div className="sticky top-0 z-10 -mx-4 mb-3 bg-stage-panel px-4 pt-1 pb-3">
             <div className="flex rounded-[9px] bg-white/8 p-[3px]">
               {(['adjust', 'filters', 'crop'] as Tab[]).map((k) => (
-                <button key={k} onClick={() => setTab(k)} className={clsx('flex-1 rounded-[7px] py-1 text-[12.5px] font-medium', tab === k ? 'bg-white/16 text-white' : 'text-white/60 hover:text-white')}>
+                <button key={k} onClick={() => setTab(k)} className={clsx('flex-1 rounded-[7px] py-1 text-[12.5px]', tab === k ? 'bg-white/16 text-white' : 'text-white/60 hover:text-white')}>
                   {k === 'adjust' ? t('Ajuster') : k === 'filters' ? t('Filtres') : t('Recadrer')}
                 </button>
               ))}
@@ -284,7 +284,7 @@ function EditorInner({ id }: { id: number }) {
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="mb-1.5 text-[11px] font-semibold tracking-wide text-white/45 uppercase">{title}</h3>
+      <h3 className="mb-1.5 text-[11px] font-bold tracking-wide text-white/45 uppercase">{title}</h3>
       <div className="space-y-0.5">{children}</div>
     </section>
   )
@@ -374,7 +374,7 @@ function CropPanel({ edit, onChange, srcW, srcH }: { edit: PhotoEdit; onChange(e
       </div>
       <Slider label={t('Redresser')} value={g.straighten} min={-45} max={45} step={0.1} onChange={(v) => setG({ straighten: v })} format={(v) => `${v.toFixed(1)}°`} />
       <section>
-        <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-white/45 uppercase">{t('Proportions')}</h3>
+        <h3 className="mb-2 text-[11px] font-bold tracking-wide text-white/45 uppercase">{t('Proportions')}</h3>
         <div className="grid grid-cols-4 gap-1.5">
           {ASPECTS.map((a) => (
             <button

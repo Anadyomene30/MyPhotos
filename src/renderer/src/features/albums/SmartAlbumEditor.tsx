@@ -161,7 +161,7 @@ export function SmartAlbumEditor() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t('Nom de l’album intelligent')}
-            className="min-w-0 flex-1 bg-transparent font-display text-[16px] font-semibold outline-none focus-visible:outline-none"
+            className="min-w-0 flex-1 bg-transparent font-display text-[16px] font-bold outline-none focus-visible:outline-none"
           />
           <IconButton label={t('Fermer')} onClick={close}>
             <X className="size-4" />

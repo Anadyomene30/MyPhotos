@@ -52,7 +52,7 @@ export function PromptHost() {
           }
         }}
       >
-        <h2 id="prompt-title" className="font-display text-[16px] font-semibold">{req.title}</h2>
+        <h2 id="prompt-title" className="font-display text-[16px] font-bold">{req.title}</h2>
         <input
           ref={input}
           autoFocus

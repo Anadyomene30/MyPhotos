@@ -97,13 +97,13 @@ export function Viewer() {
     <div className="animate-fade-in fixed inset-0 z-40 flex bg-stage text-white">
       <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="drag absolute inset-x-0 top-0 z-10 flex h-[52px] items-center gap-2 bg-gradient-to-b from-black/60 to-transparent pr-4 pl-[84px]">
-          <button onClick={closeViewer} className="no-drag flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-white/85 hover:bg-white/10">
+          <button onClick={closeViewer} className="no-drag flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] text-white/85 hover:bg-white/10">
             <ChevronLeft className="size-4" /> {t('Retour')}
           </button>
           <div className="min-w-0 flex-1 text-center">
             {when && (
               <>
-                <div className="truncate text-[13px] font-semibold">{when.date}</div>
+                <div className="truncate text-[13px] font-bold">{when.date}</div>
                 <div className="text-[11.5px] text-white/60">{when.time}</div>
               </>
             )}
@@ -122,7 +122,7 @@ export function Viewer() {
                     useUi.getState().toast(t('Photo revenue à l’original'), { label: t('Annuler'), run: () => void api(`/api/assets/${detail.id}/edit`, { method: 'PUT', json: { edit: previous } }) })
                   )
                 }}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-white/85 hover:bg-white/10"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] text-white/85 hover:bg-white/10"
                 title={t('Annuler toutes les retouches de cette photo')}
               >
                 <Undo2 className="size-4" /> {t('Revenir à l’original')}
@@ -135,7 +135,7 @@ export function Viewer() {
                   if (tile.kind === 'photo') useUi.getState().setEditorId(target)
                   else useUi.getState().setVideoEditorId(tile.id)
                 }}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-white/85 hover:bg-white/10"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] text-white/85 hover:bg-white/10"
                 title={t('Modifier (E)')}
               >
                 <SlidersHorizontal className="size-4" /> {t('Modifier')}
@@ -185,11 +185,11 @@ export function Viewer() {
           {shownTile && <Stage key={shownTile.id} tile={shownTile} detail={shownDetail?.id === shownTile.id ? shownDetail : undefined} facesOn={facesOn && Boolean(ml?.enabled)} />}
           {detail && detail.versionList.length > 0 && (
             <div className="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-pill bg-stage-panel p-1">
-              <button onClick={() => setVersionId(null)} className={clsx('rounded-lg px-3 py-1.5 text-[12px] font-medium', !version ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
+              <button onClick={() => setVersionId(null)} className={clsx('rounded-lg px-3 py-1.5 text-[12px]', !version ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
                 {detail.edited ? t('Photo (retouchée)') : t('Original')}
               </button>
               {detail.versionList.map((v, k) => (
-                <button key={v.id} onClick={() => setVersionId(v.id)} className={clsx('rounded-lg px-3 py-1.5 text-[12px] font-medium', version?.id === v.id ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
+                <button key={v.id} onClick={() => setVersionId(v.id)} className={clsx('rounded-lg px-3 py-1.5 text-[12px]', version?.id === v.id ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
                   {detail.versionList.length > 1 ? t('Copie modifiée {n}', { n: k + 1 }) : t('Copie modifiée')}
                 </button>
               ))}
@@ -327,7 +327,7 @@ function Stage({ tile, detail, facesOn }: { tile: AssetTile; detail: AssetDetail
       <div
         ref={wrap}
         // definite box (absolute, not a grid track) so the photo is sized to fit it instead of its natural size
-        className="absolute inset-x-4 top-14 bottom-4 flex items-center justify-center transition-transform duration-150 ease-out"
+        className="absolute inset-x-4 top-14 bottom-4 flex items-center justify-center transition-transform"
         style={{ transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)` }}
       >
         {scale === 1 && loaded && <FacesOverlay assetId={tile.id} rect={imgRect} visible={facesOn} />}
@@ -338,7 +338,7 @@ function Stage({ tile, detail, facesOn }: { tile: AssetTile; detail: AssetDetail
           draggable={false}
           onLoad={() => setLoaded(true)}
           style={fitted}
-          className={clsx('max-h-full max-w-full object-contain transition-opacity duration-200', loaded ? 'opacity-100' : 'opacity-0')}
+          className={clsx('max-h-full max-w-full object-contain transition-opacity duration-(--dh-motion-enter)', loaded ? 'opacity-100' : 'opacity-0')}
         />
         {liveOn && detail?.hasLiveVideo && (
           <video src={media.live(tile.id)} autoPlay muted playsInline onEnded={() => setLiveOn(false)} className="absolute max-h-full max-w-full object-contain" style={fitted} />

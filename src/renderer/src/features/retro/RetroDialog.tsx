@@ -93,17 +93,17 @@ export function RetroDialog() {
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="retro-title" className="animate-pop-in flex max-h-[92vh] w-[720px] max-w-[95vw] flex-col rounded-sheet border border-line bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
           <Clapperboard className="size-4 text-accent" />
-          <h2 id="retro-title" className="flex-1 font-display text-[16px] font-semibold">{t('Créer une vidéo souvenir')}</h2>
+          <h2 id="retro-title" className="flex-1 font-display text-[16px] font-bold">{t('Créer une vidéo souvenir')}</h2>
           <IconButton label={t('Fermer')} onClick={close}><X className="size-4" /></IconButton>
         </div>
         <div className="scroll-thin grid grid-cols-[1fr_260px] gap-5 overflow-y-auto p-5">
           <div className="space-y-4">
             <label className="block">
-              <span className="mb-1 block text-[12px] font-medium text-muted">{t('Titre d’ouverture')}</span>
+              <span className="mb-1 block text-[12px] text-muted">{t('Titre d’ouverture')}</span>
               <input value={title} onChange={(e) => setTitle(e.target.value)} className={clsx(sel, 'w-full')} placeholder={t('Nos souvenirs')} />
             </label>
             <label className="block">
-              <span className="mb-1 block text-[12px] font-medium text-muted">{t('Photos')}</span>
+              <span className="mb-1 block text-[12px] text-muted">{t('Photos')}</span>
               <select className={clsx(sel, 'w-full')} value={sourceKey} onChange={(e) => {
                 const v = e.target.value
                 if (v === 'all') setSource({ type: 'all' })
@@ -119,25 +119,25 @@ export function RetroDialog() {
               </select>
             </label>
             <div>
-              <span className="mb-1 block text-[12px] font-medium text-muted">{t('Durée')}</span>
+              <span className="mb-1 block text-[12px] text-muted">{t('Durée')}</span>
               <Segmented size="sm" value={String(seconds)} onChange={(v) => setSeconds(Number(v))} options={DURATIONS.map((d) => ({ value: String(d), label: d < 60 ? t('{n} s', { n: d }) : t('{n} min', { n: d / 60 }) }))} />
             </div>
             <div className="flex flex-wrap gap-5">
               <div>
-                <span className="mb-1 block text-[12px] font-medium text-muted">{t('Rythme')}</span>
+                <span className="mb-1 block text-[12px] text-muted">{t('Rythme')}</span>
                 <Segmented<RetroOptions["pace"]> size="sm" value={pace} onChange={setPace} options={[{ value: 'gentle', label: t('Doux') }, { value: 'fast', label: t('Dynamique') }]} />
               </div>
               <div>
-                <span className="mb-1 block text-[12px] font-medium text-muted">{t('Format')}</span>
+                <span className="mb-1 block text-[12px] text-muted">{t('Format')}</span>
                 <Segmented<RetroOptions["format"]> size="sm" value={format} onChange={setFormat} options={[{ value: '16:9', label: t('Paysage') }, { value: '9:16', label: t('Vertical') }, { value: '1:1', label: t('Carré') }]} />
               </div>
               <div>
-                <span className="mb-1 block text-[12px] font-medium text-muted">{t('Qualité')}</span>
+                <span className="mb-1 block text-[12px] text-muted">{t('Qualité')}</span>
                 <Segmented size="sm" value={String(resolution)} onChange={(v) => setResolution(Number(v) as RetroOptions['resolution'])} options={[{ value: '720', label: '720p' }, { value: '1080', label: '1080p' }, { value: '2160', label: '4K' }]} />
               </div>
             </div>
             <div>
-              <span className="mb-1 block text-[12px] font-medium text-muted">{t('Musique')}</span>
+              <span className="mb-1 block text-[12px] text-muted">{t('Musique')}</span>
               <div className="flex gap-2">
                 <input value={music} onChange={(e) => setMusic(e.target.value)} placeholder={t('Aucune (silence)')} className={clsx(sel, 'min-w-0 flex-1')} />
                 {window.desktop && (

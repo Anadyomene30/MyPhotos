@@ -156,7 +156,7 @@ export function PlacesPage() {
           {places && places.length === 0 && <p className="px-4 py-6 text-center text-[12.5px] text-muted">{t('Aucune photo avec localisation. Les photos d’iPhone et d’appareils avec GPS apparaîtront ici.')}</p>}
           {[...byCountry.entries()].map(([country, list]) => (
             <section key={country} className="mb-2">
-              <h2 className="px-4 pt-2 pb-1 text-[11px] font-semibold text-faint">{country}</h2>
+              <h2 className="px-4 pt-2 pb-1 text-[11px] font-bold text-faint">{country}</h2>
               {list!.map((p) => (
                 <button
                   key={`${p.city}|${p.cc}`}
@@ -166,7 +166,7 @@ export function PlacesPage() {
                 >
                   <div className="tile-bg size-10 shrink-0 overflow-hidden rounded-lg">{p.coverId && <img src={media.thumb(p.coverId, p.coverV)} alt="" className="h-full w-full object-cover" />}</div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13px] font-medium">{p.city}</div>
+                    <div className="truncate text-[13px]">{p.city}</div>
                     <div className="truncate text-[11.5px] text-muted">{p.admin ?? ''}</div>
                   </div>
                   <span className="text-[11.5px] text-faint tabular-nums">{count(p.count)}</span>

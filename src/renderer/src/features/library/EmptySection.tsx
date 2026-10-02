@@ -23,7 +23,7 @@ export function EmptySection() {
     <div className="grid h-full place-items-center pt-12">
       <div className="animate-fade-in flex max-w-sm flex-col items-center text-center">
         <Icon className="mb-4 size-11 text-faint" strokeWidth={1.4} />
-        <h2 className="font-display text-[20px] font-semibold">{title}</h2>
+        <h2 className="font-display text-[20px] font-bold">{title}</h2>
         {c.text && <p className="mt-2 text-[13px] leading-relaxed text-muted">{c.text}</p>}
       </div>
     </div>

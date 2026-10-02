@@ -52,9 +52,9 @@ export function OrganizeSettings() {
 
   return (
     <section>
-      <h3 className="mb-2 flex items-center gap-2 text-[13px] font-semibold"><FolderTree className="size-4 text-accent" /> {t('Ranger les fichiers dans des dossiers')}</h3>
+      <h3 className="mb-2 flex items-center gap-2 text-[13px] font-bold"><FolderTree className="size-4 text-accent" /> {t('Ranger les fichiers dans des dossiers')}</h3>
       <p className="mb-3 text-[12px] leading-relaxed text-muted">
-        {t('MyPhotos peut réorganiser un dossier de la photothèque en')} <span className="font-medium text-fg">{t('Année / Mois Moment')}</span> {t('(par exemple « 2019/2019-08 Séjour à Florence »). Vous voyez d’abord un aperçu ; rien n’est déplacé sans votre confirmation.')}
+        {t('MyPhotos peut réorganiser un dossier de la photothèque en')} <span className="text-fg">{t('Année / Mois Moment')}</span> {t('(par exemple « 2019/2019-08 Séjour à Florence »). Vous voyez d’abord un aperçu ; rien n’est déplacé sans votre confirmation.')}
       </p>
       <div className="flex flex-wrap gap-2">
         {sources.map((s) => (
@@ -66,7 +66,7 @@ export function OrganizeSettings() {
       {plan && (
         <div className="mt-3 rounded-card border border-line p-3.5 text-[12.5px]">
           <div>
-            <span className="font-semibold">{tn(plan.count, '{n} fichier à déplacer', '{n} fichiers à déplacer')}</span> · {tn(plan.alreadyTidy, '{n} déjà bien rangé', '{n} déjà bien rangés')} · {tn(plan.skipped, '{n} sans date fiable (laissé en place)', '{n} sans date fiable (laissés en place)')}
+            <span className="font-bold">{tn(plan.count, '{n} fichier à déplacer', '{n} fichiers à déplacer')}</span> · {tn(plan.alreadyTidy, '{n} déjà bien rangé', '{n} déjà bien rangés')} · {tn(plan.skipped, '{n} sans date fiable (laissé en place)', '{n} sans date fiable (laissés en place)')}
           </div>
           {plan.sample.length > 0 && (
             <ul className="mt-2 max-h-40 space-y-0.5 overflow-y-auto font-mono text-[11px] text-muted">

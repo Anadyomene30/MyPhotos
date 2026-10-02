@@ -21,7 +21,7 @@ export function CloudSettings() {
   }
   return (
     <section>
-      <h3 className="mb-2 flex items-center gap-2 text-[13px] font-semibold"><Cloud className="size-4 text-accent" /> {t('Claude (option)')}</h3>
+      <h3 className="mb-2 flex items-center gap-2 text-[13px] font-bold"><Cloud className="size-4 text-accent" /> {t('Claude (option)')}</h3>
       <p className="mb-3 text-[12px] leading-relaxed text-muted">
         {t('Avec une clé API Claude, MyPhotos peut proposer des titres et légendes plus évocateurs pour vos souvenirs. Seules quelques vignettes réduites sont envoyées, jamais vos originaux, et uniquement quand vous cliquez sur la baguette magique d’un souvenir.')}
       </p>

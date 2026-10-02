@@ -39,7 +39,7 @@ export function SidebarAlbums() {
   return (
     <div>
       <div className="group/h flex items-center justify-between pr-1 pl-2.5 pb-1">
-        <span className="text-[11px] font-semibold text-faint">{t('Albums')}</span>
+        <span className="text-[11px] font-bold text-faint">{t('Albums')}</span>
         <button
           ref={plus}
           onClick={() => setMenu((m) => !m)}
@@ -87,7 +87,7 @@ export function SidebarAlbums() {
               }}
               className={clsx(
                 'no-drag flex h-[30px] w-full items-center gap-2.5 rounded-card px-2 text-left text-[13px] transition-colors',
-                active ? 'bg-accent-soft font-medium' : 'text-fg/85 hover:bg-hover',
+                active ? 'bg-accent-soft font-bold' : 'text-fg/85 hover:bg-hover',
                 dropTarget === a.id && 'bg-accent text-on-accent ring-2 ring-accent'
               )}
             >

@@ -45,7 +45,7 @@ export const GroupHeader = memo(function GroupHeader({ group, grouping }: { grou
   if (group.key === 'search') {
     return (
       <div className="flex h-full items-end justify-between pb-2" style={{ paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}>
-        <h2 className="font-display text-[19px] leading-none font-semibold tracking-tight">{t('Résultats les plus pertinents')}</h2>
+        <h2 className="font-display text-[19px] leading-none font-bold tracking-tight">{t('Résultats les plus pertinents')}</h2>
         <span className="text-[12px] text-faint">{n}</span>
       </div>
     )
@@ -54,7 +54,7 @@ export const GroupHeader = memo(function GroupHeader({ group, grouping }: { grou
   return (
     <div className="flex h-full items-end justify-between pb-2" style={{ paddingLeft: SIDE_PADDING, paddingRight: SIDE_PADDING }}>
       <div className="flex items-baseline gap-2.5">
-        <h2 className="font-display text-[19px] leading-none font-semibold tracking-tight">{d.title}</h2>
+        <h2 className="font-display text-[19px] leading-none font-bold tracking-tight">{d.title}</h2>
         <span className="text-[13px] text-muted">{d.sub}</span>
       </div>
       <span className="text-[12px] text-faint">{n}</span>

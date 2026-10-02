@@ -52,7 +52,7 @@ function Page({ page, tiles, m, onOpen, printMode }: { page: MemoryPage; tiles: 
     case 'title':
       return (
         <div className="flex h-full w-full flex-col items-center justify-center px-[12%] text-center" style={{ background: m.theme.accent, color: light ? '#fff' : '#111' }}>
-          <p className="text-[clamp(11px,1.2vw,14px)] font-semibold tracking-[0.3em] uppercase opacity-70">{t('Souvenir')}</p>
+          <p className="text-[clamp(11px,1.2vw,14px)] font-bold tracking-[0.3em] uppercase opacity-70">{t('Souvenir')}</p>
           <h2 className="mt-4 font-display text-[clamp(24px,3.6vw,46px)] leading-tight font-bold">{page.text}</h2>
           {page.sub && <p className="mt-3 text-[clamp(13px,1.5vw,18px)] opacity-80">{page.sub}</p>}
         </div>
@@ -83,7 +83,7 @@ function Page({ page, tiles, m, onOpen, printMode }: { page: MemoryPage; tiles: 
           <div className="flex gap-[2%] px-[15%]">
             {page.ids.map((id) => <div key={id} className="aspect-square w-[22%] overflow-hidden rounded-full shadow-lg">{img(id, '', 1, true)}</div>)}
           </div>
-          <p className="font-display text-[clamp(16px,2vw,26px)] font-semibold">{plural(m.count, 'photo', 'photos')} · MyPhotos</p>
+          <p className="font-display text-[clamp(16px,2vw,26px)] font-bold">{plural(m.count, 'photo', 'photos')} · MyPhotos</p>
         </div>
       )
   }
@@ -172,8 +172,8 @@ export function MemoryBook({ id, printMode = false }: { id: number; printMode?: 
   return (
     <div className="animate-fade-in fixed inset-0 z-[55] flex flex-col text-white" style={{ background: m.theme.bg }}>
       <div className="drag flex h-[52px] shrink-0 items-center gap-2 bg-black/30 pr-4 pl-[84px]">
-        <button onClick={close} className="no-drag flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-white/85 hover:bg-white/10"><X className="size-4" /> {t('Fermer')}</button>
-        <div className="min-w-0 flex-1 truncate text-center text-[13px] font-semibold">{m.title}</div>
+        <button onClick={close} className="no-drag flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] text-white/85 hover:bg-white/10"><X className="size-4" /> {t('Fermer')}</button>
+        <div className="min-w-0 flex-1 truncate text-center text-[13px] font-bold">{m.title}</div>
         <div className="no-drag flex items-center gap-1 [&_button]:text-white/80 [&_button:hover]:bg-white/10 [&_button:hover]:text-white">
           <IconButton label={t('Renommer')} onClick={() => void promptText({ title: t('Titre du souvenir'), initial: m.title, confirmLabel: t('Renommer') }).then((title) => { if (title) void run('rename', () => memoriesApi.update(m.id, { title })) })}>
             <Pencil className="size-[18px]" />

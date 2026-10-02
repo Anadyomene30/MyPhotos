@@ -98,7 +98,7 @@ export function Toolbar() {
             <button onClick={clearSelection} className="grid size-6 place-items-center rounded-full bg-hover text-muted hover:text-fg" aria-label={t('Désélectionner')}>
               <X className="size-3.5" />
             </button>
-            <span className="truncate text-[14px] font-semibold whitespace-nowrap">{tn(n, '{n} sélectionné', '{n} sélectionnés')}</span>
+            <span className="truncate text-[14px] font-bold whitespace-nowrap">{tn(n, '{n} sélectionné', '{n} sélectionnés')}</span>
           </div>
         ) : (
           <div className="flex items-baseline gap-2.5 truncate">

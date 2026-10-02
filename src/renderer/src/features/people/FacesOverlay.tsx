@@ -53,7 +53,7 @@ export function FacesOverlay({ assetId, rect, visible }: { assetId: number; rect
             title={f.personName ?? t('Nommer cette personne')}
           >
             {(visible || f.personName) && (
-              <span className={clsx('absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap', f.personName ? 'bg-white text-black' : 'bg-black/60 text-white/90')}>
+              <span className={clsx('absolute top-full left-1/2 mt-1 -translate-x-1/2 rounded-full px-2 py-0.5 text-[11px] whitespace-nowrap', f.personName ? 'bg-white text-black' : 'bg-black/60 text-white/90')}>
                 {f.personName ?? (f.suggestions[0]?.name ? t('{name} ?', { name: f.suggestions[0].name }) : t('Nommer'))}
               </span>
             )}
@@ -63,7 +63,7 @@ export function FacesOverlay({ assetId, rect, visible }: { assetId: number; rect
       <Popover anchor={anchor.current} open={Boolean(open)} onClose={() => setOpen(null)} align="start" width={240}>
         {open && (
           <>
-            {open.personName && <div className="px-2.5 pt-1.5 pb-1 text-[12px] font-semibold">{open.personName}</div>}
+            {open.personName && <div className="px-2.5 pt-1.5 pb-1 text-[12px] font-bold">{open.personName}</div>}
             {open.suggestions.filter((s) => s.name).map((s) => (
               <MenuItem
                 key={s.personId}
