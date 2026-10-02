@@ -2,6 +2,7 @@ import { Download, Loader2, RefreshCw, RotateCw, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui'
 import { t } from '@/i18n'
+import { updateErrorText } from '@shared/updateError'
 
 type UpdateState = Awaited<ReturnType<NonNullable<NonNullable<Window['desktop']>['update']>['check']>>
 
@@ -35,7 +36,7 @@ function statusText(s: UpdateState): string {
     case 'available':
       return t('La version {version} est disponible.', { version: s.version })
     case 'error':
-      return t('Impossible de vérifier les mises à jour : {message}', { message: s.message })
+      return updateErrorText(s.message)
     default:
       return t('MyPhotos recherche les nouvelles versions automatiquement.')
   }
