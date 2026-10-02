@@ -43,7 +43,7 @@ export function SidebarAlbums() {
         <button
           ref={plus}
           onClick={() => setMenu((m) => !m)}
-          className="no-drag grid size-5 place-items-center rounded-md text-faint opacity-0 transition-opacity group-hover/h:opacity-100 hover:bg-hover hover:text-fg"
+          className="no-drag grid size-5 place-items-center rounded-card text-faint opacity-0 transition-opacity group-hover/h:opacity-100 hover:bg-hover hover:text-fg"
           aria-label={t('Nouvel album')}
           title={t('Nouvel album')}
         >
@@ -86,7 +86,7 @@ export function SidebarAlbums() {
                 if (ids?.length) void addToAlbumWithToast(a.id, a.name, ids)
               }}
               className={clsx(
-                'no-drag flex h-[30px] w-full items-center gap-2.5 rounded-[7px] px-2 text-left text-[13px] transition-colors',
+                'no-drag flex h-[30px] w-full items-center gap-2.5 rounded-card px-2 text-left text-[13px] transition-colors',
                 active ? 'bg-accent-soft font-medium' : 'text-fg/85 hover:bg-hover',
                 dropTarget === a.id && 'bg-accent text-on-accent ring-2 ring-accent'
               )}
@@ -107,7 +107,7 @@ export function SidebarAlbums() {
           )
         })}
         {albums && albums.length === 0 && (
-          <button onClick={() => void newAlbum()} className="no-drag flex h-[30px] w-full items-center gap-2.5 rounded-[7px] px-2.5 text-left text-[12.5px] text-faint hover:bg-hover hover:text-fg">
+          <button onClick={() => void newAlbum()} className="no-drag flex h-[30px] w-full items-center gap-2.5 rounded-card px-2.5 text-left text-[12.5px] text-faint hover:bg-hover hover:text-fg">
             <Plus className="size-[15px]" /> {t('Créer un album')}
           </button>
         )}

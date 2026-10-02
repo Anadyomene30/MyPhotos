@@ -69,7 +69,7 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
             const busy = pending.has(g.key)
             return (
               <div key={g.key} ref={v.measureElement} data-index={it.index} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${it.start}px)` }}>
-                <div className="rounded-2xl border border-line bg-surface p-4">
+                <div className="rounded-card border border-line bg-surface p-4">
                   <div className="mb-3 flex items-center gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-semibold">{g.reasons[0]}</div>

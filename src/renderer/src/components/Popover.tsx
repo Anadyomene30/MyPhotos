@@ -44,7 +44,7 @@ export function Popover({ anchor, open, onClose, children, align = 'end', width 
   return createPortal(
     <div
       ref={ref}
-      className="animate-pop-in fixed z-50 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-2xl dark:bg-elevated"
+      className="animate-pop-in fixed z-50 overflow-hidden rounded-card border border-line bg-elevated p-1"
       style={{ top: pos.top, left: pos.left, width }}
     >
       {children}
@@ -57,7 +57,7 @@ export function MenuItem({ children, onClick, danger, icon }: { children: ReactN
   return (
     <button
       onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[13px] hover:bg-hover ${danger ? 'text-red-500' : ''}`}
+      className={`flex w-full items-center gap-2.5 rounded-card px-2.5 py-1.5 text-left text-[13px] hover:bg-hover ${danger ? 'text-red-500' : ''}`}
     >
       {icon && <span className="text-muted">{icon}</span>}
       <span className="min-w-0 flex-1 truncate">{children}</span>

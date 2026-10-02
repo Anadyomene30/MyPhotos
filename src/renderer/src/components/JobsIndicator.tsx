@@ -7,7 +7,7 @@ import type { JobGroupState } from '@shared/types'
 export function JobsIndicator({ jobs, scanning }: { jobs: JobGroupState[]; scanning: boolean }) {
   if (!scanning && jobs.length === 0) return null
   return (
-    <div className="space-y-2 rounded-lg bg-hover px-2.5 py-2">
+    <div className="space-y-2 rounded-card bg-hover px-2.5 py-2">
       {scanning && (
         <div className="flex items-center gap-2 text-[12px] text-muted">
           <Loader2 className="size-3.5 animate-spin" />

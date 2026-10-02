@@ -184,7 +184,7 @@ export function Viewer() {
         <div className="relative flex-1 overflow-hidden">
           {shownTile && <Stage key={shownTile.id} tile={shownTile} detail={shownDetail?.id === shownTile.id ? shownDetail : undefined} facesOn={facesOn && Boolean(ml?.enabled)} />}
           {detail && detail.versionList.length > 0 && (
-            <div className="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-black/55 p-1 backdrop-blur-xl">
+            <div className="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-pill bg-stage-panel p-1">
               <button onClick={() => setVersionId(null)} className={clsx('rounded-lg px-3 py-1.5 text-[12px] font-medium', !version ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white')}>
                 {detail.edited ? t('Photo (retouchée)') : t('Original')}
               </button>
@@ -237,7 +237,7 @@ function NavButton({ side, onClick }: { side: 'left' | 'right'; onClick(): void 
         side === 'left' ? 'left-0' : 'right-0'
       )}
     >
-      <span className="grid size-10 place-items-center rounded-full bg-black/40 backdrop-blur-md">
+      <span className="grid size-10 place-items-center rounded-full bg-stage-panel">
         <Icon className="size-5" />
       </span>
     </button>
@@ -349,7 +349,7 @@ function Stage({ tile, detail, facesOn }: { tile: AssetTile; detail: AssetDetail
           onMouseEnter={() => setLiveOn(true)}
           onMouseLeave={() => setLiveOn(false)}
           onClick={() => setLiveOn(true)}
-          className="absolute top-16 left-4 rounded-md bg-black/45 px-2 py-1 text-[11px] font-bold tracking-wider text-white backdrop-blur-md"
+          className="absolute top-16 left-4 rounded-card bg-stage-panel px-2 py-1 text-[11px] font-bold tracking-wider text-white"
         >
           LIVE
         </button>

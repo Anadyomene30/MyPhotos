@@ -39,8 +39,8 @@ function NameEditor({ person, onDone }: { person: PersonSummary; onDone(): void 
       onClick={(e) => e.stopPropagation()}
       className="flex items-center gap-1"
     >
-      <input ref={ref} value={v} onChange={(e) => setV(e.target.value)} placeholder={t('Nom')} className="w-full min-w-0 rounded-md border border-accent bg-bg px-2 py-0.5 text-center text-[12.5px] outline-none" onKeyDown={(e) => e.key === 'Escape' && onDone()} />
-      <button type="submit" className="grid size-6 shrink-0 place-items-center rounded-md bg-accent text-on-accent"><Check className="size-3.5" /></button>
+      <input ref={ref} value={v} onChange={(e) => setV(e.target.value)} placeholder={t('Nom')} className="w-full min-w-0 rounded-card border border-accent bg-bg px-2 py-0.5 text-center text-[12.5px] outline-none" onKeyDown={(e) => e.key === 'Escape' && onDone()} />
+      <button type="submit" className="grid size-6 shrink-0 place-items-center rounded-card bg-accent text-on-accent"><Check className="size-3.5" /></button>
     </form>
   )
 }
@@ -92,10 +92,10 @@ export function PeoplePage() {
         tabIndex={0}
         onClick={(e) => (e.metaKey || e.ctrlKey || selected.size ? toggle(p.id, true) : openPerson(p.id))}
         onDoubleClick={() => setEditing(p.id)}
-        className={clsx('group flex w-[132px] cursor-pointer flex-col items-center gap-2 rounded-2xl p-3 text-center transition-colors hover:bg-hover', sel && 'bg-accent-soft ring-2 ring-accent', p.hidden && 'opacity-50')}
+        className={clsx('group flex w-[132px] cursor-pointer flex-col items-center gap-2 rounded-card p-3 text-center transition-colors hover:bg-hover', sel && 'bg-accent-soft ring-2 ring-accent', p.hidden && 'opacity-50')}
       >
         <div className="relative">
-          <PersonAvatar person={p} size={96} className="shadow-md ring-2 ring-surface" />
+          <PersonAvatar person={p} size={96} className="ring-2 ring-surface" />
           <button
             className={clsx('absolute -top-1 -left-1 grid size-6 place-items-center rounded-full border-2 border-surface transition-opacity', sel ? 'bg-accent text-on-accent opacity-100' : 'bg-surface/90 text-faint opacity-0 group-hover:opacity-100')}
             onClick={(e) => {
@@ -107,7 +107,7 @@ export function PeoplePage() {
             <Check className="size-3.5" strokeWidth={3} />
           </button>
           <button
-            className="absolute -right-1 -bottom-1 grid size-7 place-items-center rounded-full border-2 border-surface bg-surface text-muted opacity-0 shadow transition-opacity group-hover:opacity-100 hover:text-fg"
+            className="absolute -right-1 -bottom-1 grid size-7 place-items-center rounded-full border-2 border-surface bg-surface text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-fg"
             onClick={(e) => {
               e.stopPropagation()
               setEditing(p.id)
@@ -160,7 +160,7 @@ export function PeoplePage() {
       </header>
 
       {status && !status.enabled && (
-        <div className="m-5 rounded-2xl border border-line bg-surface p-6 text-center">
+        <div className="m-5 rounded-card border border-line bg-surface p-6 text-center">
           <Sparkles className="mx-auto mb-3 size-9 text-accent" strokeWidth={1.5} />
           <h2 className="font-display text-[17px] font-semibold">{t('La reconnaissance des visages est désactivée')}</h2>
           <p className="mx-auto mt-2 max-w-md text-[13px] text-muted">{t('Activez l’intelligence locale dans les réglages. Tout se passe sur cet ordinateur, aucune photo n’est envoyée sur internet.')}</p>
@@ -168,7 +168,7 @@ export function PeoplePage() {
         </div>
       )}
       {status?.enabled && status.pending > 0 && (
-        <div className="mx-5 mt-4 flex items-center gap-2 rounded-xl bg-hover px-4 py-2.5 text-[12.5px] text-muted">
+        <div className="mx-5 mt-4 flex items-center gap-2 rounded-card bg-hover px-4 py-2.5 text-[12.5px] text-muted">
           <Loader2 className="size-4 animate-spin" /> {tn(status.pending, 'Analyse en cours : {n} élément restant. Les personnes apparaissent au fur et à mesure.', 'Analyse en cours : {n} éléments restants. Les personnes apparaissent au fur et à mesure.')}
         </div>
       )}

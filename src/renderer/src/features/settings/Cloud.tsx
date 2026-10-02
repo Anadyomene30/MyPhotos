@@ -26,7 +26,7 @@ export function CloudSettings() {
         {t('Avec une clé API Claude, MyPhotos peut proposer des titres et légendes plus évocateurs pour vos souvenirs. Seules quelques vignettes réduites sont envoyées, jamais vos originaux, et uniquement quand vous cliquez sur la baguette magique d’un souvenir.')}
       </p>
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (value.trim()) void save(value.trim()) }}>
-        <input type="password" value={value} onChange={(e) => setValue(e.target.value)} placeholder={hasKey ? t('Clé enregistrée · saisir pour remplacer') : 'sk-ant-…'} className="min-w-0 flex-1 rounded-lg border border-line bg-bg px-3 py-1.5 text-[13px] outline-none focus:border-accent" autoComplete="off" />
+        <input type="password" value={value} onChange={(e) => setValue(e.target.value)} placeholder={hasKey ? t('Clé enregistrée · saisir pour remplacer') : 'sk-ant-…'} className="min-w-0 flex-1 rounded-card border border-line bg-bg px-3 py-1.5 text-[13px] outline-none focus:border-accent" autoComplete="off" />
         <Button type="submit" variant="primary" disabled={!value.trim()}>{saved ? t('Enregistrée') : t('Enregistrer')}</Button>
         {hasKey && <Button onClick={() => void save(null)}>{t('Retirer')}</Button>}
       </form>

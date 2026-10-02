@@ -171,7 +171,7 @@ export function MemoryBook({ id, printMode = false }: { id: number; printMode?: 
 
   return (
     <div className="animate-fade-in fixed inset-0 z-[55] flex flex-col text-white" style={{ background: m.theme.bg }}>
-      <div className="drag flex h-[52px] shrink-0 items-center gap-2 bg-black/30 pr-4 pl-[84px] backdrop-blur-xl">
+      <div className="drag flex h-[52px] shrink-0 items-center gap-2 bg-black/30 pr-4 pl-[84px]">
         <button onClick={close} className="no-drag flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-white/85 hover:bg-white/10"><X className="size-4" /> {t('Fermer')}</button>
         <div className="min-w-0 flex-1 truncate text-center text-[13px] font-semibold">{m.title}</div>
         <div className="no-drag flex items-center gap-1 [&_button]:text-white/80 [&_button:hover]:bg-white/10 [&_button:hover]:text-white">

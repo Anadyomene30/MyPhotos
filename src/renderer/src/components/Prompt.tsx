@@ -36,10 +36,10 @@ export function PromptHost() {
     set(null)
   }
   return (
-    <div className="animate-fade-in fixed inset-0 z-[60] grid place-items-center bg-black/35 backdrop-blur-[2px]" onMouseDown={() => close(null)}>
+    <div className="animate-fade-in fixed inset-0 z-[60] grid place-items-center bg-black/35" onMouseDown={() => close(null)}>
       <form
         ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="prompt-title"
-        className="animate-pop-in w-[380px] max-w-[92vw] rounded-2xl border border-line bg-surface p-5 shadow-2xl dark:bg-elevated"
+        className="animate-pop-in w-[380px] max-w-[92vw] rounded-sheet border border-line bg-elevated p-5"
         onMouseDown={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault()
@@ -59,7 +59,7 @@ export function PromptHost() {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder={req.placeholder}
-          className="mt-3 w-full rounded-lg border border-line bg-bg px-3 py-2 text-[13px] outline-none focus:border-accent"
+          className="mt-3 w-full rounded-card border border-line bg-bg px-3 py-2 text-[13px] outline-none focus:border-accent"
         />
         <div className="mt-4 flex justify-end gap-2">
           <Button onClick={() => close(null)}>{t('Annuler')}</Button>

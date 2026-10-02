@@ -88,7 +88,7 @@ export function Toolbar() {
       className={clsx(
         'drag absolute inset-x-0 top-0 z-20 flex h-[52px] items-center',
         compact ? 'gap-2' : 'gap-3',
-        'border-b border-line bg-bg/80 pl-5 backdrop-blur-2xl backdrop-saturate-150',
+        'brume border-b border-line pl-5',
         win ? 'pr-[150px]' : 'pr-4'
       )}
     >

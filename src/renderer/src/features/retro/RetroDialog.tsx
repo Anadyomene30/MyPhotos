@@ -86,11 +86,11 @@ export function RetroDialog() {
       setBusy(false)
     }
   }
-  const sel = 'rounded-lg border border-line bg-bg px-2.5 py-1.5 text-[13px] outline-none focus:border-accent'
+  const sel = 'rounded-card border border-line bg-bg px-2.5 py-1.5 text-[13px] outline-none focus:border-accent'
   const sourceKey = source.type === 'year' ? `year:${source.value}` : source.type
   return (
-    <div className="animate-fade-in fixed inset-0 z-[58] grid place-items-center bg-black/35 backdrop-blur-[2px]" onMouseDown={close}>
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="retro-title" className="animate-pop-in flex max-h-[92vh] w-[720px] max-w-[95vw] flex-col rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="animate-fade-in fixed inset-0 z-[58] grid place-items-center bg-black/35" onMouseDown={close}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="retro-title" className="animate-pop-in flex max-h-[92vh] w-[720px] max-w-[95vw] flex-col rounded-sheet border border-line bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
           <Clapperboard className="size-4 text-accent" />
           <h2 id="retro-title" className="flex-1 font-display text-[16px] font-semibold">{t('Créer une vidéo souvenir')}</h2>

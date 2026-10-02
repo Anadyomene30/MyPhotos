@@ -26,7 +26,7 @@ export function IntelligenceSettings() {
         {t('Reconnaît les personnes, comprend le contenu des photos (recherche « chien sur la plage », catégories automatiques) et retrouve les photos semblables.')}{' '}
         {t('Tout tourne sur cet ordinateur : rien n’est envoyé sur internet, sauf le téléchargement initial des modèles.')}
       </p>
-      <div className="overflow-hidden rounded-xl border border-line">
+      <div className="overflow-hidden rounded-card border border-line">
         {s.packs.map((p) => {
           const installed = s.installed[p.id]
           const dl = s.download?.pack === p.id ? s.download : null

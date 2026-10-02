@@ -301,14 +301,14 @@ function VideoEditorInner({ id }: { id: number }) {
             <div className="space-y-4 text-[12.5px]">
               <label className="block">
                 <span className="mb-1 block text-white/55">{t('Format')}</span>
-                <select className="w-full rounded-lg border border-white/10 bg-white/6 px-2.5 py-1.5" value={e.output.format} onChange={(ev) => setE((x) => ({ ...x, output: { ...x.output, format: ev.target.value as VideoEdit['output']['format'] } }))}>
+                <select className="w-full rounded-card border border-white/10 bg-white/6 px-2.5 py-1.5" value={e.output.format} onChange={(ev) => setE((x) => ({ ...x, output: { ...x.output, format: ev.target.value as VideoEdit['output']['format'] } }))}>
                   <option value="mp4-h264">{t('MP4 · H.264 (compatible partout)')}</option>
                   <option value="mp4-hevc">{t('MP4 · HEVC (plus léger)')}</option>
                 </select>
               </label>
               <label className="block">
                 <span className="mb-1 block text-white/55">{t('Résolution')}</span>
-                <select className="w-full rounded-lg border border-white/10 bg-white/6 px-2.5 py-1.5" value={e.output.maxHeight ?? 0} onChange={(ev) => setE((x) => ({ ...x, output: { ...x.output, maxHeight: Number(ev.target.value) || null } }))}>
+                <select className="w-full rounded-card border border-white/10 bg-white/6 px-2.5 py-1.5" value={e.output.maxHeight ?? 0} onChange={(ev) => setE((x) => ({ ...x, output: { ...x.output, maxHeight: Number(ev.target.value) || null } }))}>
                   <option value={0}>{t('Originale')}</option>
                   <option value={2160}>4K</option>
                   <option value={1080}>1080p</option>
@@ -317,7 +317,7 @@ function VideoEditorInner({ id }: { id: number }) {
               </label>
               <label className="block">
                 <span className="mb-1 block text-white/55">{t('Qualité')}</span>
-                <select className="w-full rounded-lg border border-white/10 bg-white/6 px-2.5 py-1.5" value={e.output.quality} onChange={(ev) => setE((x) => ({ ...x, output: { ...x.output, quality: ev.target.value as VideoEdit['output']['quality'] } }))}>
+                <select className="w-full rounded-card border border-white/10 bg-white/6 px-2.5 py-1.5" value={e.output.quality} onChange={(ev) => setE((x) => ({ ...x, output: { ...x.output, quality: ev.target.value as VideoEdit['output']['quality'] } }))}>
                   <option value="high">{t('Haute')}</option>
                   <option value="medium">{t('Équilibrée')}</option>
                   <option value="small">{t('Légère')}</option>

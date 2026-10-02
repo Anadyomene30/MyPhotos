@@ -46,7 +46,7 @@ export function SamePersonPrompt() {
   }
 
   return (
-    <section className="mt-4 flex flex-wrap items-center gap-6 rounded-2xl border border-line bg-surface p-4 shadow-sm dark:bg-elevated">
+    <section className="mt-4 flex flex-wrap items-center gap-6 rounded-card border border-line bg-surface p-4">
       <div className="flex items-center gap-4">
         <Side p={pair.a} faces={pair.aFaces} />
         <HelpCircle className="size-6 shrink-0 text-faint" />

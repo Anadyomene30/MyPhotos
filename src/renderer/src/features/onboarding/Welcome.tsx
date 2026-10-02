@@ -65,7 +65,7 @@ export function Welcome() {
               value={path}
               onChange={(e) => setPath(e.target.value)}
               placeholder={t('/Users/vous/Pictures')}
-              className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-[13px] outline-none focus:border-accent"
+              className="min-w-0 flex-1 rounded-card border border-line bg-surface px-3 py-2 text-[13px] outline-none focus:border-accent"
             />
             <Button variant="primary" type="submit" disabled={busy || !path.trim()}>
               {t('Ajouter')}

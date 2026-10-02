@@ -44,7 +44,7 @@ function defaultRule(field: Field): SmartRule {
   }
 }
 
-const select = 'rounded-lg border border-line bg-bg px-2 py-1.5 text-[13px] outline-none focus:border-accent'
+const select = 'rounded-card border border-line bg-bg px-2 py-1.5 text-[13px] outline-none focus:border-accent'
 const input = `${select} min-w-0 flex-1`
 
 function RuleEditor({ rule, onChange }: { rule: SmartRule; onChange(r: SmartRule): void }) {
@@ -152,8 +152,8 @@ export function SmartAlbumEditor() {
   }
 
   return (
-    <div className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/35 backdrop-blur-[2px]" onMouseDown={close}>
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={t('Album intelligent')} className="animate-pop-in w-[620px] max-w-[94vw] rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/35" onMouseDown={close}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label={t('Album intelligent')} className="animate-pop-in w-[620px] max-w-[94vw] rounded-sheet border border-line bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 border-b border-line px-5 py-3.5">
           <Sparkles className="size-4 text-accent" />
           <input

@@ -71,7 +71,7 @@ function SummaryCards({ report, active, onSelect }: { report: CleanupReport; act
         <button
           key={c.id}
           onClick={() => onSelect(c.id)}
-          className={clsx('rounded-2xl border px-4 py-3 text-left transition-colors', active === c.id ? 'border-accent bg-accent-soft' : 'border-line hover:bg-hover')}
+          className={clsx('rounded-card border px-4 py-3 text-left transition-colors', active === c.id ? 'border-accent bg-accent-soft' : 'border-line hover:bg-hover')}
         >
           <div className={clsx('flex items-center gap-2 text-[12.5px] font-medium', active === c.id ? 'text-accent' : 'text-muted')}>
             {c.icon}
@@ -230,13 +230,13 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
     <div className="flex h-full gap-4 px-5 pb-4">
       <div className="w-60 shrink-0 space-y-1">
         {categories.map((c) => (
-          <button key={c.id} onClick={() => setCat(c.id)} className={clsx('w-full rounded-xl px-3 py-2 text-left transition-colors', c.id === current.id ? 'bg-accent-soft' : 'hover:bg-hover')}>
+          <button key={c.id} onClick={() => setCat(c.id)} className={clsx('w-full rounded-card px-3 py-2 text-left transition-colors', c.id === current.id ? 'bg-accent-soft' : 'hover:bg-hover')}>
             <div className="text-[13px] font-medium">{c.title}</div>
             <div className="text-[11.5px] text-muted">{plural(c.items.length, 'élément', 'éléments')} · {bytes(c.bytes)}</div>
           </button>
         ))}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col rounded-2xl border border-line bg-surface">
+      <div className="flex min-w-0 flex-1 flex-col rounded-card border border-line bg-surface">
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0 flex-1">
             <div className="text-[13px] font-semibold">{current.title}</div>

@@ -98,7 +98,7 @@ export function UpdateNotice() {
     }
   }
   return (
-    <div role="status" className="animate-pop-in fixed right-5 bottom-5 z-40 w-[300px] rounded-2xl border border-line bg-surface p-4 shadow-2xl dark:bg-elevated">
+    <div role="status" className="animate-pop-in fixed right-5 bottom-5 z-40 w-[300px] rounded-sheet border border-line bg-elevated p-4">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-[13px] font-semibold">{t('Nouvelle version de MyPhotos')}</div>
@@ -108,7 +108,7 @@ export function UpdateNotice() {
               : t('La version {version} est disponible au téléchargement.', { version: s.version })}
           </p>
         </div>
-        <button className="rounded-md p-1 text-muted hover:bg-black/5 hover:text-fg dark:hover:bg-white/10" onClick={dismiss} aria-label={t('Plus tard')}>
+        <button className="rounded-card p-1 text-muted hover:bg-hover hover:text-fg" onClick={dismiss} aria-label={t('Plus tard')}>
           <X className="size-3.5" />
         </button>
       </div>

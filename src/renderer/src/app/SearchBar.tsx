@@ -38,7 +38,7 @@ export function SearchBar({ compact = false }: { compact?: boolean }) {
   const semantic = ml?.enabled && ml.running.clip
 
   return (
-    <div className={clsx('no-drag relative flex h-[30px] items-center rounded-lg bg-hover transition-[width]', compact ? (value ? 'w-48' : 'w-[30px] cursor-pointer focus-within:w-48') : value ? 'w-64' : 'w-52 focus-within:w-64')}>
+    <div className={clsx('no-drag relative flex h-[30px] items-center rounded-pill bg-hover transition-[width]', compact ? (value ? 'w-48' : 'w-[30px] cursor-pointer focus-within:w-48') : value ? 'w-64' : 'w-52 focus-within:w-64')}>
       <Search className="pointer-events-none absolute left-2.5 size-3.5 text-faint" />
       <input
         ref={ref}

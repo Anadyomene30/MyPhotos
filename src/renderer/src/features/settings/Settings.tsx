@@ -47,8 +47,8 @@ export function Settings() {
   }
 
   return (
-    <div className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/30 backdrop-blur-[2px]" onMouseDown={() => setOpen(false)}>
-      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="settings-title" className="animate-pop-in flex max-h-[88vh] w-[560px] max-w-[92vw] flex-col rounded-2xl border border-line bg-surface shadow-2xl dark:bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="animate-fade-in fixed inset-0 z-50 grid place-items-center bg-black/30" onMouseDown={() => setOpen(false)}>
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="settings-title" className="animate-pop-in flex max-h-[88vh] w-[560px] max-w-[92vw] flex-col rounded-sheet border border-line bg-elevated" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 id="settings-title" className="font-display text-[16px] font-semibold">{t('Réglages')}</h2>
           <IconButton label={t('Fermer')} onClick={() => setOpen(false)}>
@@ -63,7 +63,7 @@ export function Settings() {
                 <RefreshCw className="size-3.5" /> {t('Réanalyser')}
               </Button>
             </div>
-            <div className="overflow-hidden rounded-xl border border-line">
+            <div className="overflow-hidden rounded-card border border-line">
               {data?.sources.length ? (
                 data.sources.map((s) => (
                   <div key={s.id} className="flex items-center gap-3 border-b border-line px-3.5 py-2.5 last:border-b-0">
@@ -86,7 +86,7 @@ export function Settings() {
               </Button>
             ) : (
               <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); void add(path.trim()).then(() => setPath('')) }}>
-                <input value={path} onChange={(e) => setPath(e.target.value)} placeholder={t('Chemin du dossier')} className="min-w-0 flex-1 rounded-lg border border-line bg-bg px-3 py-1.5 text-[13px] outline-none focus:border-accent" />
+                <input value={path} onChange={(e) => setPath(e.target.value)} placeholder={t('Chemin du dossier')} className="min-w-0 flex-1 rounded-card border border-line bg-bg px-3 py-1.5 text-[13px] outline-none focus:border-accent" />
                 <Button type="submit" disabled={busy || !path.trim()}>{t('Ajouter')}</Button>
               </form>
             )}

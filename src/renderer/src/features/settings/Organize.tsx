@@ -64,7 +64,7 @@ export function OrganizeSettings() {
         ))}
       </div>
       {plan && (
-        <div className="mt-3 rounded-xl border border-line p-3.5 text-[12.5px]">
+        <div className="mt-3 rounded-card border border-line p-3.5 text-[12.5px]">
           <div>
             <span className="font-semibold">{tn(plan.count, '{n} fichier à déplacer', '{n} fichiers à déplacer')}</span> · {tn(plan.alreadyTidy, '{n} déjà bien rangé', '{n} déjà bien rangés')} · {tn(plan.skipped, '{n} sans date fiable (laissé en place)', '{n} sans date fiable (laissés en place)')}
           </div>

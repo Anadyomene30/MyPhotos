@@ -67,7 +67,7 @@ export const GroupCard = memo(function GroupCard({ group, keepIds, onToggle, onA
   const removeBytes = group.items.filter((i) => !keepIds.has(i.id)).reduce((a, i) => a + i.size, 0)
   const size = mode === 'similar' ? 188 : 164
   return (
-    <div className="rounded-2xl border border-line bg-surface p-4">
+    <div className="rounded-card border border-line bg-surface p-4">
       <div className="mb-3 flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="text-[13px] font-semibold">
