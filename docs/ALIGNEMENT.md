@@ -1,6 +1,6 @@
 # MyPhotos — relevé d'alignement
 
-Maison lue jusqu'à : 24cae9a (2026-10-02)
+Maison lue jusqu'à : 110cf6c (2026-10-02)
 
 *Ouvert le 2026-10-02, à l'entrée du produit dans la maison. Le même jour, l'interface
 a été alignée sur Brume (section *Direction artistique*) ; le comportement n'a pas
@@ -47,9 +47,9 @@ invité avec « Je suis… » et têtes d'objet.
 | § 6 Fichiers iCloud pas encore téléchargés | état: fermé e08e644 | `requestDownload` (macOS : `brctl download`, lu au passage suivant) |
 | § 6 Relire toutes les 20 à 30 s | état: fermé e08e644 | `householdPoll` 30 s dans `Library.start` ; `last_seen` réécrit au démarrage |
 | § 7, § 11 Migration 18 : `albums.owner_id`, `visibility` (défaut `perso`), `shared_with` (défaut `[]`), `share_comments.author_member_id`, `share_likes.author_member_id` | état: fermé e08e644 | `src/core/db/migrations.ts:331` ; test « migration 18 » sur une base en version 17 : données gardées, défauts posés |
-| § 10 Les albums existants deviennent ceux du membre qui se rattache, perso ; `owner_name` devient le nom du profil | état: remonté MYPHOTOS-02 | `claimUnownedAlbums` `src/core/household.ts:290` (albums sans propriétaire seulement) ; nouveaux albums nés au membre (`src/core/repo/albums.ts:128`) ; `owner_name` suit le profil à chaque lecture, et pré-remplit le prénom d'un nouveau membre |
+| § 10 Les albums existants deviennent ceux du membre qui se rattache, perso ; `owner_name` devient le nom du profil | état: conforme — verdict `MYPHOTOS-02` tranché, source modifiée (110cf6c) | `claimUnownedAlbums` `src/core/household.ts:290` (albums sans propriétaire seulement) ; nouveaux albums nés au membre (`src/core/repo/albums.ts:128`) ; `owner_name` suit le profil à chaque lecture, et pré-remplit le prénom d'un nouveau membre |
 | § 11 Invité membre : « Je suis… », `author_member_id`, tête à côté des commentaires et cœurs ; invité ordinaire : prénom libre | état: fermé 14d63e8 | `signer` `src/server/guest.ts:41` (le nom vient du profil, un `member_id` inconnu est refusé) ; `WhoAreYou` `src/renderer/src/features/share/GuestApp.tsx` ; test « guests who are household members » |
-| § 11 Rien d'autre ne circule : originaux et photothèque restent sur la machine, pas d'album partagé par fichiers | état: remonté MYPHOTOS-01 | aucun fichier `myphotos/` n'est écrit ; § 12 (convergence de deux appareils) sans objet tant qu'aucun flux n'existe |
+| § 11 Rien d'autre ne circule : originaux et photothèque restent sur la machine, pas d'album partagé par fichiers | état: conforme — verdict `MYPHOTOS-01` tranché, source modifiée (110cf6c) | aucun fichier `myphotos/` n'est écrit ; § 12 (convergence de deux appareils) sans objet tant qu'aucun flux n'existe |
 | § 5 Code facultatif de l'appareil | état: hors périmètre — facultatif, non demandé en v1 | |
 | Règle 6 Brume — chacun est un objet | état: fermé 7760e19 | `src/renderer/src/components/MemberHead.tsx` (copie propre de l'esquisse de la maison) ; couleurs de jardin nommées hors marqueurs `src/renderer/src/styles.css` (`--head-*`, `--figure-*`) ; le pantalon de nuit est plus clair que l'esquisse, qui disparaissait sur le fond des dialogues |
 
