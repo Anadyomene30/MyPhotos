@@ -88,7 +88,8 @@ export function Sidebar({ jobs, scanning }: { jobs: JobGroupState[]; scanning: b
       <div className={clsx('flex items-center px-4', mac ? 'h-[52px] justify-end' : 'h-[52px]')}>
         {!mac && <span className="font-display text-[15px] font-bold tracking-tight">MyPhotos</span>}
       </div>
-      <nav className="scroll-thin flex-1 space-y-5 overflow-y-auto px-2.5 pb-4">
+      {/* the list must not be a window drag region: macOS hands the trackpad to the window there, so scrolling stutters over the gaps */}
+      <nav className="no-drag scroll-thin flex-1 space-y-5 overflow-y-auto overscroll-contain px-2.5 pb-4">
         <Section title={t('Bibliothèque')}>
           {LIBRARY.map(renderItem)}
           {pageItem('memories', t('Souvenirs'), Sparkles)}
