@@ -30,7 +30,7 @@
   --default-transition-timing-function: var(--dh-ease);
 }
 
-/* DH:tokens:start — design/tokens.json v3 (2026-10-02)
+/* DH:tokens:start — design/tokens.json v4 (2026-10-02)
    Ecrit par LesDaguesHautes/tools/distribute.py. Ne pas editer entre les
    marqueurs : la prochaine execution ecrase la correction. Une valeur fausse
    se corrige dans design/tokens.json. Hors des marqueurs : le produit. */
@@ -43,7 +43,8 @@
   --dh-line: rgb(42 40 38 / 0.12);
   --dh-label: #1a1918;
   --dh-on-label: #f7f4ee;
-  --dh-accent: #3f76b0;
+  --dh-on-accent: #f7f4ee;
+  --dh-accent: #3d71a9;
   --dh-radius-label: 3px;
   --dh-radius-card: 3px;
   --dh-radius-sheet: 12px;
@@ -72,6 +73,7 @@
   --dh-line: rgb(239 233 223 / 0.12);
   --dh-label: #efe9df;
   --dh-on-label: #1a1918;
+  --dh-on-accent: #1a1918;
   --dh-accent: #8ab0da;
 }
 /* DH:tokens:end */
@@ -91,7 +93,7 @@
   --hover: color-mix(in srgb, var(--dh-fg) 6%, transparent); /* hover wash, derived from the ink */
   --accent: var(--dh-accent);
   --accent-soft: color-mix(in srgb, var(--dh-accent) 14%, transparent); /* selection wash, derived from the accent */
-  --on-accent: var(--dh-on-label); /* light text on the day accent, dark on the night one (tokens.json § accents) */
+  --on-accent: var(--dh-on-accent); /* house token since tokens.json v4 (RECETTES-01) */
   --tile: color-mix(in srgb, var(--dh-fg) 7%, var(--dh-surface)); /* placeholder behind a photo still loading */
   /* product values, not house tokens: */
   --heart: #ff375f; /* the favourite heart is a symbol on a photo, not a control: it keeps Apple Photos' red */

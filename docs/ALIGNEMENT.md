@@ -1,6 +1,6 @@
 # MyPhotos — relevé d'alignement
 
-Maison lue jusqu'à : 110cf6c (2026-10-02)
+Maison lue jusqu'à : c7654af (2026-10-02)
 
 *Ouvert le 2026-10-02, à l'entrée du produit dans la maison. Le même jour, l'interface
 a été alignée sur Brume (section *Direction artistique*) ; le comportement n'a pas
