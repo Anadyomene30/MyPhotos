@@ -173,6 +173,8 @@ export function buildCleanupReport(db: Db, version: number, th: CleanupThreshold
     for (let i = rows.length - 1; i >= 0; i--) if (rows[i]!.source_id === creationsSource) rows.splice(i, 1)
   }
   const ignored = new Set((db.prepare('SELECT signature FROM cleanup_ignored').all() as Array<{ signature: string }>).map((r) => r.signature))
+  // series already fused into an HDR photo are not proposed again
+  const fused = new Set((db.prepare("SELECT sources FROM creations WHERE kind = 'hdr'").all() as Array<{ sources: string }>).map((r) => signature(JSON.parse(r.sources) as number[])))
   const byId = new Map(rows.map((r) => [r.id, r]))
 
   // 1. exact duplicates: same quick hash (size + head + tail); confirmed by SHA-256 before removal
@@ -272,7 +274,7 @@ export function buildCleanupReport(db: Db, version: number, th: CleanupThreshold
       reasons: [t('{n} expositions · {ev} IL d’écart', { n: g.length, ev: ev.toLocaleString(localeTag(), { maximumFractionDigits: 1 }) }), [mid.make, mid.model?.replace(mid.make ?? '', '').trim()].filter(Boolean).join(' ')].filter(Boolean),
       reclaimable: 0
     }
-    if (!ignored.has(grp.key)) brackets.push(grp)
+    if (!ignored.has(grp.key) && !fused.has(grp.key)) brackets.push(grp)
   }
 
   // 4. suggestions: never favorites or album members
@@ -308,6 +310,12 @@ export function buildCleanupReport(db: Db, version: number, th: CleanupThreshold
   }
 }
 
+/** A camera's auto-bracketing fires its frames about 0.2 s apart: within this, timing alone proves the series,
+ * since over- and under-exposed frames lose structure (pHash up to 30 on a real bracket). Slower series must
+ * look alike: real ones stay within 18, while a phone's auto exposure on two scenes 1.3 s apart reached 36. */
+const BRACKET_BURST_MS = 600
+const BRACKET_HAMMING = 22
+
 /**
  * Exposure brackets: consecutive frames from the same camera and aperture/ISO, a few seconds apart,
  * each with a different shutter speed, same framing, and at least 1.5 EV between extremes.
@@ -337,8 +345,7 @@ function detectBrackets(timed: Rec[]): Rec[][] {
       r.iso === prev.iso &&
       r.width === prev.width &&
       !cur.some((c) => Math.abs(Math.log2(c.exposure! / r.exposure!)) < 0.2) &&
-      // over- and under-exposed frames lose structure: rely on timing when frames are very close
-      (r.taken_at - prev.taken_at <= 1500 || hamming(prev.phash!, r.phash!) <= 22)
+      (r.taken_at - prev.taken_at <= BRACKET_BURST_MS || hamming(prev.phash!, r.phash!) <= BRACKET_HAMMING)
     if (!fits) close()
     cur.push(r)
   }

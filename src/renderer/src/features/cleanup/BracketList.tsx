@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Aperture, EyeOff, Loader2, Wand2 } from 'lucide-react'
-import { api, media } from '@/api/client'
+import { api, media, onServerEvent } from '@/api/client'
 import { Button } from '@/components/ui'
 import { confirm } from '@/components/Confirm'
 import { localeTag, t, tn } from '@/i18n'
@@ -20,6 +20,16 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const visible = groups.filter((g) => !hidden.has(g.key))
   const scrollRef = useRef<HTMLDivElement>(null)
+  // a finished fusion (or a failed one) frees its button; a fused series leaves the list when the report refreshes
+  useEffect(
+    () =>
+      onServerEvent((e) => {
+        if (e.type !== 'creation-done') return
+        const key = [...e.sources].sort((a, b) => a - b).join(',')
+        setPending((p) => (p.has(key) ? new Set([...p].filter((k) => k !== key)) : p))
+      }),
+    []
+  )
   const v = useVirtualizer({ count: visible.length, getScrollElement: () => scrollRef.current, estimateSize: () => 236, overscan: 3, gap: 12, paddingEnd: 24 })
 
   const fuse = async (g: CleanupGroup): Promise<void> => {
@@ -28,6 +38,7 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
       await startFusion(g.items.map((i) => i.id))
     } catch (e) {
       useUi.getState().toast((e as Error).message)
+      setPending((p) => new Set([...p].filter((k) => k !== g.key)))
     }
   }
 

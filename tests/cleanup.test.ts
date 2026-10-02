@@ -77,10 +77,34 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
     expect(d.name).toBe('IMG_3403 HDR.jpg')
     expect(d.day).toBe('2019-05-12')
     expect(d.path.startsWith(lib.creationsDir)).toBe(true)
-    // the fusion is not reported as a duplicate of its sources
-    expect((await lib.cleanupReport()).brackets.length).toBe(1)
+    // a fused series is not proposed again, and the fusion neither joins a series nor duplicates its sources
+    expect((await lib.cleanupReport()).brackets.length).toBe(0)
     expect((await lib.cleanupReport()).visual.some((v) => v.items.some((i) => i.id === res.assetId))).toBe(false)
   }, 120000)
+
+  it('runs many fusions one after the other under a single progress line', async () => {
+    const ids = lib.db.prepare("SELECT id FROM assets WHERE name IN ('IMG_3402.JPG', 'IMG_3403.JPG', 'IMG_3404.JPG')").all().map((r) => (r as { id: number }).id)
+    const n = 3
+    const results: boolean[] = []
+    const done = new Promise<void>((resolve) => {
+      const on = (e: { type: string; ok?: boolean }): void => {
+        if (e.type !== 'creation-done') return
+        results.push(e.ok!)
+        if (results.length === n) {
+          lib.off('event', on)
+          resolve()
+        }
+      }
+      lib.on('event', on)
+    })
+    for (let i = 0; i < n; i++) lib.startFusion(ids)
+    const fusion = lib.jobs().filter((j) => j.id.startsWith('fusion'))
+    expect(fusion).toHaveLength(1)
+    expect(fusion[0]!.total).toBe(n)
+    await done
+    expect(results).toEqual([true, true, true])
+    expect(lib.jobs().some((j) => j.id.startsWith('fusion'))).toBe(false)
+  }, 180000)
 
   it('verifies bytes before trashing copies and supports ignoring groups', async () => {
     const r = (await lib.cleanupReport())
