@@ -30,11 +30,24 @@ export function Timeline() {
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => setWidth(Math.floor(e!.contentRect.width)))
+    const measure = (): void => setWidth(el.clientWidth)
+    const ro = new ResizeObserver(measure)
     ro.observe(el)
-    setWidth(el.clientWidth)
-    return () => ro.disconnect()
+    measure()
+    // seen once after a launch: the observer missed the window's resize and the grid stayed one narrow column
+    window.addEventListener('resize', measure)
+    document.addEventListener('visibilitychange', measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+      document.removeEventListener('visibilitychange', measure)
+    }
   }, [])
+  // and a stale width is corrected as soon as the view changes
+  useLayoutEffect(() => {
+    const el = scrollRef.current
+    if (el && el.clientWidth !== width) setWidth(el.clientWidth)
+  }, [q])
 
   const layout = useMemo(() => buildLayout(buckets ?? [], grouping, width, ZOOM_LEVELS[zoom]!), [buckets, grouping, width, zoom])
   const compact = layout.cell < 72
