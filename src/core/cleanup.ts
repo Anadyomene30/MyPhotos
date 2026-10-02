@@ -173,8 +173,9 @@ export function buildCleanupReport(db: Db, version: number, th: CleanupThreshold
     for (let i = rows.length - 1; i >= 0; i--) if (rows[i]!.source_id === creationsSource) rows.splice(i, 1)
   }
   const ignored = new Set((db.prepare('SELECT signature FROM cleanup_ignored').all() as Array<{ signature: string }>).map((r) => r.signature))
-  // series already fused into an HDR photo are not proposed again
-  const fused = new Set((db.prepare("SELECT sources FROM creations WHERE kind = 'hdr'").all() as Array<{ sources: string }>).map((r) => signature(JSON.parse(r.sources) as number[])))
+  // series already fused into an HDR photo are not proposed again, unless that photo went to the trash
+  const fused = new Set((db.prepare(`SELECT c.sources FROM creations c JOIN assets a ON a.path = c.path
+      WHERE c.kind = 'hdr' AND a.trashed_at IS NULL AND a.missing_at IS NULL`).all() as Array<{ sources: string }>).map((r) => signature(JSON.parse(r.sources) as number[])))
   const byId = new Map(rows.map((r) => [r.id, r]))
 
   // 1. exact duplicates: same quick hash (size + head + tail); confirmed by SHA-256 before removal

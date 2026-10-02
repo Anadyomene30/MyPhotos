@@ -278,8 +278,11 @@ export function pairRawJpeg(db: Db, sourceId?: number): void {
 
 /** Edited copies saved by MyPhotos are stacked under their original (hidden from the grid, shown as versions). */
 export function linkVersions(db: Db): void {
-  // 16-bit masters of HDR fusions sit next to their JPEG in the folder; the grid shows the JPEG only
-  db.prepare("UPDATE assets SET hidden = 1 WHERE hidden = 0 AND path IN (SELECT path FROM creations WHERE kind = 'hdr-master')").run()
+  // the 16-bit master of an HDR fusion is a version of its JPEG: hidden from the grid, trashed with it
+  db.prepare(`UPDATE assets SET hidden = 1, version_of = (
+      SELECT j.id FROM creations m JOIN creations c ON c.kind = 'hdr' AND c.sources = m.sources AND c.created_at = m.created_at
+      JOIN assets j ON j.path = c.path WHERE m.path = assets.path AND j.missing_at IS NULL)
+    WHERE path IN (SELECT path FROM creations WHERE kind = 'hdr-master') AND version_of IS NULL`).run()
   db.prepare(`UPDATE assets SET hidden = 1, version_of = (
       SELECT o.id FROM creations c JOIN assets o ON o.id = json_extract(c.sources, '$[0]')
       WHERE c.path = assets.path AND c.kind = 'edit-copy' AND o.missing_at IS NULL)

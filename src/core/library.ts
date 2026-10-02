@@ -1227,6 +1227,8 @@ export class Library extends EventEmitter {
       const v = this.db.prepare('UPDATE assets SET trashed_at = ? WHERE version_of = ?')
       for (const id of ids) v.run(trashed ? Date.now() : null, id)
     })
+    // cleanup depends on what is in the trash (a trashed HDR gives its series back)
+    this.invalidateCleanup()
     this.emitChanged()
   }
 

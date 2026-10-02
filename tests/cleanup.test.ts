@@ -80,6 +80,11 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
     // a fused series is not proposed again, and the fusion neither joins a series nor duplicates its sources
     expect((await lib.cleanupReport()).brackets.length).toBe(0)
     expect((await lib.cleanupReport()).visual.some((v) => v.items.some((i) => i.id === res.assetId))).toBe(false)
+    // trashing the fusion offers the series again
+    lib.setTrashed([res.assetId!], true)
+    expect((await lib.cleanupReport()).brackets.length).toBe(1)
+    lib.setTrashed([res.assetId!], false)
+    expect((await lib.cleanupReport()).brackets.length).toBe(0)
   }, 120000)
 
   it('runs many fusions one after the other under a single progress line', async () => {

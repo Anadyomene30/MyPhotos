@@ -75,5 +75,10 @@ describe.runIf(existsSync(join(DIR, 'IMG_5444.CR2')))('HDR fusion from RAW', () 
     expect(lib.assets.counts().hdr).toBe(1)
     const kinds = lib.db.prepare('SELECT kind FROM creations ORDER BY kind').all().map((c) => (c as { kind: string }).kind)
     expect(kinds).toEqual(['hdr', 'hdr-master'])
+    // the master is a version of the JPEG, so it follows it to the trash
+    const m = lib.db.prepare('SELECT id, version_of, hidden FROM assets WHERE path = ?').get(tif) as { id: number; version_of: number; hidden: number }
+    expect(m).toMatchObject({ version_of: res.assetId, hidden: 1 })
+    lib.setTrashed([res.assetId!], true)
+    expect((lib.db.prepare('SELECT trashed_at FROM assets WHERE id = ?').get(m.id) as { trashed_at: number | null }).trashed_at).not.toBeNull()
   }, 300000)
 })
