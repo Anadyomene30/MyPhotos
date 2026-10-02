@@ -16,9 +16,11 @@ noires déjà trouvées.
 3. **Clique dessus et regarde les photos.**
    Tu dois voir surtout du sol, des plafonds, des doigts, des poches, du bougé.
    Réponds : combien te semblent à garder (une estimation suffit).
-4. **Ne supprime rien pendant le test**, ou seulement ce que tu es sûr de jeter :
-   tout est coché d'avance, comme dans les autres rubriques.
-   Si une bonne photo est proposée, sélectionne-la et clique « Ne plus proposer ».
+4. **Regarde les cases.**
+   Tu dois voir : aucune photo cochée d'avance dans cette rubrique (les autres
+   rubriques restent toutes cochées). Coche ce que tu veux jeter ; une bonne
+   photo proposée, coche-la et clique « Ne plus proposer ».
+   Réponds : « rien coché » ou ce que tu vois.
 5. **Passe en mode nuit** (réglage système).
    Tu dois voir : la rubrique lisible, sans couleur nouvelle.
    Réponds : « ok » ou ce qui cloche.

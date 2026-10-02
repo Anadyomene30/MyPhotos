@@ -12,7 +12,7 @@ import { t, tn } from '@/i18n'
 import { useCleanupReport, ignore, resolveExact, trashIds } from './api'
 import { GroupCard } from './GroupCard'
 import { GroupReview } from './GroupReview'
-import type { CleanupGroup, CleanupReport, SuggestionCategory } from '@shared/types'
+import type { CleanupGroup, CleanupReport, SuggestionCategory, SuggestionKind } from '@shared/types'
 
 type Tab = 'brackets' | 'exact' | 'visual' | 'similar' | 'suggestions'
 
@@ -208,12 +208,15 @@ function GroupList({ mode, groups }: { mode: 'exact' | 'visual' | 'similar'; gro
   )
 }
 
+/** Suggestions the analysis guesses rather than measures: nothing is ticked in advance. */
+const GUESSED: SuggestionKind[] = ['mishaps']
+
 function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
   const [cat, setCat] = useState(categories[0]?.id ?? null)
   const current = categories.find((c) => c.id === cat) ?? categories[0]
   const [checked, setChecked] = useState<Set<number>>(new Set())
   const [removed, setRemoved] = useState<Set<number>>(new Set())
-  useEffect(() => setChecked(new Set(current?.items.map((i) => i.id) ?? [])), [current?.id])
+  useEffect(() => setChecked(new Set(current && !GUESSED.includes(current.id) ? current.items.map((i) => i.id) : [])), [current?.id])
   if (!current) {
     return (
       <div className="grid h-full place-items-center text-center">
