@@ -30,7 +30,7 @@
   --default-transition-timing-function: var(--dh-ease);
 }
 
-/* DH:tokens:start — design/tokens.json v5 (2026-10-02)
+/* DH:tokens:start — design/tokens.json v6 (2026-10-02)
    Ecrit par LesDaguesHautes/tools/distribute.py. Ne pas editer entre les
    marqueurs : la prochaine execution ecrase la correction. Une valeur fausse
    se corrige dans design/tokens.json. Hors des marqueurs : le produit. */
@@ -63,6 +63,10 @@
   --dh-motion-state: 160ms;
   --dh-motion-enter: 220ms;
   --dh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dh-motion-ambient: 6000ms;
+  --dh-motion-ambient-deg: 1.6deg;
+  --dh-season-plant: "02-01 germe, 03-01 bourgeon, 05-01 fleur, 06-01 floraison, 08-01 aigrettes, 09-01 roussi, 11-01 tige_nue, 12-01 givre";
+  --dh-season-antlers: "03-15 frayure, 05-01 bois_durs, 11-01 chute, 12-15 velours";
 }
 :root.dark {
   --dh-fg: #efe9df;
