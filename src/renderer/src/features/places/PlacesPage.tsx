@@ -5,7 +5,7 @@ import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import { apiBase, token } from '@/api/client'
 import type { Feature, FeatureCollection, Point } from 'geojson'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { Loader2, MapPin } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { api, media } from '@/api/client'
 import { openAsset, usePlaces } from '@/api/hooks'
 import { useUi } from '@/store'
@@ -147,8 +147,7 @@ export function PlacesPage() {
   return (
     <div className="flex h-full flex-col">
       <header className={clsx('drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line pl-5', win ? 'pr-[150px]' : 'pr-4')}>
-        <MapPin className="size-[18px] text-accent" />
-        <h1 className="font-display text-[15px] font-semibold tracking-tight">{t('Lieux')}</h1>
+        <h1 className="etiquette">{t('Lieux')}</h1>
         <span className="text-[12px] text-muted">{places ? `${plural(places.length, 'lieu', 'lieux')} · ${tn(places.reduce((a, p) => a + p.count, 0), '{n} élément localisé', '{n} éléments localisés')}` : ''}</span>
       </header>
       <div className="flex min-h-0 flex-1">

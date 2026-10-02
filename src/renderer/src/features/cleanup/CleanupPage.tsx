@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Aperture, BrushCleaning, Copy, Layers, Loader2, Sparkles, Trash2 } from 'lucide-react'
+import { Aperture, Copy, Layers, Loader2, Sparkles, Trash2 } from 'lucide-react'
 import { BracketList } from './BracketList'
 import { media } from '@/api/client'
 import { Button } from '@/components/ui'
@@ -24,8 +24,7 @@ export function CleanupPage() {
   return (
     <div className="flex h-full flex-col">
       <header className={clsx('drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line pl-5', win ? 'pr-[150px]' : 'pr-4')}>
-        <BrushCleaning className="size-[18px] text-accent" />
-        <h1 className="font-display text-[15px] font-semibold tracking-tight">{t('Nettoyage')}</h1>
+        <h1 className="etiquette">{t('Nettoyage')}</h1>
         {report && report.analyzed < report.total && (
           <span className="flex items-center gap-1.5 text-[12px] text-muted">
             <Loader2 className="size-3.5 animate-spin" /> {t('Analyse en cours · {done} / {total}', { done: count(report.analyzed), total: count(report.total) })}

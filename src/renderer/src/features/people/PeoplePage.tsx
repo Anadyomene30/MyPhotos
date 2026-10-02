@@ -132,8 +132,7 @@ export function PeoplePage() {
   return (
     <div className="flex h-full flex-col">
       <header className={clsx('drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line pl-5', win ? 'pr-[150px]' : 'pr-4')}>
-        <Users className="size-[18px] text-accent" />
-        <h1 className="font-display text-[15px] font-semibold tracking-tight">{t('Personnes')}</h1>
+        <h1 className="etiquette">{t('Personnes')}</h1>
         <span className="text-[12px] text-muted">{persons ? plural(named.length + unnamed.length, 'personne', 'personnes') : ''}</span>
         <div className="flex-1" />
         {selected.size > 0 && (

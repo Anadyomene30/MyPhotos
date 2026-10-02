@@ -42,8 +42,7 @@ export function MemoriesPage() {
   return (
     <div className="flex h-full flex-col">
       <header className={clsx('drag flex h-[52px] shrink-0 items-center gap-3 border-b border-line pl-5', win ? 'pr-[150px]' : 'pr-4')}>
-        <Sparkles className="size-[18px] text-accent" />
-        <h1 className="font-display text-[15px] font-semibold tracking-tight">{t('Souvenirs')}</h1>
+        <h1 className="etiquette">{t('Souvenirs')}</h1>
         <span className="flex-1 text-[12px] text-muted">{memories ? plural(memories.length, 'souvenir composé', 'souvenirs composés') : ''}</span>
         <Button variant="primary" className="no-drag py-1 text-[12.5px]" onClick={() => useUi.getState().openRetro({ source: { type: 'all' } })}>
           <Clapperboard className="size-4" /> {t('Créer une vidéo souvenir')}

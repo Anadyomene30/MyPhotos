@@ -105,7 +105,7 @@ export function Toolbar() {
             {context && !label ? (
               <div className="no-drag flex items-center gap-2">
                 {context.icon}
-                <h1 className="font-display text-[15px] font-semibold tracking-tight">{context.title}</h1>
+                <h1 className="etiquette">{context.title}</h1>
                 {personId !== null && (
                   <button onClick={() => useUi.getState().openRetro({ source: { type: 'person', value: personId }, title: person?.name ?? undefined })} className="grid size-6 place-items-center rounded-full text-muted hover:bg-hover hover:text-fg" aria-label={t('Créer une vidéo souvenir')} title={t('Créer une vidéo souvenir')}>
                     <Clapperboard className="size-3.5" />
@@ -117,7 +117,7 @@ export function Toolbar() {
               </div>
             ) : (
               <>
-                <h1 className="font-display text-[15px] font-semibold tracking-tight">{label ?? album?.name ?? TITLES[section]}</h1>
+                <h1 className="etiquette">{label ?? album?.name ?? TITLES[section]}</h1>
                 <span className="truncate text-[12px] text-muted">{label ? (context?.title ?? album?.name ?? TITLES[section]) : subtitle}</span>
               </>
             )}
