@@ -14,6 +14,8 @@ export const server: Record<string, string> = {
   'Meilleure définition': 'Higher resolution',
   'Meilleure qualité d’ensemble': 'Best overall quality',
   '{n} expositions · {ev} IL d’écart': '{n} exposures · {ev} EV apart',
+  'Captures d’écran ratées': 'Failed screenshots',
+  'Écran tout noir ou tout blanc, écran d’accueil, écran verrouillé, clavier : prises sans le vouloir.': 'All-black or all-white screen, home screen, lock screen, keyboard: taken without meaning to.',
   'Anciennes captures d’écran': 'Old screenshots',
   'Captures et enregistrements d’écran de plus de 3 mois, souvent inutiles une fois consultés.': 'Screenshots and screen recordings older than 3 months, rarely needed once seen.',
   'Photos prises par erreur': 'Photos taken by mistake',

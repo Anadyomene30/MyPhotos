@@ -32,15 +32,59 @@ const GOOD = [
 /** All prompts, accident prompts first. */
 export const MISHAP_PROMPTS: readonly string[] = [...BAD, ...GOOD]
 
-/** Probability mass on the accident prompts, from cosines in `MISHAP_PROMPTS` order (softmax at CLIP's scale). */
-export function mishapScore(cosines: ArrayLike<number>): number {
+/** Probability mass on the first `nBad` prompts (softmax at CLIP's scale). */
+function badShare(cosines: ArrayLike<number>, nBad: number): number {
   let m = -Infinity
   for (let i = 0; i < cosines.length; i++) m = Math.max(m, cosines[i]!)
   let bad = 0, sum = 0
   for (let i = 0; i < cosines.length; i++) {
     const e = Math.exp((cosines[i]! - m) * 100)
     sum += e
-    if (i < BAD.length) bad += e
+    if (i < nBad) bad += e
   }
   return bad / sum
 }
+
+/** Probability mass on the accident prompts, from cosines in `MISHAP_PROMPTS` order. */
+export function mishapScore(cosines: ArrayLike<number>): number {
+  return badShare(cosines, BAD.length)
+}
+
+// ------------------------------------------------------------- screenshots taken by mistake
+
+/** Bumped when the screenshot prompts change. */
+export const SCREEN_MISHAP_VERSION = 1
+
+/** Score from which a screenshot is suggested. Kept high: on a real library, lower scores mix in screenshots of
+ * black-and-white generative art, while the keyboard and loading-screen captures scored 0.79 and above. */
+export const SCREEN_MISHAP_MIN = 0.7
+
+const SCREEN_BAD = [
+  'a screenshot of a phone home screen with app icons',
+  'a screenshot of a phone lock screen with the time',
+  'a black screenshot',
+  'a blank screenshot',
+  'a screenshot of a loading screen',
+  'a screenshot of a phone keyboard',
+  'a screenshot of the phone control center',
+  'a screenshot of the camera app'
+]
+
+const SCREEN_GOOD = [
+  'black and white abstract art', 'a fractal', 'a kaleidoscope pattern', 'a digital artwork', 'a screenshot of a video call',
+  'a selfie', 'a painting', 'a photo of nature', 'a photo of people', 'a screenshot of a text conversation', 'a screenshot of a map',
+  'a screenshot of a web page', 'a screenshot of a photo', 'a screenshot of a ticket or receipt', 'a screenshot of a social media post',
+  'a screenshot of a document', 'a screenshot of a video game', 'a screenshot of a recipe', 'a screenshot of an email',
+  'a screenshot of a video', 'a screenshot of an app', 'a screenshot'
+]
+
+/** All screenshot prompts, mistakes first. */
+export const SCREEN_MISHAP_PROMPTS: readonly string[] = [...SCREEN_BAD, ...SCREEN_GOOD]
+
+/** Probability that a screenshot was taken by mistake (home or lock screen, keyboard, loading screen…). */
+export function screenMishapScore(cosines: ArrayLike<number>): number {
+  return badShare(cosines, SCREEN_BAD.length)
+}
+
+/** Contrast below which a screenshot is a single flat colour (all black, all white): measured, not guessed. */
+export const BLANK_SCREENSHOT_CONTRAST = 0.01

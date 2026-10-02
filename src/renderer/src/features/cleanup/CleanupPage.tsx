@@ -209,7 +209,7 @@ function GroupList({ mode, groups }: { mode: 'exact' | 'visual' | 'similar'; gro
 }
 
 /** Suggestions the analysis guesses rather than measures: nothing is ticked in advance. */
-const GUESSED: SuggestionKind[] = ['mishaps']
+const GUESSED: SuggestionKind[] = ['mishaps', 'failedScreenshots']
 
 function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
   const [cat, setCat] = useState(categories[0]?.id ?? null)

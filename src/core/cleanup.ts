@@ -1,6 +1,6 @@
 import type { Db } from './db'
 import { hamming } from './media/analyze'
-import { MISHAP_MIN } from './ml/mishaps'
+import { BLANK_SCREENSHOT_CONTRAST, MISHAP_MIN, SCREEN_MISHAP_MIN } from './ml/mishaps'
 import { bytesLabel } from './util'
 import { localeTag, t } from '@shared/i18n'
 import type { AssetKind, CleanupGroup, CleanupItem, CleanupReport, SuggestionCategory } from '@shared/types'
@@ -24,6 +24,7 @@ interface Rec {
   clip_bright: number | null
   contrast: number | null
   mishap: number | null
+  screen_mishap: number | null
   phash: string | null
   ph0: number | null
   ph1: number | null
@@ -163,7 +164,7 @@ export const DEFAULT_THRESHOLDS: CleanupThresholds = { visualHamming: 3, burstHa
 export function buildCleanupReport(db: Db, version: number, th: CleanupThresholds = DEFAULT_THRESHOLDS, creationsSource: number | null = null): CleanupReport {
   const rows = db
     .prepare(`SELECT a.id, a.name, a.rel_dir, a.ext, a.kind, a.size, a.taken_at, a.date_source, a.width, a.height, a.duration, a.quality,
-        a.sharpness, a.brightness, a.clip_dark, a.clip_bright, a.contrast, a.mishap, a.phash, a.ph0, a.ph1, a.ph2, a.ph3, a.qhash, a.make, a.model, a.exposure, a.fnumber, a.iso, a.source_id,
+        a.sharpness, a.brightness, a.clip_dark, a.clip_bright, a.contrast, a.mishap, a.screen_mishap, a.phash, a.ph0, a.ph1, a.ph2, a.ph3, a.qhash, a.make, a.model, a.exposure, a.fnumber, a.iso, a.source_id,
         a.favorite, a.is_screenshot, a.is_live, a.thumb_v, a.added_at,
         EXISTS (SELECT 1 FROM album_assets aa WHERE aa.asset_id = a.id) AS in_album
       FROM assets a WHERE ${VISIBLE}`)
@@ -288,8 +289,12 @@ export function buildCleanupReport(db: Db, version: number, th: CleanupThreshold
   const blurry = eligible.filter((r) => isPhoto(r) && !r.is_screenshot && (r.contrast ?? 0) > 0.08 && r.sharpness! / Math.pow((r.contrast ?? 0.1) * 255, 2) < 0.025 && r.sharpness! < 40)
   const dark = eligible.filter((r) => isPhoto(r) && (r.brightness ?? 1) < 0.08 && (r.clip_dark ?? 0) > 0.7)
   const measured = new Set([...blurry, ...dark])
+  // screenshots of a single flat colour, or of the home screen, lock screen, keyboard: taken by mistake
+  const failedShots = eligible.filter((r) => r.is_screenshot && r.kind === 'photo' && ((r.contrast !== null && r.contrast < BLANK_SCREENSHOT_CONTRAST) || (r.screen_mishap ?? 0) >= SCREEN_MISHAP_MIN))
+  const failed = new Set(failedShots)
   const suggestions: SuggestionCategory[] = [
-    cat('screenshots', t('Anciennes captures d’écran'), t('Captures et enregistrements d’écran de plus de 3 mois, souvent inutiles une fois consultés.'), eligible.filter((r) => r.is_screenshot && r.taken_at < now - 90 * 86400000)),
+    cat('failedScreenshots', t('Captures d’écran ratées'), t('Écran tout noir ou tout blanc, écran d’accueil, écran verrouillé, clavier : prises sans le vouloir.'), failedShots),
+    cat('screenshots', t('Anciennes captures d’écran'), t('Captures et enregistrements d’écran de plus de 3 mois, souvent inutiles une fois consultés.'), eligible.filter((r) => r.is_screenshot && r.taken_at < now - 90 * 86400000 && !failed.has(r))),
     cat('mishaps', t('Photos prises par erreur'), t('Le sol, le plafond, un doigt sur l’objectif, l’intérieur d’une poche : reconnues par l’analyse sur cet ordinateur.'), eligible.filter((r) => r.kind === 'photo' && !r.is_screenshot && (r.mishap ?? 0) >= MISHAP_MIN && !measured.has(r))),
     cat('blurry', t('Photos floues'), t('Très peu de détails nets pour le contraste de l’image.'), blurry),
     cat('dark', t('Photos presque noires'), t('Prises par erreur, dans une poche ou objectif masqué.'), dark),

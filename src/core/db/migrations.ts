@@ -340,5 +340,9 @@ export const migrations: string[] = [
   // 19: how likely a photo was taken by mistake (floor, pocket, finger on the lens), from its CLIP embedding
   `
   ALTER TABLE assets ADD COLUMN mishap REAL;
+  `,
+  // 20: how likely a screenshot was taken by mistake (home or lock screen, keyboard), from its CLIP embedding
+  `
+  ALTER TABLE assets ADD COLUMN screen_mishap REAL;
   `
 ]
