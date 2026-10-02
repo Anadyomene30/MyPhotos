@@ -20,6 +20,47 @@
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* DH:tokens:start — design/tokens.json v1 (2026-10-02)
+   Ecrit par LesDaguesHautes/tools/distribute.py. Ne pas editer entre les
+   marqueurs : la prochaine execution ecrase la correction. Une valeur fausse
+   se corrige dans design/tokens.json. Hors des marqueurs : le produit. */
+:root {
+  --dh-fg: #1d1d1f;
+  --dh-bg: #fbfbfc;
+  --dh-surface: #ffffff;
+  --dh-elevated: #ffffff;
+  --dh-muted: #5f5f64;
+  --dh-line: rgb(0 0 0 / 0.08);
+  --dh-accent: #0071e3;
+  --dh-radius-control: 8px;
+  --dh-radius-card: 12px;
+  --dh-radius-sheet: 16px;
+  --dh-radius-pill: 999px;
+  --dh-space-unit: 4px;
+  --dh-space-gutter: 16px;
+  --dh-space-group: 24px;
+  --dh-text-1: 11px;
+  --dh-text-2: 12px;
+  --dh-text-3: 13px;
+  --dh-text-4: 15px;
+  --dh-text-5: 17px;
+  --dh-text-6: 20px;
+  --dh-text-7: 28px;
+  --dh-motion-state: 160ms;
+  --dh-motion-enter: 220ms;
+  --dh-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+:root.dark {
+  --dh-fg: #f5f5f7;
+  --dh-bg: #111113;
+  --dh-surface: #1c1c1f;
+  --dh-elevated: #2a2a2e;
+  --dh-muted: #a1a1a6;
+  --dh-line: rgb(255 255 255 / 0.08);
+  --dh-accent: #0a84ff;
+}
+/* DH:tokens:end */
+
 :root {
   --bg: #fbfbfc;
   --panel: rgba(242, 242, 245, 0.86);
