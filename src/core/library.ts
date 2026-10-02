@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { mkdirSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { stat, statfs } from 'node:fs/promises'
 import { cpus, userInfo } from 'node:os'
 import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
@@ -64,6 +64,9 @@ export interface LibraryOptions {
 }
 
 type Stage = 'meta' | 'thumb' | 'analyze' | 'ml'
+
+/** below this much free space, HDR fusions skip their 16-bit master (about 70 MB each) and write the JPEG only */
+const MASTER_MIN_FREE = 5 * 1024 ** 3
 
 const stageLabel = (stage: Stage): string =>
   stage === 'meta' ? t('Lecture des métadonnées') : stage === 'thumb' ? t('Création des miniatures') : stage === 'analyze' ? t('Analyse des images') : t('Reconnaissance des visages et du contenu')
@@ -938,6 +941,7 @@ export class Library extends EventEmitter {
       let assetId: number | null = null
       let out: string | null = null
       let master: string | null = null
+      let warning: string | undefined
       const abort = (this.fusionAbort = new AbortController())
       try {
         const sourceId = await this.ensureCreationsSource()
@@ -951,7 +955,10 @@ export class Library extends EventEmitter {
         // frames shot RAW + JPEG are developed from the RAW: the sensor's range, and a 16-bit master for grading
         const raws = rows.map((r) => (RAW_EXTS.has(String(r.ext)) ? String(r.path) : (r.raw_companion as string | null)))
         const fromRaw = raws.every((p): p is string => Boolean(p) && existsSync(p!))
-        const res = await fuseInWorker({ inputs: rows.map(decodeInput), raws: fromRaw ? raws : undefined, output: out, master, maxSize: 4096, align: true, exif }, undefined, abort.signal)
+        const fs = await statfs(this.creationsDir)
+        const roomForMaster = fs.bavail * fs.bsize >= MASTER_MIN_FREE
+        if (fromRaw && !roomForMaster) warning = t('Photo HDR créée sans master 16 bits : il reste moins de 5 Go sur le disque.')
+        const res = await fuseInWorker({ inputs: rows.map(decodeInput), raws: fromRaw ? raws : undefined, output: out, master: roomForMaster ? master : undefined, maxSize: 4096, align: true, exif }, undefined, abort.signal)
         const now = Date.now()
         this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'hdr', JSON.stringify(ids), now)
         if (res.master) this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(res.master, 'hdr-master', JSON.stringify(ids), now)
@@ -969,7 +976,7 @@ export class Library extends EventEmitter {
         }
         this.invalidateCleanup()
         this.emitChanged()
-        this.send({ type: 'creation-done', ok: true, assetId, sources: ids })
+        this.send({ type: 'creation-done', ok: true, assetId, sources: ids, warning })
       } catch (e) {
         if (abort.signal.aborted) {
           // stopped mid-way: the half-written result is MyPhotos' own file, never a source

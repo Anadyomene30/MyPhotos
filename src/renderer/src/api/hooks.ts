@@ -23,7 +23,7 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
           const ui = useUi.getState()
           if (!e.ok) ui.toast(t('Création impossible : {error}', { error: e.error ?? t('erreur inconnue') }))
           else
-            ui.toast(t('Création terminée'), e.assetId ? { label: t('Voir'), run: () => void openAsset(e.assetId!) } : undefined)
+            ui.toast(e.warning ?? t('Création terminée'), e.assetId ? { label: t('Voir'), run: () => void openAsset(e.assetId!) } : undefined)
         }
         if (e.type === 'share-activity') {
           const vars = { author: e.author, album: e.albumName }
