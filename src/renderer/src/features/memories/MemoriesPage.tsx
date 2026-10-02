@@ -1,5 +1,6 @@
 import clsx from 'clsx'
-import { Clapperboard, Loader2, Pin, Sparkles } from 'lucide-react'
+import { Clapperboard, Loader2, Pin } from 'lucide-react'
+import { GlobeScene } from '@/components/Globe'
 import { Button } from '@/components/ui'
 import { media } from '@/api/client'
 import { useMemories } from '@/api/hooks'
@@ -52,7 +53,9 @@ export function MemoriesPage() {
         {isLoading && <Loader2 className="mx-auto mt-10 size-6 animate-spin text-faint" />}
         {memories && memories.length === 0 && (
           <div className="mx-auto mt-16 max-w-md text-center">
-            <Sparkles className="mx-auto mb-3 size-10 text-faint" strokeWidth={1.4} />
+            <div className="mb-5 flex justify-center">
+              <GlobeScene size={104} />
+            </div>
             <h2 className="font-display text-[18px] font-bold">{t('Vos souvenirs arrivent')}</h2>
             <p className="mt-2 text-[13px] text-muted">{t('MyPhotos compose des sélections automatiques (meilleures photos d’une année, voyages, personnes, thèmes) une fois la photothèque analysée.')}</p>
           </div>

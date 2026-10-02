@@ -4,6 +4,7 @@ import { FolderPlus, Loader2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import { Button } from '@/components/ui'
+import { GlobeScene } from '@/components/Globe'
 
 export function useAddSource() {
   const qc = useQueryClient()
@@ -32,19 +33,12 @@ export function Welcome() {
   const desktop = Boolean(window.desktop)
 
   return (
-    <div className="drag relative grid h-full place-items-center overflow-hidden bg-bg">
-      <div aria-hidden className="pointer-events-none absolute inset-0 opacity-70 dark:opacity-50">
-        <div className="absolute -top-40 -left-32 size-[520px] rounded-full bg-[radial-gradient(circle,rgba(255,154,139,0.45),transparent_65%)] blur-2xl" />
-        <div className="absolute -right-24 top-1/3 size-[480px] rounded-full bg-[radial-gradient(circle,rgba(33,147,176,0.35),transparent_65%)] blur-2xl" />
-        <div className="absolute bottom-[-180px] left-1/3 size-[520px] rounded-full bg-[radial-gradient(circle,rgba(247,151,30,0.30),transparent_65%)] blur-2xl" />
-      </div>
+    <div className="drag relative grid h-full place-items-center overflow-hidden">
       <div className="animate-pop-in relative flex max-w-md flex-col items-center px-8 text-center">
-        <div className="mb-7 grid grid-cols-3 gap-1.5">
-          {['#ff9a8b', '#6dd5ed', '#ffd200', '#71b280', '#c084fc', '#ff6a00'].map((c, i) => (
-            <div key={i} className="size-11 rounded-[10px] shadow-sm" style={{ background: `linear-gradient(135deg, ${c}, ${c}99)` }} />
-          ))}
+        <div className="mb-6">
+          <GlobeScene />
         </div>
-        <h1 className="font-display text-[30px] leading-tight font-bold tracking-tight">{t('Bienvenue dans MyPhotos')}</h1>
+        <h1 className="etiquette grande">{t('Bienvenue dans MyPhotos')}</h1>
         <p className="mt-3 text-[14px] leading-relaxed text-muted">
           {t('Choisissez le dossier où se trouvent vos photos et vidéos. MyPhotos les lit sur place : vos fichiers ne sont ni copiés, ni déplacés, ni modifiés.')}
         </p>
