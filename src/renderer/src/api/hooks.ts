@@ -19,7 +19,7 @@ export function useServerEvents(): { jobs: JobGroupState[]; scanning: boolean } 
         if (e.type === 'jobs') setJobs(e.jobs)
         if (e.type === 'scan') setScanning(e.scanning)
         if (e.type === 'ml-status') qc.setQueryData(['ml-status'], e.status)
-        if (e.type === 'creation-done') {
+        if (e.type === 'creation-done' && !e.cancelled) {
           const ui = useUi.getState()
           if (!e.ok) ui.toast(t('Création impossible : {error}', { error: e.error ?? t('erreur inconnue') }))
           else

@@ -84,6 +84,9 @@ export class Library extends EventEmitter {
   private indexAgain = false
   private progress = new Map<string, JobGroupState>()
   private fusionQueue: Promise<void> = Promise.resolve()
+  /** bumped by cancelFusions(): queued fusions of an older epoch are skipped */
+  private fusionEpoch = 0
+  private fusionAbort: AbortController | null = null
   private exports = new Map<string, ExportRunner>()
   private exportSeq = 0
   private closed = false
@@ -921,20 +924,28 @@ export class Library extends EventEmitter {
     // one fusion at a time: each holds the decoded series in memory (hundreds of MB at 4096 px),
     // and "fuse all" on a large library would otherwise start them all at once
     const jobId = 'fusion'
-    const group = this.progress.get(jobId) ?? { id: jobId, label: t('Fusion des expositions'), total: 0, done: 0, failed: 0 }
+    const group = this.progress.get(jobId) ?? { id: jobId, label: t('Fusion des expositions'), total: 0, done: 0, failed: 0, cancellable: true }
     group.total++
     this.progress.set(jobId, group)
+    this.exports.set(jobId, { result: Promise.resolve(null as never), cancel: () => this.cancelFusions() })
     this.emitJobs()
+    const epoch = this.fusionEpoch
     this.fusionQueue = this.fusionQueue.then(async () => {
+      if (epoch !== this.fusionEpoch) {
+        this.send({ type: 'creation-done', ok: false, cancelled: true, assetId: null, sources: ids })
+        return
+      }
       let assetId: number | null = null
+      let out: string | null = null
+      const abort = (this.fusionAbort = new AbortController())
       try {
         const sourceId = await this.ensureCreationsSource()
         const ref = [...rows].sort((a, b) => (a.exposure as number) - (b.exposure as number))[Math.floor(rows.length / 2)]!
         const stem = String(ref.name).replace(/\.[^.]+$/, '')
-        let out = join(this.creationsDir, `${stem} HDR.jpg`)
+        out = join(this.creationsDir, `${stem} HDR.jpg`)
         for (let i = 2; existsSync(out); i++) out = join(this.creationsDir, `${stem} HDR ${i}.jpg`)
         const exif = exifFromRow(ref, 'MyPhotos HDR')
-        await fuseInWorker({ inputs: rows.map(decodeInput), output: out, maxSize: 4096, align: true, exif })
+        await fuseInWorker({ inputs: rows.map(decodeInput), output: out, maxSize: 4096, align: true, exif }, undefined, abort.signal)
         this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'hdr', JSON.stringify(ids), Date.now())
         await applyChanges(this.db, sourceId, this.creationsDir, [out])
         const row = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(out) as Row | undefined
@@ -952,15 +963,36 @@ export class Library extends EventEmitter {
         this.emitChanged()
         this.send({ type: 'creation-done', ok: true, assetId, sources: ids })
       } catch (e) {
+        if (abort.signal.aborted) {
+          // stopped mid-way: the half-written result is MyPhotos' own file, never a source
+          if (out && existsSync(out)) await rmAsync(out, { force: true }).catch(() => undefined)
+          this.send({ type: 'creation-done', ok: false, cancelled: true, assetId: null, sources: ids })
+          return
+        }
         group.failed++
         this.send({ type: 'creation-done', ok: false, assetId: null, error: (e as Error).message, sources: ids })
       } finally {
-        group.done++
-        if (group.done >= group.total) this.progress.delete(jobId)
-        this.emitJobs()
+        if (this.fusionAbort === abort) this.fusionAbort = null
+        if (epoch === this.fusionEpoch) {
+          group.done++
+          if (group.done >= group.total) {
+            this.progress.delete(jobId)
+            this.exports.delete(jobId)
+          }
+          this.emitJobs()
+        }
       }
     })
     return jobId
+  }
+
+  /** Stop the running fusion and drop the queued ones; finished fusions are kept. */
+  cancelFusions(): void {
+    this.fusionEpoch++
+    this.fusionAbort?.abort()
+    this.progress.delete('fusion')
+    this.exports.delete('fusion')
+    this.emitJobs()
   }
 
   /**

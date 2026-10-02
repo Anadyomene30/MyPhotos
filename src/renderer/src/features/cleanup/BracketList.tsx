@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Aperture, EyeOff, Loader2, Wand2 } from 'lucide-react'
+import { Aperture, EyeOff, Loader2, Square, Wand2 } from 'lucide-react'
 import { api, media, onServerEvent } from '@/api/client'
 import { Button } from '@/components/ui'
 import { confirm } from '@/components/Confirm'
@@ -20,6 +20,7 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const visible = groups.filter((g) => !hidden.has(g.key))
   const scrollRef = useRef<HTMLDivElement>(null)
+  const stopped = useRef(false)
   // a finished fusion (or a failed one) frees its button; a fused series leaves the list when the report refreshes
   useEffect(
     () =>
@@ -60,18 +61,34 @@ export function BracketList({ groups }: { groups: CleanupGroup[] }) {
         <p className="flex-1 text-[12.5px] text-muted">
           {t('Séries prises au même endroit avec des expositions différentes. MyPhotos les aligne et les fusionne en une seule photo bien exposée, sans toucher aux originaux. Le résultat est rangé dans le dossier « MyPhotos Créations ».')}
         </p>
-        <Button
-          variant="primary"
-          className="shrink-0"
-          onClick={() =>
-            void confirm({ title: tn(visible.length, 'Fusionner {n} série ?', 'Fusionner {n} séries ?'), message: t('Chaque série donnera une nouvelle photo HDR. Les originaux restent intacts.'), confirmLabel: t('Tout fusionner') }).then(async (ok) => {
-              if (!ok) return
-              for (const g of visible) if (!pending.has(g.key)) await fuse(g)
-            })
-          }
-        >
-          <Wand2 className="size-4" /> {t('Tout fusionner')}
-        </Button>
+        {pending.size > 0 ? (
+          <Button
+            className="shrink-0"
+            onClick={() => {
+              stopped.current = true
+              void api('/api/jobs/fusion', { method: 'DELETE' }).finally(() => setPending(new Set()))
+            }}
+          >
+            <Square className="size-3.5" /> {t('Arrêter les fusions')}
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            className="shrink-0"
+            onClick={() =>
+              void confirm({ title: tn(visible.length, 'Fusionner {n} série ?', 'Fusionner {n} séries ?'), message: t('Chaque série donnera une nouvelle photo HDR. Les originaux restent intacts.'), confirmLabel: t('Tout fusionner') }).then(async (ok) => {
+                if (!ok) return
+                stopped.current = false
+                for (const g of visible) {
+                  if (stopped.current) break
+                  if (!pending.has(g.key)) await fuse(g)
+                }
+              })
+            }
+          >
+            <Wand2 className="size-4" /> {t('Tout fusionner')}
+          </Button>
+        )}
       </div>
       <div ref={scrollRef} className="scroll-thin min-h-0 flex-1 overflow-y-auto px-5">
         <div style={{ height: v.getTotalSize(), position: 'relative' }}>

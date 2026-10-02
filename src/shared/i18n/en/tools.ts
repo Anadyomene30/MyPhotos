@@ -4,6 +4,7 @@ export const tools: Record<string, string> = {
   'Séries prises au même endroit avec des expositions différentes. MyPhotos les aligne et les fusionne en une seule photo bien exposée, sans toucher aux originaux. Le résultat est rangé dans le dossier « MyPhotos Créations ».': 'Series taken in the same spot at different exposures. MyPhotos aligns and merges each one into a single, well-exposed photo without touching the originals. The result is saved in the “MyPhotos Créations” folder.',
   'Chaque série donnera une nouvelle photo HDR. Les originaux restent intacts.': 'Each series will produce a new HDR photo. Your originals stay untouched.',
   'Tout fusionner': 'Merge all',
+  'Arrêter les fusions': 'Stop fusions',
   'Ignorer': 'Ignore',
   'Fusion…': 'Merging…',
   'Créer la photo HDR': 'Create HDR photo',

@@ -111,6 +111,32 @@ describe.runIf(existsSync(LIB))('cleanup', () => {
     expect(lib.assets.counts().hdr).toBe(1 + n)
   }, 180000)
 
+  it('stops queued fusions on cancel and keeps the finished ones', async () => {
+    const ids = lib.db.prepare("SELECT id FROM assets WHERE name IN ('IMG_3402.JPG', 'IMG_3403.JPG', 'IMG_3404.JPG')").all().map((r) => (r as { id: number }).id)
+    const before = lib.assets.counts().hdr
+    const n = 3
+    const events: Array<{ ok: boolean; cancelled?: boolean }> = []
+    const done = new Promise<void>((resolve) => {
+      const on = (e: { type: string; ok?: boolean; cancelled?: boolean }): void => {
+        if (e.type !== 'creation-done') return
+        events.push({ ok: e.ok!, cancelled: e.cancelled })
+        if (events.length === n) {
+          lib.off('event', on)
+          resolve()
+        }
+      }
+      lib.on('event', on)
+    })
+    for (let i = 0; i < n; i++) lib.startFusion(ids)
+    lib.cancelJob('fusion')
+    expect(lib.jobs().some((j) => j.id === 'fusion')).toBe(false)
+    await done
+    const made = events.filter((e) => e.ok).length
+    expect(events.filter((e) => e.cancelled).length).toBe(n - made)
+    expect(made).toBeLessThanOrEqual(1)
+    expect(lib.assets.counts().hdr).toBe(before + made)
+  }, 180000)
+
   it('verifies bytes before trashing copies and supports ignoring groups', async () => {
     const r = (await lib.cleanupReport())
     const g = r.exact[0]!

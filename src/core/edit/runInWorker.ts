@@ -4,11 +4,16 @@ import { Worker } from 'node:worker_threads'
 import { runFusion, type FusionRequest, type FusionResult } from './fusionJob'
 import { runRender, type RenderRequest } from './renderJob'
 
-function inWorker<T>(task: 'fusion' | 'render', req: unknown, inline: () => Promise<T>, workerDir: string): Promise<T> {
+function inWorker<T>(task: 'fusion' | 'render', req: unknown, inline: () => Promise<T>, workerDir: string, signal?: AbortSignal): Promise<T> {
   const file = join(workerDir, 'fusion-worker.js')
+  if (signal?.aborted) return Promise.reject(new Error('aborted'))
   if (!existsSync(file)) return inline()
   return new Promise((resolve, reject) => {
     const w = new Worker(file)
+    signal?.addEventListener('abort', () => {
+      void w.terminate()
+      reject(new Error('aborted'))
+    }, { once: true })
     w.once('message', (m: { ok: boolean; result?: T; error?: string }) => {
       void w.terminate()
       if (m.ok) resolve(m.result!)
@@ -23,8 +28,8 @@ function inWorker<T>(task: 'fusion' | 'render', req: unknown, inline: () => Prom
 }
 
 /** Run heavy pixel jobs in a worker thread when the bundled worker exists, inline otherwise (tests). */
-export function fuseInWorker(req: FusionRequest, workerDir = import.meta.dirname): Promise<FusionResult> {
-  return inWorker('fusion', req, () => runFusion(req), workerDir)
+export function fuseInWorker(req: FusionRequest, workerDir = import.meta.dirname, signal?: AbortSignal): Promise<FusionResult> {
+  return inWorker('fusion', req, () => runFusion(req), workerDir, signal)
 }
 
 export function renderInWorker(req: RenderRequest, workerDir = import.meta.dirname): Promise<{ width: number; height: number }> {

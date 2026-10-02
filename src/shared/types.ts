@@ -201,7 +201,7 @@ export type ServerEvent =
   | { type: 'library-changed'; version: number }
   | { type: 'scan'; scanning: boolean }
   | { type: 'export-done'; result: ExportResult }
-  | { type: 'creation-done'; ok: boolean; assetId: number | null; error?: string; sources: number[] }
+  | { type: 'creation-done'; ok: boolean; assetId: number | null; error?: string; sources: number[]; cancelled?: boolean }
   | { type: 'ml-status'; status: MlStatus }
   | { type: 'share-activity'; albumId: number; albumName: string; kind: 'comment' | 'upload' | 'like'; author: string }
   | { type: 'lan-status'; status: LanStatus }
