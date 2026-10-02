@@ -334,6 +334,17 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ ok: true })
   })
   app.get('/api/settings/owner', (c) => c.json({ name: lib.ownerName }))
+  app.get('/api/settings/hdr-masters', (c) => c.json({ dir: lib.mastersDir, isDefault: lib.mastersDir === lib.creationsDir, available: existsSync(lib.mastersDir) }))
+  app.put('/api/settings/hdr-masters', async (c) => {
+    const { dir } = z.object({ dir: z.string().min(1).max(1024).nullable() }).parse(await c.req.json())
+    if (dir !== null && (!isAbsolute(dir) || !(await stat(dir).then((s) => s.isDirectory(), () => false)))) return c.json({ error: t('Ce dossier est introuvable.') }, 400)
+    try {
+      lib.setMastersDir(dir)
+    } catch (e) {
+      return c.json({ error: (e as Error).message }, 400)
+    }
+    return c.json({ ok: true })
+  })
 
   // ── household (LesDaguesHautes spec/01 § 4–5): optional, the app works the same without it ──
   /** The folder the person picked in the native dialog: absolute and existing, nothing else. */

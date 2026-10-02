@@ -11,6 +11,7 @@ import { t } from '@/i18n'
 import { IntelligenceSettings } from './Intelligence'
 import { CloudSettings } from './Cloud'
 import { OrganizeSettings } from './Organize'
+import { HdrMastersSettings } from './HdrMasters'
 import { OwnerSettings } from './Owner'
 import { HouseholdSettings } from './Household'
 import { LanguageSettings } from './Language'
@@ -99,6 +100,7 @@ export function Settings() {
           <IntelligenceSettings />
           <CloudSettings />
           <OrganizeSettings />
+          <HdrMastersSettings />
           <LanguageSettings />
           <UpdateSettings />
           <section className="flex items-center justify-between">

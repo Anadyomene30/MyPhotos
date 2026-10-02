@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { stat, statfs } from 'node:fs/promises'
 import { cpus, userInfo } from 'node:os'
 import { execFileSync } from 'node:child_process'
-import { join, resolve } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { openDb, transaction, type Db, type Row } from './db'
 import { AssetRepo } from './repo/assets'
 import { AlbumRepo } from './repo/albums'
@@ -806,6 +806,22 @@ export class Library extends EventEmitter {
   }
   private defaultOwner?: string
 
+  /** Where HDR fusions put their 16-bit TIFF masters: the creations folder unless another one was chosen. */
+  get mastersDir(): string {
+    return this.setting('hdr_masters_dir') ?? this.creationsDir
+  }
+
+  /** Choose the masters folder (null: back to the creations folder). Never inside a library folder: originals stay untouched. */
+  setMastersDir(dir: string | null): void {
+    if (dir !== null) {
+      const abs = resolve(dir)
+      const inside = this.sources().some((s) => s.path !== this.creationsDir && (abs === s.path || abs.startsWith(s.path + sep)))
+      if (inside) throw new Error(t('Choisissez un dossier en dehors de vos dossiers de photos.'))
+      dir = abs === this.creationsDir ? null : abs
+    }
+    this.setSetting('hdr_masters_dir', dir)
+  }
+
   setting(key: string): string | null {
     return (this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined)?.value ?? null
   }
@@ -950,19 +966,25 @@ export class Library extends EventEmitter {
         let name = `${stem} HDR`
         for (let i = 2; existsSync(join(this.creationsDir, `${name}.jpg`)) || existsSync(join(this.creationsDir, `${name}.tif`)); i++) name = `${stem} HDR ${i}`
         out = join(this.creationsDir, `${name}.jpg`)
-        master = join(this.creationsDir, `${name}.tif`)
+        // the masters folder may be on an external disk: no master while it is unplugged
+        const mastersDir = this.mastersDir
+        const mastersHere = existsSync(mastersDir)
+        master = join(mastersDir, `${name}.tif`)
+        for (let i = 2; existsSync(master); i++) master = join(mastersDir, `${name} (${i}).tif`)
         const exif = exifFromRow(ref, 'MyPhotos HDR')
         // frames shot RAW + JPEG are developed from the RAW: the sensor's range, and a 16-bit master for grading
         const raws = rows.map((r) => (RAW_EXTS.has(String(r.ext)) ? String(r.path) : (r.raw_companion as string | null)))
         const fromRaw = raws.every((p): p is string => Boolean(p) && existsSync(p!))
-        const fs = await statfs(this.creationsDir)
-        const roomForMaster = fs.bavail * fs.bsize >= MASTER_MIN_FREE
-        if (fromRaw && !roomForMaster) warning = t('Photo HDR créée sans master 16 bits : il reste moins de 5 Go sur le disque.')
+        const fs = mastersHere ? await statfs(mastersDir) : null
+        const roomForMaster = fs !== null && fs.bavail * fs.bsize >= MASTER_MIN_FREE
+        if (fromRaw && !mastersHere) warning = t('Photo HDR créée sans master 16 bits : le dossier des masters est introuvable (disque débranché ?).')
+        else if (fromRaw && !roomForMaster) warning = t('Photo HDR créée sans master 16 bits : il reste moins de 5 Go sur le disque.')
         const res = await fuseInWorker({ inputs: rows.map(decodeInput), raws: fromRaw ? raws : undefined, output: out, master: roomForMaster ? master : undefined, maxSize: 4096, align: true, exif }, undefined, abort.signal)
         const now = Date.now()
         this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(out, 'hdr', JSON.stringify(ids), now)
         if (res.master) this.db.prepare('INSERT OR REPLACE INTO creations (path, kind, sources, created_at) VALUES (?, ?, ?, ?)').run(res.master, 'hdr-master', JSON.stringify(ids), now)
-        await applyChanges(this.db, sourceId, this.creationsDir, res.master ? [out, res.master] : [out])
+        // a master inside the creations folder is indexed (as a hidden version of the JPEG); elsewhere it is only a file
+        await applyChanges(this.db, sourceId, this.creationsDir, res.master && mastersDir === this.creationsDir ? [out, res.master] : [out])
         const row = this.db.prepare('SELECT * FROM assets WHERE path = ?').get(out) as Row | undefined
         if (row) {
           await this.indexMeta(row)
@@ -1252,9 +1274,16 @@ export class Library extends EventEmitter {
     const paths = rows.flatMap((r) => [r.path, ...(r.live_video ? [r.live_video] : []), ...(r.raw_companion ? [r.raw_companion] : [])])
     const failed = new Set(await this.opts.moveToSystemTrash(paths))
     const done = rows.filter((r) => !failed.has(r.path))
+    // masters kept outside the library (not indexed) follow their HDR JPEG
+    const masters = this.db.prepare(`SELECT m.path FROM creations m JOIN creations c ON c.kind = 'hdr' AND c.sources = m.sources AND c.created_at = m.created_at
+        WHERE m.kind = 'hdr-master' AND c.path = ? AND NOT EXISTS (SELECT 1 FROM assets a WHERE a.path = m.path)`)
+    const loose = done.flatMap((r) => (masters.all(r.path) as Array<{ path: string }>).map((m) => m.path)).filter((p) => existsSync(p))
+    const looseFailed = new Set(loose.length ? await this.opts.moveToSystemTrash(loose) : [])
     transaction(this.db, () => {
       const del = this.db.prepare('DELETE FROM assets WHERE id = ? OR (hidden = 1 AND path IN (?, ?))')
       for (const r of done) del.run(r.id, r.live_video ?? '', r.raw_companion ?? '')
+      const delC = this.db.prepare('DELETE FROM creations WHERE path = ?')
+      for (const p of loose) if (!looseFailed.has(p)) delC.run(p)
     })
     this.emitChanged()
     return { removed: done.length, failed: rows.length - done.length }

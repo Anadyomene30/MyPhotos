@@ -16,6 +16,8 @@ interface LibRawImage {
 interface LibRawInstance {
   open(file: Uint8Array, settings: Record<string, unknown>): void
   imageData(): LibRawImage
+  /** frees the instance's WebAssembly memory (Embind) */
+  delete(): void
 }
 
 interface LibRawModule {
@@ -47,9 +49,18 @@ export interface Raw16 {
  */
 export async function decodeRaw16(path: string): Promise<Raw16> {
   const { LibRaw } = await libraw()
+  const file = new Uint8Array(await readFile(path))
   const lr = new LibRaw()
-  lr.open(new Uint8Array(await readFile(path)), { outputBps: 16, outputColor: 1, useCameraWb: true, noAutoBright: true, userQual: 3 })
-  const img = lr.imageData()
-  if (!img || img.colors !== 3 || img.bits !== 16) throw new Error(`RAW development failed (${path})`)
-  return { width: img.width, height: img.height, data: img.data }
+  try {
+    lr.open(file, { outputBps: 16, outputColor: 1, useCameraWb: true, noAutoBright: true, userQual: 3 })
+    const img = lr.imageData()
+    if (!img || img.colors !== 3 || img.bits !== 16) throw new Error(`RAW development failed (${path})`)
+    // copied out before the instance (and the memory the pixels may live in) is freed
+    return { width: img.width, height: img.height, data: img.data.slice() }
+  } catch (e) {
+    // the WebAssembly side throws plain numbers: give the person a readable reason
+    throw e instanceof Error ? e : new Error(`RAW development failed (${path})`)
+  } finally {
+    lr.delete()
+  }
 }

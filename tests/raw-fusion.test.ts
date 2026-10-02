@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import sharp from 'sharp'
@@ -21,7 +21,16 @@ describe.runIf(existsSync(join(DIR, 'IMG_5444.CR2')))('HDR fusion from RAW', () 
 
   beforeAll(async () => {
     dataDir = mkdtempSync(join(tmpdir(), 'myphotos-raw-'))
-    lib = new Library({ dataDir, autoIndex: false, watch: false, creationsDir: join(dataDir, 'creations') })
+    lib = new Library({
+      dataDir,
+      autoIndex: false,
+      watch: false,
+      creationsDir: join(dataDir, 'creations'),
+      moveToSystemTrash: async (paths) => {
+        for (const p of paths) if (!p.startsWith(DIR)) rmSync(p, { force: true })
+        return []
+      }
+    })
     await lib.addSource(DIR)
     await lib.rescanAll()
     await lib.kickIndexer()
@@ -80,5 +89,45 @@ describe.runIf(existsSync(join(DIR, 'IMG_5444.CR2')))('HDR fusion from RAW', () 
     expect(m).toMatchObject({ version_of: res.assetId, hidden: 1 })
     lib.setTrashed([res.assetId!], true)
     expect((lib.db.prepare('SELECT trashed_at FROM assets WHERE id = ?').get(m.id) as { trashed_at: number | null }).trashed_at).not.toBeNull()
+  }, 300000)
+
+  it('keeps masters in a chosen folder outside the library, without one while it is missing', async () => {
+    expect(() => lib.setMastersDir(join(DIR, 'masters'))).toThrow()
+    const away = join(dataDir, 'external', 'Masters 16 bits')
+    mkdirSync(away, { recursive: true })
+    lib.setMastersDir(away)
+    expect(lib.mastersDir).toBe(away)
+
+    const fuseAgain = async (): Promise<{ ok: boolean; assetId: number | null; warning?: string }> => {
+      const r = await lib.cleanupReport()
+      expect(r.brackets.length).toBe(1)
+      const done = new Promise<{ ok: boolean; assetId: number | null; warning?: string }>((resolve) => {
+        const on = (e: { type: string }): void => {
+          if (e.type !== 'creation-done') return
+          lib.off('event', on)
+          resolve(e as never)
+        }
+        lib.on('event', on)
+      })
+      lib.startFusion(r.brackets[0]!.items.map((i) => i.id))
+      return done
+    }
+    // the previous test trashed its fusion, which gave the series back
+    const res = await fuseAgain()
+    expect(res).toMatchObject({ ok: true })
+    const master = join(away, 'IMG_5444 HDR 2.tif')
+    expect(existsSync(master)).toBe(true)
+    expect(lib.db.prepare('SELECT 1 FROM assets WHERE path = ?').get(master)).toBeUndefined()
+    // emptying the trash takes the master along with its JPEG
+    lib.setTrashed([res.assetId!], true)
+    await lib.emptyTrash([res.assetId!])
+    expect(existsSync(master)).toBe(false)
+
+    // disk unplugged: the HDR photo is made, without a master, and the person is told
+    rmSync(away, { recursive: true, force: true })
+    const offline = await fuseAgain()
+    expect(offline.ok).toBe(true)
+    expect(offline.warning).toMatch(/introuvable/)
+    lib.setMastersDir(null)
   }, 300000)
 })

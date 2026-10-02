@@ -204,5 +204,10 @@ export const pages: Record<string, string> = {
   'C’est moi': 'That’s me',
   'Changer de nom': 'Change name',
   'Je suis…': 'I am…',
-  'Pas du foyer ? Votre prénom accompagne vos photos, commentaires et cœurs.': 'Not in the household? Your first name goes with your photos, comments and hearts.'
+  'Pas du foyer ? Votre prénom accompagne vos photos, commentaires et cœurs.': 'Not in the household? Your first name goes with your photos, comments and hearts.',
+  'Masters 16 bits des photos HDR': '16-bit masters of HDR photos',
+  'Une série prise en RAW donne, en plus de la photo HDR, un TIFF 16 bits pour l’étalonnage (environ 70 Mo). Il est rangé ici, jamais dans vos dossiers de photos.': 'A series shot in RAW gives, besides the HDR photo, a 16-bit TIFF for grading (about 70 MB). It is stored here, never in your photo folders.',
+  'Dossier des masters 16 bits': '16-bit masters folder',
+  'Par défaut': 'Default',
+  'Dossier introuvable pour le moment (disque débranché ?) : les photos HDR se créent sans master.': 'Folder not found right now (disk unplugged?): HDR photos are created without a master.',
 }

@@ -31,6 +31,8 @@ export const server: Record<string, string> = {
 
   'Photo HDR créée sans master 16 bits : il reste moins de 5 Go sur le disque.': 'HDR photo created without a 16-bit master: less than 5 GB left on the disk.',
 
+  'Photo HDR créée sans master 16 bits : le dossier des masters est introuvable (disque débranché ?).': 'HDR photo created without a 16-bit master: the masters folder cannot be found (disk unplugged?).',
+  'Choisissez un dossier en dehors de vos dossiers de photos.': 'Choose a folder outside your photo folders.',
   // export / library jobs and errors
   'Pas assez de photos pour cette vidéo': 'Not enough photos for this video',
   'Préparation des images': 'Preparing images',
