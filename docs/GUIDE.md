@@ -58,7 +58,7 @@ Un aperçu rapide est proposé avant le rendu final. Les vidéos sont enregistr�
 
 - **Doublons exacts** : la copie à garder est pré-choisie. Le contenu est vérifié octet par octet avant toute mise à la corbeille.
 - **Photos très similaires et rafales** : MyPhotos suggère laquelle garder et explique pourquoi (plus nette, mieux exposée…).
-- **Suggestions** : photos floues, très sombres, vieilles captures d'écran, vidéos très courtes.
+- **Suggestions** : photos prises par erreur (le sol, le plafond, un doigt sur l'objectif, une poche — reconnues par l'analyse locale, une fois la reconnaissance du contenu activée), photos floues, très sombres, vieilles captures d'écran, vidéos très courtes. Les favoris et les photos rangées dans un album ne sont jamais proposés.
 
 Tout passe d'abord par la **corbeille de MyPhotos**. Vider cette corbeille envoie les fichiers dans la corbeille de votre ordinateur, d'où vous pouvez encore les récupérer.
 

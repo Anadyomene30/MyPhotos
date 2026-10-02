@@ -336,5 +336,9 @@ export const migrations: string[] = [
   ALTER TABLE albums ADD COLUMN shared_with TEXT NOT NULL DEFAULT '[]';
   ALTER TABLE share_comments ADD COLUMN author_member_id TEXT;
   ALTER TABLE share_likes ADD COLUMN author_member_id TEXT;
+  `,
+  // 19: how likely a photo was taken by mistake (floor, pocket, finger on the lens), from its CLIP embedding
+  `
+  ALTER TABLE assets ADD COLUMN mishap REAL;
   `
 ]

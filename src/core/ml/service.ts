@@ -9,6 +9,7 @@ import { MlClient } from './client'
 import { downloadPack, MODEL_PACKS, packInstalled, type ModelPack } from './models'
 import { PersonClusterer } from './persons'
 import { CATEGORIES, classify } from './categories'
+import { MISHAP_PROMPTS, MISHAP_VERSION, mishapScore } from './mishaps'
 import { fromBlob, toBlob, VectorStore } from './vectors'
 import type { MlStatus, PersonPair, PersonSummary, SearchHit } from '@shared/types'
 import { t } from '@shared/i18n'
@@ -37,6 +38,7 @@ export class MlService {
   private vectors = new VectorStore(CLIP_DIM)
   private categoryVecs: Float32Array[] | null = null
   private categoryIndex: number[][] = []
+  private mishapVecs: Float32Array[] | null = null
   private downloading: { pack: string; done: number; total: number; ctrl: AbortController } | null = null
   private starting: Promise<void> | null = null
   private lastError: string | null = null
@@ -131,7 +133,10 @@ export class MlService {
       try {
         await this.client.stop()
         await this.client.start(this.modelsDir, Boolean(inst.faces), Boolean(inst.clip))
-        if (this.client.ready.clip) await this.prepareCategories()
+        if (this.client.ready.clip) {
+          await this.prepareCategories()
+          this.scoreMishaps()
+        }
         this.lastError = null
       } catch (e) {
         this.lastError = (e as Error).message
@@ -156,6 +161,25 @@ export class MlService {
     const prompts: string[] = []
     this.categoryIndex = CATEGORIES.map((c) => c.prompts.map((p) => prompts.push(p) - 1))
     this.categoryVecs = await this.client.clipTexts(prompts)
+    this.mishapVecs = await this.client.clipTexts([...MISHAP_PROMPTS])
+  }
+
+  private mishapOf(clip: Float32Array): number {
+    return mishapScore(this.mishapVecs!.map((v) => dot(v, clip)))
+  }
+
+  /** Score, from the stored embeddings, the photos indexed before the prompts last changed (or before they existed). */
+  private scoreMishaps(): void {
+    if (!this.mishapVecs) return
+    const key = 'mishap_v'
+    const stored = (this.db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as { value: string } | undefined)?.value
+    const all = stored !== String(MISHAP_VERSION)
+    const rows = this.db.prepare(`SELECT c.asset_id, c.emb FROM clip_emb c JOIN assets a ON a.id = c.asset_id${all ? '' : ' WHERE a.mishap IS NULL'}`).all() as Array<{ asset_id: number; emb: Uint8Array }>
+    transaction(this.db, () => {
+      const upd = this.db.prepare('UPDATE assets SET mishap = ? WHERE id = ?')
+      for (const r of rows) upd.run(this.mishapOf(fromBlob(r.emb)), r.asset_id)
+      this.db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, String(MISHAP_VERSION))
+    })
   }
 
   // ------------------------------------------------------------- indexing
@@ -204,6 +228,7 @@ export class MlService {
             const insC = this.db.prepare('INSERT INTO categories (asset_id, label, score) VALUES (?, ?, ?)')
             for (const c of classify(sims, this.categoryIndex)) insC.run(id, c.id, c.score)
           }
+          if (this.mishapVecs) this.db.prepare('UPDATE assets SET mishap = ? WHERE id = ?').run(this.mishapOf(clip), id)
         }
         // faces define the focal point: area-weighted centre, kept a little above centre for headroom
         const good = faces.filter((f) => f.score >= 0.7)

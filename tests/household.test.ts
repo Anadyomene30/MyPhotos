@@ -175,7 +175,7 @@ describe('migration 18', () => {
     old.close()
 
     const db = openDb(file)
-    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(18)
+    expect((db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version).toBe(migrations.length)
     expect(db.prepare('SELECT name, owner_id, visibility, shared_with FROM albums').get()).toEqual({ name: 'Été', owner_id: null, visibility: 'perso', shared_with: '[]' })
     expect(db.prepare('SELECT author, text, author_member_id FROM share_comments').get()).toEqual({ author: 'Mamie', text: 'Belles photos', author_member_id: null })
     expect(db.prepare('SELECT author, author_member_id FROM share_likes').get()).toEqual({ author: 'Mamie', author_member_id: null })

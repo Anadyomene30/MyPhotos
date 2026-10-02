@@ -16,6 +16,8 @@ export const server: Record<string, string> = {
   '{n} expositions · {ev} IL d’écart': '{n} exposures · {ev} EV apart',
   'Anciennes captures d’écran': 'Old screenshots',
   'Captures et enregistrements d’écran de plus de 3 mois, souvent inutiles une fois consultés.': 'Screenshots and screen recordings older than 3 months, rarely needed once seen.',
+  'Photos prises par erreur': 'Photos taken by mistake',
+  'Le sol, le plafond, un doigt sur l’objectif, l’intérieur d’une poche : reconnues par l’analyse sur cet ordinateur.': 'The floor, the ceiling, a finger on the lens, the inside of a pocket: recognised by the analysis on this computer.',
   'Photos floues': 'Blurry photos',
   'Très peu de détails nets pour le contraste de l’image.': 'Very little sharp detail for the image’s contrast.',
   'Photos presque noires': 'Nearly black photos',

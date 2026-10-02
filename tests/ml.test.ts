@@ -3,6 +3,7 @@ import { cpSync, existsSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Library } from '@core/library'
+import { MISHAP_MIN } from '@core/ml/mishaps'
 
 const LIB = join(process.cwd(), '.devdata/library')
 const MODELS = join(homedir(), '.myphotos-dev/models')
@@ -57,5 +58,12 @@ describe.runIf(ready)('local intelligence', () => {
     expect(sim[0]!.score).toBeGreaterThan(0.7)
     const cats = (lib.db.prepare('SELECT count(*) AS n FROM categories').get() as { n: number }).n
     expect(cats).toBeGreaterThan(50)
+  })
+
+  it('scores every embedded photo for shots taken by mistake, and few of them pass', () => {
+    const r = lib.db.prepare(`SELECT count(*) AS n, count(a.mishap) AS scored, sum(a.mishap >= ${MISHAP_MIN}) AS flagged
+      FROM clip_emb c JOIN assets a ON a.id = c.asset_id`).get() as { n: number; scored: number; flagged: number }
+    expect(r.scored).toBe(r.n)
+    expect(r.flagged).toBeLessThan(r.n * 0.1)
   })
 })

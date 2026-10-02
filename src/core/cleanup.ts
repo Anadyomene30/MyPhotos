@@ -1,5 +1,6 @@
 import type { Db } from './db'
 import { hamming } from './media/analyze'
+import { MISHAP_MIN } from './ml/mishaps'
 import { bytesLabel } from './util'
 import { localeTag, t } from '@shared/i18n'
 import type { AssetKind, CleanupGroup, CleanupItem, CleanupReport, SuggestionCategory } from '@shared/types'
@@ -22,6 +23,7 @@ interface Rec {
   clip_dark: number | null
   clip_bright: number | null
   contrast: number | null
+  mishap: number | null
   phash: string | null
   ph0: number | null
   ph1: number | null
@@ -161,7 +163,7 @@ export const DEFAULT_THRESHOLDS: CleanupThresholds = { visualHamming: 3, burstHa
 export function buildCleanupReport(db: Db, version: number, th: CleanupThresholds = DEFAULT_THRESHOLDS, creationsSource: number | null = null): CleanupReport {
   const rows = db
     .prepare(`SELECT a.id, a.name, a.rel_dir, a.ext, a.kind, a.size, a.taken_at, a.date_source, a.width, a.height, a.duration, a.quality,
-        a.sharpness, a.brightness, a.clip_dark, a.clip_bright, a.contrast, a.phash, a.ph0, a.ph1, a.ph2, a.ph3, a.qhash, a.make, a.model, a.exposure, a.fnumber, a.iso, a.source_id,
+        a.sharpness, a.brightness, a.clip_dark, a.clip_bright, a.contrast, a.mishap, a.phash, a.ph0, a.ph1, a.ph2, a.ph3, a.qhash, a.make, a.model, a.exposure, a.fnumber, a.iso, a.source_id,
         a.favorite, a.is_screenshot, a.is_live, a.thumb_v, a.added_at,
         EXISTS (SELECT 1 FROM album_assets aa WHERE aa.asset_id = a.id) AS in_album
       FROM assets a WHERE ${VISIBLE}`)
@@ -280,10 +282,14 @@ export function buildCleanupReport(db: Db, version: number, th: CleanupThreshold
     id, title, description, items: list.sort((a, b) => b.taken_at - a.taken_at).map(toItem), bytes: list.reduce((a, r) => a + r.size, 0)
   })
   const isPhoto = (r: Rec): boolean => r.kind === 'photo' && r.sharpness !== null
+  const blurry = eligible.filter((r) => isPhoto(r) && !r.is_screenshot && (r.contrast ?? 0) > 0.08 && r.sharpness! / Math.pow((r.contrast ?? 0.1) * 255, 2) < 0.025 && r.sharpness! < 40)
+  const dark = eligible.filter((r) => isPhoto(r) && (r.brightness ?? 1) < 0.08 && (r.clip_dark ?? 0) > 0.7)
+  const measured = new Set([...blurry, ...dark])
   const suggestions: SuggestionCategory[] = [
     cat('screenshots', t('Anciennes captures d’écran'), t('Captures et enregistrements d’écran de plus de 3 mois, souvent inutiles une fois consultés.'), eligible.filter((r) => r.is_screenshot && r.taken_at < now - 90 * 86400000)),
-    cat('blurry', t('Photos floues'), t('Très peu de détails nets pour le contraste de l’image.'), eligible.filter((r) => isPhoto(r) && !r.is_screenshot && (r.contrast ?? 0) > 0.08 && r.sharpness! / Math.pow((r.contrast ?? 0.1) * 255, 2) < 0.025 && r.sharpness! < 40)),
-    cat('dark', t('Photos presque noires'), t('Prises par erreur, dans une poche ou objectif masqué.'), eligible.filter((r) => isPhoto(r) && (r.brightness ?? 1) < 0.08 && (r.clip_dark ?? 0) > 0.7)),
+    cat('mishaps', t('Photos prises par erreur'), t('Le sol, le plafond, un doigt sur l’objectif, l’intérieur d’une poche : reconnues par l’analyse sur cet ordinateur.'), eligible.filter((r) => r.kind === 'photo' && !r.is_screenshot && (r.mishap ?? 0) >= MISHAP_MIN && !measured.has(r))),
+    cat('blurry', t('Photos floues'), t('Très peu de détails nets pour le contraste de l’image.'), blurry),
+    cat('dark', t('Photos presque noires'), t('Prises par erreur, dans une poche ou objectif masqué.'), dark),
     cat('overexposed', t('Photos surexposées'), t('Image en grande partie blanche.'), eligible.filter((r) => isPhoto(r) && !r.is_screenshot && (r.clip_bright ?? 0) > 0.55)),
     cat('shortVideos', t('Vidéos très courtes'), t('Moins de 2 secondes, souvent déclenchées par erreur.'), eligible.filter((r) => r.kind === 'video' && r.duration !== null && r.duration < 2)),
     cat('largeVideos', t('Très grosses vidéos'), t('Plus de {size} chacune. Pensez à les convertir en HEVC plutôt qu’à les supprimer.', { size: bytesLabel(1024 ** 3) }), eligible.filter((r) => r.kind === 'video' && r.size > 1024 ** 3))

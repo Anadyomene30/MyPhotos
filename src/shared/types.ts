@@ -259,7 +259,7 @@ export interface CleanupGroup {
   reclaimable: number
 }
 
-export type SuggestionKind = 'screenshots' | 'blurry' | 'dark' | 'overexposed' | 'shortVideos' | 'largeVideos'
+export type SuggestionKind = 'screenshots' | 'mishaps' | 'blurry' | 'dark' | 'overexposed' | 'shortVideos' | 'largeVideos'
 
 export interface SuggestionCategory {
   id: SuggestionKind
