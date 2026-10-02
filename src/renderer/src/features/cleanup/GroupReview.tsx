@@ -42,7 +42,7 @@ export function GroupReview({ group, keepIds, onToggle, onClose, onApply }: {
       <div className="drag flex h-[52px] shrink-0 items-center gap-3 pr-4 pl-[84px]">
         <div className="min-w-0 flex-1 text-[13px]">
           <span className="font-bold">{tn(items.length, '{n} photo', '{n} photos')}</span>
-          <span className="ml-2 text-emerald-400">{group.reasons.join(' · ')}</span>
+          <span className="ml-2 text-white/60">{group.reasons.join(' · ')}</span>
         </div>
         <div className="no-drag flex items-center gap-1 [&_button]:text-white/80 [&_button:hover]:bg-white/10">
           <IconButton label={t('Côte à côte avec la suggestion')} active={sideBySide} onClick={() => setSideBySide((v) => !v)}>
@@ -62,7 +62,7 @@ export function GroupReview({ group, keepIds, onToggle, onClose, onApply }: {
             <img src={media.preview(it.id, it.v)} alt="" className="absolute inset-0 h-full w-full object-contain" draggable={false} />
             <div className="absolute top-3 left-3 flex gap-2">
               {it.id === group.keepId && (
-                <span className="flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[11.5px] font-bold shadow"><Star className="size-3 fill-white" /> {t('Suggérée')}</span>
+                <span className="flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-[11.5px] font-bold text-on-accent"><Star className="size-3 fill-current" /> {t('Suggérée')}</span>
               )}
               <span className={clsx('rounded-full px-2.5 py-1 text-[11.5px] font-bold shadow', keepIds.has(it.id) ? 'bg-white/90 text-black' : 'bg-red-500 text-white')}>
                 {keepIds.has(it.id) ? t('Gardée') : t('Supprimée')}
@@ -86,7 +86,7 @@ export function GroupReview({ group, keepIds, onToggle, onClose, onApply }: {
             className={clsx('relative size-16 shrink-0 overflow-hidden rounded-lg transition', i === focus ? 'ring-2 ring-white' : 'opacity-60 hover:opacity-100')}
           >
             <img src={media.thumb(it.id, it.v)} alt="" className="h-full w-full object-cover" draggable={false} />
-            <span className={clsx('absolute right-1 bottom-1 grid size-4 place-items-center rounded-full', keepIds.has(it.id) ? 'bg-emerald-500' : 'bg-red-500')}>
+            <span className={clsx('absolute right-1 bottom-1 grid size-4 place-items-center rounded-full', keepIds.has(it.id) ? 'bg-accent text-on-accent' : 'bg-red-500')}>
               {keepIds.has(it.id) ? <Check className="size-2.5" strokeWidth={3} /> : <Trash2 className="size-2.5" />}
             </span>
           </button>

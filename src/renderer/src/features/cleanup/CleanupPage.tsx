@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Aperture, Copy, Layers, Loader2, Sparkles, Trash2 } from 'lucide-react'
+import { GlobeScene } from '@/components/Globe'
 import { BracketList } from './BracketList'
 import { media } from '@/api/client'
 import { Button } from '@/components/ui'
@@ -148,7 +149,7 @@ function GroupList({ mode, groups }: { mode: 'exact' | 'visual' | 'similar'; gro
     return (
       <div className="grid h-full place-items-center text-center">
         <div className="animate-fade-in">
-          <Sparkles className="mx-auto mb-3 size-10 text-emerald-500" strokeWidth={1.4} />
+          <div className="mb-5 flex justify-center"><GlobeScene size={104} /></div>
           <div className="font-display text-[18px] font-bold">{t('Tout est propre ici')}</div>
           <p className="mt-1 text-[13px] text-muted">{mode === 'similar' ? t('Aucune rafale à trier.') : t('Aucun doublon détecté.')}</p>
         </div>
@@ -217,7 +218,7 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
     return (
       <div className="grid h-full place-items-center text-center">
         <div>
-          <Sparkles className="mx-auto mb-3 size-10 text-emerald-500" strokeWidth={1.4} />
+          <div className="mb-5 flex justify-center"><GlobeScene size={104} /></div>
           <div className="font-display text-[18px] font-bold">{t('Rien à trier')}</div>
         </div>
       </div>

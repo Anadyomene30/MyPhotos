@@ -22,7 +22,7 @@ function ItemCard({ item, keep, suggested, size, onToggle, showPath }: {
       onClick={onToggle}
       className={clsx(
         'group relative shrink-0 overflow-hidden rounded-xl text-left transition-all',
-        keep ? 'ring-[3px] ring-emerald-500' : 'opacity-80 ring-1 ring-line hover:opacity-100'
+        keep ? 'ring-[3px] ring-accent' : 'opacity-80 ring-1 ring-line hover:opacity-100'
       )}
       style={{ width: size }}
       title={keep ? t('Gardée. Cliquer pour la supprimer') : t('Supprimée. Cliquer pour la garder')}
@@ -30,11 +30,11 @@ function ItemCard({ item, keep, suggested, size, onToggle, showPath }: {
       <div className="tile-bg relative" style={{ height: size * 0.75 }}>
         <img src={media.thumb(item.id, item.v)} alt="" draggable={false} className={clsx('h-full w-full object-cover transition', !keep && 'grayscale-[40%]')} />
         {suggested && (
-          <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10.5px] font-bold text-white shadow">
-            <Star className="size-3 fill-white" /> {t('Suggérée')}
+          <span className="absolute top-2 left-2 flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10.5px] font-bold text-on-accent">
+            <Star className="size-3 fill-current" /> {t('Suggérée')}
           </span>
         )}
-        <span className={clsx('absolute top-2 right-2 grid size-6 place-items-center rounded-full shadow', keep ? 'bg-emerald-500 text-white' : 'bg-black/55 text-white')}>
+        <span className={clsx('absolute top-2 right-2 grid size-6 place-items-center rounded-full shadow', keep ? 'bg-accent text-on-accent' : 'bg-black/55 text-white')}>
           {keep ? <Check className="size-3.5" strokeWidth={3} /> : <Trash2 className="size-3.5" />}
         </span>
         {item.kind === 'video' && <span className="absolute right-2 bottom-2 rounded bg-black/55 px-1.5 text-[11px] font-bold text-white">{duration(item.duration)}</span>}
@@ -74,7 +74,7 @@ export const GroupCard = memo(function GroupCard({ group, keepIds, onToggle, onA
             {mode === 'similar' ? t('{n} photos très proches', { n: group.items.length }) : mode === 'visual' ? t('{n} versions de la même image', { n: group.items.length }) : t('{n} copies identiques', { n: group.items.length })}
           </div>
           <div className="truncate text-[12px] text-muted">
-            <span className="text-emerald-600 dark:text-emerald-400">{group.reasons.join(' · ')}</span>
+            <span className="text-muted">{group.reasons.join(' · ')}</span>
           </div>
         </div>
         {onReview && (

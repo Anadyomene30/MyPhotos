@@ -42,7 +42,7 @@ export function IntelligenceSettings() {
                 )}
               </div>
               {installed ? (
-                <Check className="size-4 text-emerald-500" />
+                <Check className="size-4 text-accent" />
               ) : dl ? (
                 <Button variant="ghost" className="px-2 py-1 text-[12px]" onClick={() => void mlApi.cancelDownload()}>
                   <X className="size-3.5" /> {bytes(dl.done)}
@@ -59,7 +59,7 @@ export function IntelligenceSettings() {
       {s.error && <p className="mt-2 text-[12px] text-red-500">{s.error}</p>}
       {s.enabled && allInstalled && (
         <p className="mt-2 flex items-center gap-1.5 text-[11.5px] text-faint">
-          {s.pending > 0 ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3 text-emerald-500" />}
+          {s.pending > 0 ? <Loader2 className="size-3 animate-spin" /> : <Check className="size-3 text-accent" />}
           {s.pending > 0 ? tn(s.pending, 'Analyse en cours : {n} élément restant', 'Analyse en cours : {n} éléments restants') : tn(s.done, '{n} élément analysé', '{n} éléments analysés')} · {plural(s.persons, 'personne', 'personnes')}
         </p>
       )}
