@@ -98,7 +98,7 @@ export const pages: Record<string, string> = {
   'Activée': 'On',
   'Désactivée': 'Off',
   'Reconnaît les personnes, comprend le contenu des photos (recherche « chien sur la plage », catégories automatiques) et retrouve les photos semblables.': 'Recognizes people, understands what is in your photos (search “dog on the beach”, automatic categories) and finds similar photos.',
-  'Tout tourne sur cet ordinateur : rien n’est envoyé sur internet, sauf le téléchargement initial des modèles.': 'Everything runs on this computer: nothing is sent over the internet, except the initial download of the models.',
+  'Tout tourne sur cet ordinateur : rien n’est envoyé sur internet. Seul le téléchargement des modèles, que vous lancez, contacte Hugging Face (huggingface.co).': 'Everything runs on this computer: nothing is sent over the internet. Only the model download, which you start, contacts Hugging Face (huggingface.co).',
   'installé': 'installed',
   'Le module d’analyse n’est pas disponible dans cette installation.': 'The analysis module isn’t available in this installation.',
   'Analyse en cours : {n} élément restant': 'Analysis in progress: {n} item left',

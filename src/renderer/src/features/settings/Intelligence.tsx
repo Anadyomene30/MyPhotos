@@ -24,7 +24,7 @@ export function IntelligenceSettings() {
       </div>
       <p className="mb-3 text-[12px] leading-relaxed text-muted">
         {t('Reconnaît les personnes, comprend le contenu des photos (recherche « chien sur la plage », catégories automatiques) et retrouve les photos semblables.')}{' '}
-        {t('Tout tourne sur cet ordinateur : rien n’est envoyé sur internet, sauf le téléchargement initial des modèles.')}
+        {t('Tout tourne sur cet ordinateur : rien n’est envoyé sur internet. Seul le téléchargement des modèles, que vous lancez, contacte Hugging Face (huggingface.co).')}
       </p>
       <div className="overflow-hidden rounded-card border border-line">
         {s.packs.map((p) => {
