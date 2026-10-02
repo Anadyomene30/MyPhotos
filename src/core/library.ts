@@ -83,6 +83,7 @@ export class Library extends EventEmitter {
   private indexing: Promise<void> | null = null
   private indexAgain = false
   private progress = new Map<string, JobGroupState>()
+  private fusionQueue: Promise<void> = Promise.resolve()
   private exports = new Map<string, ExportRunner>()
   private exportSeq = 0
   private closed = false
@@ -917,11 +918,14 @@ export class Library extends EventEmitter {
   startFusion(ids: number[]): string {
     const rows = ids.map((id) => this.assets.raw(id)).filter((r): r is Row => Boolean(r) && r!.kind === 'photo')
     if (rows.length < 2) throw new Error(t('Choisissez au moins deux photos de la même scène'))
-    const jobId = `fusion-${++this.exportSeq}`
-    const group: JobGroupState = { id: jobId, label: t('Fusion des expositions'), total: 1, done: 0, failed: 0 }
+    // one fusion at a time: each holds the decoded series in memory (hundreds of MB at 4096 px),
+    // and "fuse all" on a large library would otherwise start them all at once
+    const jobId = 'fusion'
+    const group = this.progress.get(jobId) ?? { id: jobId, label: t('Fusion des expositions'), total: 0, done: 0, failed: 0 }
+    group.total++
     this.progress.set(jobId, group)
     this.emitJobs()
-    void (async () => {
+    this.fusionQueue = this.fusionQueue.then(async () => {
       let assetId: number | null = null
       try {
         const sourceId = await this.ensureCreationsSource()
@@ -948,12 +952,14 @@ export class Library extends EventEmitter {
         this.emitChanged()
         this.send({ type: 'creation-done', ok: true, assetId, sources: ids })
       } catch (e) {
+        group.failed++
         this.send({ type: 'creation-done', ok: false, assetId: null, error: (e as Error).message, sources: ids })
       } finally {
-        this.progress.delete(jobId)
+        group.done++
+        if (group.done >= group.total) this.progress.delete(jobId)
         this.emitJobs()
       }
-    })()
+    })
     return jobId
   }
 
