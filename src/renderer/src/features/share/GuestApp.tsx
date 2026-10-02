@@ -3,17 +3,22 @@ import clsx from 'clsx'
 import { ChevronLeft, ChevronRight, Download, Heart, Loader2, Lock, MessageCircle, Play, Plus, Send, Upload, X } from 'lucide-react'
 import { plural } from '@/lib/format'
 import { t } from '@/i18n'
-import type { AssetTile, ShareComment, SharedAlbumInfo } from '@shared/types'
+import { MemberAvatar } from '@/components/MemberHead'
+import type { AssetTile, HouseholdMember, ShareComment, SharedAlbumInfo } from '@shared/types'
 
 /**
  * Page opened by family members from a share link (phone or computer on the same network).
  * Talks only to the guest API (/g/api/<token>), never to the private library API.
  */
-type Tile = AssetTile & { likes: string[] }
+type Tile = AssetTile & { likes: string[]; likeMembers: string[] }
+
+/** Who the guest is: a free name, or a household member (« Je suis… », spec/01 § 11) whose name comes from their profile. */
+type Signer = { name: string; memberId: string | null }
 
 const token = location.pathname.split('/')[2] ?? ''
 const base = `/g/api/${token}`
 const nameKey = 'mp-guest-name'
+const memberKey = 'mp-guest-member'
 
 function readName(): string {
   try {
@@ -23,12 +28,28 @@ function readName(): string {
   }
 }
 
-function saveName(n: string): void {
+function readMember(): string | null {
   try {
-    localStorage.setItem(nameKey, n)
+    return localStorage.getItem(memberKey)
+  } catch {
+    return null
+  }
+}
+
+function saveSigner(s: Signer): void {
+  try {
+    localStorage.setItem(nameKey, s.name)
+    if (s.memberId) localStorage.setItem(memberKey, s.memberId)
+    else localStorage.removeItem(memberKey)
   } catch {
     /* ignore */
   }
+}
+
+/** The members of the owner's household; a stored member who is no longer there falls back to a plain name. */
+function resolveSigner(members: HouseholdMember[], name: string, memberId: string | null): Signer {
+  const m = memberId ? members.find((x) => x.id === memberId) : undefined
+  return m ? { name: m.name, memberId: m.id } : { name, memberId: null }
 }
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
@@ -62,8 +83,8 @@ export function GuestApp() {
   const [error, setError] = useState<string | null>(null)
   const [items, setItems] = useState<Tile[]>([])
   const [open, setOpen] = useState<number | null>(null)
-  const [name, setName] = useState(readName)
-  const [askName, setAskName] = useState<null | (() => void)>(null)
+  const [stored, setStored] = useState<Signer>(() => ({ name: readName(), memberId: readMember() }))
+  const [askName, setAskName] = useState<null | ((s: Signer) => void)>(null)
   const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -80,13 +101,23 @@ export function GuestApp() {
   }, [])
   useEffect(() => void load(), [load])
 
-  const withName = (fn: (n: string) => void): void => {
-    if (name) fn(name)
-    else setAskName(() => () => fn(readName()))
+  const members = info?.members ?? []
+  const signer = resolveSigner(members, stored.name, stored.memberId)
+  const memberOf = (id: string | null | undefined): HouseholdMember | undefined => (id ? members.find((m) => m.id === id) : undefined)
+  const withName = (fn: (s: Signer) => void): void => {
+    if (signer.name) fn(signer)
+    else setAskName(() => fn)
+  }
+  const choose = (s: Signer): void => {
+    saveSigner(s)
+    setStored(s)
+    const cb = askName
+    setAskName(null)
+    cb?.(s)
   }
 
   const upload = (files: FileList | File[]): void =>
-    withName(async (author) => {
+    withName(async (who) => {
       const list = [...files]
       if (!list.length) return
       setUploading({ done: 0, total: list.length })
@@ -94,7 +125,9 @@ export function GuestApp() {
       for (let i = 0; i < list.length; i += 4) {
         const fd = new FormData()
         for (const f of list.slice(i, i + 4)) fd.append('files', f, f.name)
-        await fetch(`${base}/upload?author=${encodeURIComponent(author)}`, { method: 'POST', body: fd, credentials: 'same-origin' }).catch(() => undefined)
+        const q = new URLSearchParams({ author: who.name })
+        if (who.memberId) q.set('member', who.memberId)
+        await fetch(`${base}/upload?${q}`, { method: 'POST', body: fd, credentials: 'same-origin' }).catch(() => undefined)
         setUploading({ done: Math.min(list.length, i + 4), total: list.length })
       }
       setUploading(null)
@@ -135,6 +168,12 @@ export function GuestApp() {
             <h1 className="truncate text-[19px] font-bold tracking-tight">{info.name}</h1>
             <p className="text-[12.5px] text-muted">{t('Partagé par {name}', { name: info.owner })} · {plural(items.length, 'photo', 'photos')}</p>
           </div>
+          {signer.name && (
+            <button onClick={() => setAskName(() => () => undefined)} className="flex max-w-[40%] items-center gap-1.5 rounded-pill px-2 py-1.5 text-[13px] hover:bg-hover" title={t('Changer de nom')}>
+              {memberOf(signer.memberId) && <MemberAvatar objet={memberOf(signer.memberId)!.objet} size={22} />}
+              <span className="truncate">{signer.name}</span>
+            </button>
+          )}
           {info.canAdd && (
             <>
               <input ref={fileInput} type="file" multiple accept="image/*,video/*,.heic,.heif,.dng,.cr2,.nef,.arw" className="hidden" onChange={(e) => e.target.files && upload(e.target.files)} />
@@ -178,44 +217,74 @@ export function GuestApp() {
       </main>
 
       {open !== null && items[open] && (
-        <GuestViewer items={items} index={open} onIndex={setOpen} onClose={() => setOpen(null)} withName={withName} onChanged={() => void load()} />
+        <GuestViewer items={items} index={open} onIndex={setOpen} onClose={() => setOpen(null)} withName={withName} me={signer} memberOf={memberOf} onChanged={() => void load()} />
       )}
 
-      {askName && (
-        <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-5">
-          <form
-            className="w-full max-w-xs space-y-3 rounded-sheet border border-line bg-elevated p-5"
-            onSubmit={(e) => {
-              e.preventDefault()
-              const v = (new FormData(e.currentTarget).get('n') as string).trim()
-              if (!v) return
-              saveName(v)
-              setName(v)
-              const cb = askName
-              setAskName(null)
-              cb()
-            }}
-          >
-            <h2 className="text-[17px] font-bold">{t('Comment vous appelez-vous ?')}</h2>
-            <p className="text-[13px] text-muted">{t('Votre prénom accompagne vos photos, commentaires et cœurs.')}</p>
-            <input name="n" autoFocus className="w-full rounded-card border border-line bg-surface px-3 py-2.5 outline-none focus:border-accent" placeholder={t('Prénom')} />
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setAskName(null)} className="rounded-pill px-3 py-2 text-[14px] hover:bg-hover">{t('Annuler')}</button>
-              <button className="rounded-pill bg-accent px-4 py-2 text-[14px] font-bold text-on-accent">{t('Continuer')}</button>
-            </div>
-          </form>
-        </div>
-      )}
+      {askName && <WhoAreYou members={members} current={signer} onChoose={choose} onCancel={() => setAskName(null)} />}
     </div>
   )
 }
 
-function GuestViewer({ items, index, onIndex, onClose, withName, onChanged }: {
+/**
+ * Asked before the first comment, heart or upload. When the owner's MyPhotos is in a household, its members can say
+ * « Je suis… » with their object head; anyone else types a first name, as before.
+ */
+function WhoAreYou({ members, current, onChoose, onCancel }: { members: HouseholdMember[]; current: Signer; onChoose(s: Signer): void; onCancel(): void }) {
+  const [free, setFree] = useState(current.memberId ? '' : current.name)
+  return (
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-5">
+      <form
+        className="w-full max-w-sm space-y-3 rounded-sheet border border-line bg-elevated p-5"
+        onSubmit={(e) => {
+          e.preventDefault()
+          const v = free.trim()
+          if (v) onChoose({ name: v, memberId: null })
+        }}
+      >
+        {members.length > 0 && (
+          <>
+            <h2 className="text-[17px] font-bold">{t('Je suis…')}</h2>
+            <div className="flex flex-wrap gap-1">
+              {members.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => onChoose({ name: m.name, memberId: m.id })}
+                  aria-pressed={current.memberId === m.id}
+                  className={clsx('flex w-[68px] flex-col items-center gap-1 rounded-card px-1 py-2 text-[12.5px] hover:bg-hover', current.memberId === m.id && 'bg-accent-soft font-bold')}
+                >
+                  <MemberAvatar objet={m.objet} size={44} background="var(--dh-bg)" />
+                  <span className="w-full truncate text-center">{m.name}</span>
+                </button>
+              ))}
+            </div>
+            <p className="pt-1 text-[13px] text-muted">{t('Pas du foyer ? Votre prénom accompagne vos photos, commentaires et cœurs.')}</p>
+          </>
+        )}
+        {members.length === 0 && (
+          <>
+            <h2 className="text-[17px] font-bold">{t('Comment vous appelez-vous ?')}</h2>
+            <p className="text-[13px] text-muted">{t('Votre prénom accompagne vos photos, commentaires et cœurs.')}</p>
+          </>
+        )}
+        <input name="n" autoFocus={members.length === 0} value={free} onChange={(e) => setFree(e.target.value)} maxLength={40} className="w-full rounded-card border border-line bg-surface px-3 py-2.5 outline-none focus:border-accent" placeholder={t('Prénom')} />
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onCancel} className="rounded-pill px-3 py-2 text-[14px] hover:bg-hover">{t('Annuler')}</button>
+          <button className="rounded-pill bg-accent px-4 py-2 text-[14px] font-bold text-on-accent" disabled={!free.trim()}>{t('Continuer')}</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function GuestViewer({ items, index, onIndex, onClose, withName, me, memberOf, onChanged }: {
   items: Tile[]
   index: number
   onIndex(i: number): void
   onClose(): void
-  withName(fn: (n: string) => void): void
+  withName(fn: (s: Signer) => void): void
+  me: Signer
+  memberOf(id: string | null | undefined): HouseholdMember | undefined
   onChanged(): void
 }) {
   const cur = items[index]!
@@ -223,7 +292,8 @@ function GuestViewer({ items, index, onIndex, onClose, withName, onChanged }: {
   const [text, setText] = useState('')
   const [showComments, setShowComments] = useState(false)
   const touch = useRef<number | null>(null)
-  const me = readName()
+  const likedByMe = me.memberId ? cur.likeMembers.includes(me.memberId) : Boolean(me.name) && cur.likes.includes(me.name)
+  const likingMembers = cur.likeMembers.map((id) => memberOf(id)).filter((m): m is HouseholdMember => Boolean(m))
   useEffect(() => {
     void json<ShareComment[]>(`/comments?asset=${cur.id}`).then(setComments, () => setComments([]))
   }, [cur.id])
@@ -238,13 +308,13 @@ function GuestViewer({ items, index, onIndex, onClose, withName, onChanged }: {
   }, [index, items.length, onClose, onIndex])
 
   const like = (): void =>
-    withName((author) => {
-      void json(`/like/${cur.id}`, { method: 'POST', body: JSON.stringify({ author }), headers: { 'content-type': 'application/json' } }).then(onChanged)
+    withName((who) => {
+      void json(`/like/${cur.id}`, { method: 'POST', body: JSON.stringify({ author: who.name, memberId: who.memberId }), headers: { 'content-type': 'application/json' } }).then(onChanged)
     })
   const send = (): void =>
-    withName((author) => {
+    withName((who) => {
       if (!text.trim()) return
-      void json<ShareComment>('/comments', { method: 'POST', body: JSON.stringify({ assetId: cur.id, author, text }), headers: { 'content-type': 'application/json' } }).then((c) => {
+      void json<ShareComment>('/comments', { method: 'POST', body: JSON.stringify({ assetId: cur.id, author: who.name, memberId: who.memberId, text }), headers: { 'content-type': 'application/json' } }).then((c) => {
         setComments((x) => [...x, c])
         setText('')
       })
@@ -266,8 +336,13 @@ function GuestViewer({ items, index, onIndex, onClose, withName, onChanged }: {
       <div className="flex items-center gap-2 p-3">
         <button onClick={onClose} className="grid size-9 place-items-center rounded-full bg-white/10" aria-label={t('Fermer')}><X className="size-5" /></button>
         <div className="flex-1 text-center text-[13px] text-white/70">{index + 1} / {items.length}</div>
+        {likingMembers.length > 0 && (
+          <span className="flex -space-x-1.5" aria-label={likingMembers.map((m) => m.name).join(', ')} title={likingMembers.map((m) => m.name).join(', ')}>
+            {likingMembers.slice(0, 4).map((m) => <MemberAvatar key={m.id} objet={m.objet} size={24} background="rgba(255,255,255,0.14)" />)}
+          </span>
+        )}
         <button onClick={like} className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-2 text-[13px]" aria-label={t('J’aime')}>
-          <Heart className={clsx('size-4', cur.likes.includes(me) && 'fill-heart text-heart')} /> {cur.likes.length || ''}
+          <Heart className={clsx('size-4', likedByMe && 'fill-heart text-heart')} /> {cur.likes.length || ''}
         </button>
         <button onClick={() => setShowComments((v) => !v)} className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-2 text-[13px]" aria-label={t('Commentaires')}>
           <MessageCircle className="size-4" /> {comments.length || ''}
@@ -286,7 +361,10 @@ function GuestViewer({ items, index, onIndex, onClose, withName, onChanged }: {
       {showComments && (
         <div className="max-h-[40vh] overflow-y-auto border-t border-white/10 bg-stage-panel p-3">
           {comments.map((c) => (
-            <p key={c.id} className="py-1 text-[14px]"><span className="font-bold">{c.author}</span> <span className="text-white/85">{c.text}</span></p>
+            <p key={c.id} className="flex items-start gap-2 py-1 text-[14px]">
+              {memberOf(c.memberId) && <MemberAvatar objet={memberOf(c.memberId)!.objet} size={22} background="rgba(255,255,255,0.14)" title={c.author} />}
+              <span><span className="font-bold">{c.author}</span> <span className="text-white/85">{c.text}</span></span>
+            </p>
           ))}
           {comments.length === 0 && <p className="py-1 text-[13px] text-white/50">{t('Aucun commentaire pour l’instant.')}</p>}
           <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); send() }}>
