@@ -236,7 +236,7 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
           </button>
         ))}
       </div>
-      <div className="flex min-w-0 flex-1 flex-col rounded-2xl border border-line bg-surface dark:bg-[#1a1a1d]">
+      <div className="flex min-w-0 flex-1 flex-col rounded-2xl border border-line bg-surface">
         <div className="flex items-center gap-3 border-b border-line px-4 py-3">
           <div className="min-w-0 flex-1">
             <div className="text-[13px] font-semibold">{current.title}</div>
@@ -276,7 +276,7 @@ function Suggestions({ categories }: { categories: SuggestionCategory[] }) {
               <img src={media.thumb(i.id, i.v)} alt="" className="h-full w-full object-cover" draggable={false} />
               {i.kind === 'video' && <span className="absolute right-1.5 bottom-1.5 rounded bg-black/55 px-1 text-[10.5px] font-semibold text-white">{bytes(i.size)}</span>}
               {checked.has(i.id) && (
-                <span className="absolute top-1.5 right-1.5 grid size-5 place-items-center rounded-full bg-accent text-white ring-2 ring-white">
+                <span className="absolute top-1.5 right-1.5 grid size-5 place-items-center rounded-full bg-accent text-on-accent ring-2 ring-white">
                   <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth={2.4}><path d="M3.5 8.5l3 3 6-7" /></svg>
                 </span>
               )}

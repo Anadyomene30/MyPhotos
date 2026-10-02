@@ -94,7 +94,7 @@ export function Viewer() {
   const desktop = window.desktop
 
   return (
-    <div className="animate-fade-in fixed inset-0 z-40 flex bg-[#0b0b0c] text-white">
+    <div className="animate-fade-in fixed inset-0 z-40 flex bg-stage text-white">
       <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="drag absolute inset-x-0 top-0 z-10 flex h-[52px] items-center gap-2 bg-gradient-to-b from-black/60 to-transparent pr-4 pl-[84px]">
           <button onClick={closeViewer} className="no-drag flex items-center gap-1 rounded-lg px-2 py-1 text-[13px] font-medium text-white/85 hover:bg-white/10">

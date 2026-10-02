@@ -40,7 +40,7 @@ function NameEditor({ person, onDone }: { person: PersonSummary; onDone(): void 
       className="flex items-center gap-1"
     >
       <input ref={ref} value={v} onChange={(e) => setV(e.target.value)} placeholder={t('Nom')} className="w-full min-w-0 rounded-md border border-accent bg-bg px-2 py-0.5 text-center text-[12.5px] outline-none" onKeyDown={(e) => e.key === 'Escape' && onDone()} />
-      <button type="submit" className="grid size-6 shrink-0 place-items-center rounded-md bg-accent text-white"><Check className="size-3.5" /></button>
+      <button type="submit" className="grid size-6 shrink-0 place-items-center rounded-md bg-accent text-on-accent"><Check className="size-3.5" /></button>
     </form>
   )
 }
@@ -97,7 +97,7 @@ export function PeoplePage() {
         <div className="relative">
           <PersonAvatar person={p} size={96} className="shadow-md ring-2 ring-surface" />
           <button
-            className={clsx('absolute -top-1 -left-1 grid size-6 place-items-center rounded-full border-2 border-surface transition-opacity', sel ? 'bg-accent text-white opacity-100' : 'bg-surface/90 text-faint opacity-0 group-hover:opacity-100')}
+            className={clsx('absolute -top-1 -left-1 grid size-6 place-items-center rounded-full border-2 border-surface transition-opacity', sel ? 'bg-accent text-on-accent opacity-100' : 'bg-surface/90 text-faint opacity-0 group-hover:opacity-100')}
             onClick={(e) => {
               e.stopPropagation()
               toggle(p.id, true)
@@ -160,7 +160,7 @@ export function PeoplePage() {
       </header>
 
       {status && !status.enabled && (
-        <div className="m-5 rounded-2xl border border-line bg-surface p-6 text-center dark:bg-[#1a1a1d]">
+        <div className="m-5 rounded-2xl border border-line bg-surface p-6 text-center">
           <Sparkles className="mx-auto mb-3 size-9 text-accent" strokeWidth={1.5} />
           <h2 className="font-display text-[17px] font-semibold">{t('La reconnaissance des visages est désactivée')}</h2>
           <p className="mx-auto mt-2 max-w-md text-[13px] text-muted">{t('Activez l’intelligence locale dans les réglages. Tout se passe sur cet ordinateur, aucune photo n’est envoyée sur internet.')}</p>

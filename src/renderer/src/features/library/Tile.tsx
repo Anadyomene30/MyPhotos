@@ -69,7 +69,7 @@ export const Tile = memo(function Tile({ tile, index, size, selected, compact, f
       {selected && (
         <>
           <div className="pointer-events-none absolute inset-0 bg-accent/20 ring-[3px] ring-accent ring-inset" />
-          <div className="pointer-events-none absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-accent text-white shadow ring-2 ring-white">
+          <div className="pointer-events-none absolute right-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-accent text-on-accent shadow ring-2 ring-white">
             <svg viewBox="0 0 16 16" className="size-3" fill="none" stroke="currentColor" strokeWidth={2.4}>
               <path d="M3.5 8.5l3 3 6-7" />
             </svg>

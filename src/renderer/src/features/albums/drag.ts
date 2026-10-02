@@ -16,8 +16,8 @@ export function setDragImage(dt: DataTransfer, thumbUrl: string | null, n: numbe
   const el = document.createElement('div')
   el.style.cssText = 'position:fixed;top:-200px;left:-200px;width:72px;height:72px;border-radius:10px;overflow:visible;'
   el.innerHTML = `
-    <div style="position:absolute;inset:0;border-radius:10px;background:#888 ${thumbUrl ? `url('${thumbUrl}') center/cover` : ''};box-shadow:0 8px 24px rgba(0,0,0,.35);border:2px solid white"></div>
-    ${n > 1 ? `<div style="position:absolute;top:-8px;right:-8px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ff375f;color:white;font:600 12px -apple-system,Segoe UI,sans-serif;display:grid;place-items:center">${n}</div>` : ''}`
+    <div style="position:absolute;inset:0;border-radius:var(--dh-radius-card);background:var(--tile) ${thumbUrl ? `url('${thumbUrl}') center/cover` : ''};border:2px solid var(--dh-elevated)"></div>
+    ${n > 1 ? `<div style="position:absolute;top:-8px;right:-8px;min-width:22px;height:22px;padding:0 6px;border-radius:var(--dh-radius-pill);background:var(--dh-accent);color:var(--dh-on-label);font:700 12px -apple-system,Segoe UI,sans-serif;display:grid;place-items:center">${n}</div>` : ''}`
   document.body.appendChild(el)
   dt.setDragImage(el, 36, 36)
   setTimeout(() => el.remove(), 0)

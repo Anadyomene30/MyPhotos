@@ -178,7 +178,7 @@ function EditorInner({ id }: { id: number }) {
   })()
 
   return (
-    <div className="animate-fade-in fixed inset-0 z-[55] flex flex-col bg-[#0b0b0c] text-white select-none">
+    <div className="animate-fade-in fixed inset-0 z-[55] flex flex-col bg-stage text-white select-none">
       <div className="drag flex h-[52px] shrink-0 items-center gap-2 pr-4 pl-[84px]">
         <Button variant="ghost" className="no-drag text-white/80 hover:bg-white/10 hover:text-white" onClick={() => void cancel()}>
           {t('Annuler')}
@@ -227,8 +227,8 @@ function EditorInner({ id }: { id: number }) {
           </div>
         </div>
 
-        <aside className="scroll-thin w-[300px] shrink-0 overflow-y-auto border-l border-white/10 bg-[#141416] px-4 pb-6">
-          <div className="sticky top-0 z-10 -mx-4 mb-3 bg-[#141416] px-4 pt-1 pb-3">
+        <aside className="scroll-thin w-[300px] shrink-0 overflow-y-auto border-l border-white/10 bg-stage-panel px-4 pb-6">
+          <div className="sticky top-0 z-10 -mx-4 mb-3 bg-stage-panel px-4 pt-1 pb-3">
             <div className="flex rounded-[9px] bg-white/8 p-[3px]">
               {(['adjust', 'filters', 'crop'] as Tab[]).map((k) => (
                 <button key={k} onClick={() => setTab(k)} className={clsx('flex-1 rounded-[7px] py-1 text-[12.5px] font-medium', tab === k ? 'bg-white/16 text-white' : 'text-white/60 hover:text-white')}>

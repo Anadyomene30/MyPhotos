@@ -48,11 +48,11 @@ function PinGate({ onUnlock }: { onUnlock(): void }) {
         json('/unlock', { method: 'POST', body: JSON.stringify({ pin }), headers: { 'content-type': 'application/json' } }).then(onUnlock, (x: Error) => setErr(x.message))
       }}
     >
-      <Lock className="mx-auto size-10 text-neutral-400" strokeWidth={1.4} />
+      <Lock className="mx-auto size-10 text-muted" strokeWidth={1.4} />
       <h1 className="text-[20px] font-semibold">{t('Album protégé')}</h1>
-      <input autoFocus inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} placeholder={t('Code')} className="w-full rounded-xl border border-neutral-300 bg-white px-4 py-3 text-center text-[18px] tracking-[0.4em] outline-none focus:border-sky-500 dark:border-neutral-700 dark:bg-neutral-900" />
+      <input autoFocus inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} placeholder={t('Code')} className="w-full rounded-card border border-line bg-surface px-4 py-3 text-center text-[18px] tracking-[0.4em] outline-none focus:border-accent" />
       {err && <p className="text-[13px] text-red-500">{err}</p>}
-      <button className="w-full rounded-xl bg-sky-500 py-3 font-semibold text-white">{t('Ouvrir')}</button>
+      <button className="w-full rounded-pill bg-accent py-3 font-bold text-on-accent">{t('Ouvrir')}</button>
     </form>
   )
 }
@@ -106,17 +106,17 @@ export function GuestApp() {
       <div className="grid min-h-full place-items-center p-8 text-center">
         <div>
           <h1 className="text-[20px] font-semibold">{t('Lien indisponible')}</h1>
-          <p className="mt-2 text-neutral-500">{error}</p>
+          <p className="mt-2 text-muted">{error}</p>
         </div>
       </div>
     )
   }
-  if (!info) return <div className="grid min-h-full place-items-center"><Loader2 className="size-6 animate-spin text-neutral-400" /></div>
+  if (!info) return <div className="grid min-h-full place-items-center"><Loader2 className="size-6 animate-spin text-muted" /></div>
   if (info.locked) return <PinGate onUnlock={() => void load()} />
 
   return (
     <div
-      className="min-h-full bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100"
+      className="min-h-full text-fg"
       onDragOver={(e) => {
         if (!info.canAdd) return
         e.preventDefault()
@@ -129,52 +129,52 @@ export function GuestApp() {
         if (info.canAdd) upload(e.dataTransfer.files)
       }}
     >
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-neutral-950/85">
+      <header className="brume sticky top-0 z-10 border-b border-line">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[19px] font-bold tracking-tight">{info.name}</h1>
-            <p className="text-[12.5px] text-neutral-500">{t('Partagé par {name}', { name: info.owner })} · {plural(items.length, 'photo', 'photos')}</p>
+            <p className="text-[12.5px] text-muted">{t('Partagé par {name}', { name: info.owner })} · {plural(items.length, 'photo', 'photos')}</p>
           </div>
           {info.canAdd && (
             <>
               <input ref={fileInput} type="file" multiple accept="image/*,video/*,.heic,.heif,.dng,.cr2,.nef,.arw" className="hidden" onChange={(e) => e.target.files && upload(e.target.files)} />
-              <button onClick={() => fileInput.current?.click()} className="flex items-center gap-1.5 rounded-full bg-sky-500 px-3.5 py-2 text-[13px] font-semibold text-white shadow">
+              <button onClick={() => fileInput.current?.click()} className="flex items-center gap-1.5 rounded-pill bg-accent px-3.5 py-2 text-[13px] font-bold text-on-accent">
                 <Plus className="size-4" /> <span className="hidden sm:inline">{t('Ajouter')}</span>
               </button>
             </>
           )}
-          <a href={`${base}/zip`} className="flex items-center gap-1.5 rounded-full bg-black/5 px-3.5 py-2 text-[13px] font-semibold dark:bg-white/10" title={t('Tout télécharger')}>
+          <a href={`${base}/zip`} className="flex items-center gap-1.5 rounded-pill border border-line bg-surface px-3.5 py-2 text-[13px] font-bold" title={t('Tout télécharger')}>
             <Download className="size-4" /> <span className="hidden sm:inline">{t('Tout télécharger')}</span>
           </a>
         </div>
         {uploading && (
-          <div className="h-1 bg-sky-100 dark:bg-sky-950">
-            <div className="h-full bg-sky-500 transition-[width]" style={{ width: `${(uploading.done / uploading.total) * 100}%` }} />
+          <div className="h-1 bg-hover">
+            <div className="h-full bg-accent transition-[width]" style={{ width: `${(uploading.done / uploading.total) * 100}%` }} />
           </div>
         )}
       </header>
 
       {dragOver && (
-        <div className="pointer-events-none fixed inset-0 z-20 grid place-items-center bg-sky-500/15 backdrop-blur-[2px]">
-          <div className="rounded-2xl bg-white px-6 py-4 text-[15px] font-semibold shadow-xl dark:bg-neutral-900"><Upload className="mr-2 inline size-5" /> {t('Déposez vos photos pour les ajouter')}</div>
+        <div className="pointer-events-none fixed inset-0 z-20 grid place-items-center bg-accent-soft">
+          <div className="rounded-sheet border border-line bg-elevated px-6 py-4 text-[15px] font-bold"><Upload className="mr-2 inline size-5" /> {t('Déposez vos photos pour les ajouter')}</div>
         </div>
       )}
 
       <main className="mx-auto max-w-6xl p-1 sm:p-4">
         <div className="grid grid-cols-3 gap-[2px] sm:grid-cols-4 sm:gap-1 md:grid-cols-5 lg:grid-cols-6">
           {items.map((it, i) => (
-            <button key={it.id} onClick={() => setOpen(i)} className="relative aspect-square overflow-hidden bg-neutral-200 dark:bg-neutral-800">
+            <button key={it.id} onClick={() => setOpen(i)} className="relative aspect-square overflow-hidden tile-bg">
               <img src={`${base}/thumb/${it.id}?v=${it.v}`} alt="" loading="lazy" className="h-full w-full object-cover" style={{ objectPosition: `${it.fx * 100}% ${it.fy * 100}%` }} />
               {it.kind === 'video' && <Play className="absolute right-1.5 bottom-1.5 size-4 fill-white text-white drop-shadow" />}
               {it.likes.length > 0 && (
                 <span className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded-full bg-black/45 px-1.5 py-0.5 text-[10.5px] font-semibold text-white">
-                  <Heart className="size-3 fill-rose-400 text-rose-400" /> {it.likes.length}
+                  <Heart className="size-3 fill-heart text-heart" /> {it.likes.length}
                 </span>
               )}
             </button>
           ))}
         </div>
-        {items.length === 0 && <p className="mt-16 text-center text-neutral-500">{t('Cet album est encore vide.')}{info.canAdd ? ` ${t('Ajoutez les premières photos !')}` : ''}</p>}
+        {items.length === 0 && <p className="mt-16 text-center text-muted">{t('Cet album est encore vide.')}{info.canAdd ? ` ${t('Ajoutez les premières photos !')}` : ''}</p>}
       </main>
 
       {open !== null && items[open] && (
@@ -184,7 +184,7 @@ export function GuestApp() {
       {askName && (
         <div className="fixed inset-0 z-40 grid place-items-center bg-black/40 p-5">
           <form
-            className="w-full max-w-xs space-y-3 rounded-2xl bg-white p-5 dark:bg-neutral-900"
+            className="w-full max-w-xs space-y-3 rounded-sheet border border-line bg-elevated p-5"
             onSubmit={(e) => {
               e.preventDefault()
               const v = (new FormData(e.currentTarget).get('n') as string).trim()
@@ -197,11 +197,11 @@ export function GuestApp() {
             }}
           >
             <h2 className="text-[17px] font-semibold">{t('Comment vous appelez-vous ?')}</h2>
-            <p className="text-[13px] text-neutral-500">{t('Votre prénom accompagne vos photos, commentaires et cœurs.')}</p>
-            <input name="n" autoFocus className="w-full rounded-xl border border-neutral-300 px-3 py-2.5 outline-none focus:border-sky-500 dark:border-neutral-700 dark:bg-neutral-950" placeholder={t('Prénom')} />
+            <p className="text-[13px] text-muted">{t('Votre prénom accompagne vos photos, commentaires et cœurs.')}</p>
+            <input name="n" autoFocus className="w-full rounded-card border border-line bg-surface px-3 py-2.5 outline-none focus:border-accent" placeholder={t('Prénom')} />
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setAskName(null)} className="rounded-lg px-3 py-2 text-[14px]">{t('Annuler')}</button>
-              <button className="rounded-lg bg-sky-500 px-4 py-2 text-[14px] font-semibold text-white">{t('Continuer')}</button>
+              <button type="button" onClick={() => setAskName(null)} className="rounded-pill px-3 py-2 text-[14px] hover:bg-hover">{t('Annuler')}</button>
+              <button className="rounded-pill bg-accent px-4 py-2 text-[14px] font-bold text-on-accent">{t('Continuer')}</button>
             </div>
           </form>
         </div>
@@ -252,7 +252,7 @@ function GuestViewer({ items, index, onIndex, onClose, withName, onChanged }: {
 
   return (
     <div
-      className="fixed inset-0 z-30 flex flex-col bg-black text-white"
+      className="fixed inset-0 z-30 flex flex-col bg-stage text-white"
       onTouchStart={(e) => (touch.current = e.touches[0]!.clientX)}
       onTouchEnd={(e) => {
         const x0 = touch.current
@@ -267,7 +267,7 @@ function GuestViewer({ items, index, onIndex, onClose, withName, onChanged }: {
         <button onClick={onClose} className="grid size-9 place-items-center rounded-full bg-white/10" aria-label={t('Fermer')}><X className="size-5" /></button>
         <div className="flex-1 text-center text-[13px] text-white/70">{index + 1} / {items.length}</div>
         <button onClick={like} className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-2 text-[13px]" aria-label={t('J’aime')}>
-          <Heart className={clsx('size-4', cur.likes.includes(me) && 'fill-rose-400 text-rose-400')} /> {cur.likes.length || ''}
+          <Heart className={clsx('size-4', cur.likes.includes(me) && 'fill-heart text-heart')} /> {cur.likes.length || ''}
         </button>
         <button onClick={() => setShowComments((v) => !v)} className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-2 text-[13px]" aria-label={t('Commentaires')}>
           <MessageCircle className="size-4" /> {comments.length || ''}
@@ -284,14 +284,14 @@ function GuestViewer({ items, index, onIndex, onClose, withName, onChanged }: {
         {index < items.length - 1 && <button onClick={() => onIndex(index + 1)} className="absolute top-1/2 right-2 hidden size-10 -translate-y-1/2 place-items-center rounded-full bg-black/40 sm:grid" aria-label={t('Suivante')}><ChevronRight className="size-5" /></button>}
       </div>
       {showComments && (
-        <div className="max-h-[40vh] overflow-y-auto border-t border-white/10 bg-neutral-950 p-3">
+        <div className="max-h-[40vh] overflow-y-auto border-t border-white/10 bg-stage-panel p-3">
           {comments.map((c) => (
             <p key={c.id} className="py-1 text-[14px]"><span className="font-semibold">{c.author}</span> <span className="text-white/85">{c.text}</span></p>
           ))}
           {comments.length === 0 && <p className="py-1 text-[13px] text-white/50">{t('Aucun commentaire pour l’instant.')}</p>}
           <form className="mt-2 flex gap-2" onSubmit={(e) => { e.preventDefault(); send() }}>
             <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t('Ajouter un commentaire')} className="min-w-0 flex-1 rounded-full bg-white/10 px-4 py-2 text-[14px] outline-none" />
-            <button className="grid size-9 place-items-center rounded-full bg-sky-500" aria-label={t('Envoyer')}><Send className="size-4" /></button>
+            <button className="grid size-9 place-items-center rounded-full bg-accent text-on-accent" aria-label={t('Envoyer')}><Send className="size-4" /></button>
           </form>
         </div>
       )}

@@ -178,7 +178,7 @@ function VideoEditorInner({ id }: { id: number }) {
   const pct = (t: number): string => `${dur ? (t / dur) * 100 : 0}%`
 
   return (
-    <div className="animate-fade-in fixed inset-0 z-[55] flex flex-col bg-[#0b0b0c] text-white select-none">
+    <div className="animate-fade-in fixed inset-0 z-[55] flex flex-col bg-stage text-white select-none">
       <div className="drag flex h-[52px] shrink-0 items-center gap-2 pr-4 pl-[84px]">
         <Button variant="ghost" className="no-drag text-white/80 hover:bg-white/10 hover:text-white" onClick={close}>{t('Annuler')}</Button>
         <div className="flex-1 truncate text-center text-[13px] font-semibold">{detail?.name}</div>
@@ -222,8 +222,8 @@ function VideoEditorInner({ id }: { id: number }) {
             <span className="w-24 text-right text-[12px] text-white/60 tabular-nums">{fmtDuration(e.trim.start)} – {fmtDuration(end)}</span>
           </div>
         </div>
-        <aside className="scroll-thin w-[300px] shrink-0 overflow-y-auto border-l border-white/10 bg-[#141416] px-4 pb-6">
-          <div className="sticky top-0 z-10 -mx-4 mb-3 bg-[#141416] px-4 pt-1 pb-3">
+        <aside className="scroll-thin w-[300px] shrink-0 overflow-y-auto border-l border-white/10 bg-stage-panel px-4 pb-6">
+          <div className="sticky top-0 z-10 -mx-4 mb-3 bg-stage-panel px-4 pt-1 pb-3">
             <div className="grid grid-cols-4 rounded-[9px] bg-white/8 p-[3px]">
               {(['color', 'image', 'speed', 'output'] as Tab[]).map((k) => (
                 <button key={k} onClick={() => setTab(k)} className={clsx('rounded-[7px] py-1 text-[12px] font-medium', tab === k ? 'bg-white/16 text-white' : 'text-white/60 hover:text-white')}>
@@ -280,7 +280,7 @@ function VideoEditorInner({ id }: { id: number }) {
                 <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-white/45 uppercase">{t('Vitesse')}</h3>
                 <div className="grid grid-cols-4 gap-1.5">
                   {[0.25, 0.5, 1, 1.5, 2, 4, 8, 16].map((s) => (
-                    <button key={s} onClick={() => setE((x) => ({ ...x, speed: s }))} className={clsx('rounded-md py-1.5 text-[12px]', e.speed === s ? 'bg-[var(--accent)] text-white' : 'bg-white/8 text-white/80 hover:bg-white/16')}>
+                    <button key={s} onClick={() => setE((x) => ({ ...x, speed: s }))} className={clsx('rounded-md py-1.5 text-[12px]', e.speed === s ? 'bg-accent text-on-accent' : 'bg-white/8 text-white/80 hover:bg-white/16')}>
                       {`${s}×`}
                     </button>
                   ))}

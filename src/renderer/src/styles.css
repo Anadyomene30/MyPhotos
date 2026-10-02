@@ -16,8 +16,18 @@
   --color-hover: var(--hover);
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
-  --color-heart: #ff375f;
-  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --color-on-accent: var(--on-accent);
+  --color-heart: var(--heart);
+  --color-stage: var(--stage);
+  --color-stage-panel: var(--stage-panel);
+  --radius-label: var(--dh-radius-label);
+  --radius-card: var(--dh-radius-card);
+  --radius-sheet: var(--dh-radius-sheet);
+  --radius-pill: var(--dh-radius-pill);
+  --ease-out-soft: var(--dh-ease);
+  /* every `transition` utility without an explicit duration follows the house motion */
+  --default-transition-duration: var(--dh-motion-state);
+  --default-transition-timing-function: var(--dh-ease);
 }
 
 /* DH:tokens:start — design/tokens.json v3 (2026-10-02)
@@ -66,37 +76,32 @@
 }
 /* DH:tokens:end */
 
+/* ── MyPhotos: Brume (design/DIRECTION-ARTISTIQUE.md). Product values below. ──
+   The theme variables the components use are rebranched onto the house tokens;
+   the few values that are not house tokens say why. */
 :root {
-  --bg: #fbfbfc;
-  --panel: rgba(242, 242, 245, 0.86);
-  --surface: #ffffff;
-  --elevated: #ffffff;
-  --fg: #1d1d1f;
-  /* secondary text keeps ≥ 4.5:1 contrast on the background (WCAG AA) */
-  --muted: #5f5f64;
-  --faint: #727277;
-  --line: rgba(0, 0, 0, 0.08);
-  --hover: rgba(0, 0, 0, 0.05);
-  /* slightly deeper blue than the dark theme's: links and white button text stay readable */
-  --accent: #0071e3;
-  --accent-soft: rgba(0, 113, 227, 0.12);
-  --tile: #ececef;
+  --bg: var(--dh-bg);
+  --panel: var(--dh-surface); /* panels are opaque (Brume: no translucency) */
+  --surface: var(--dh-surface);
+  --elevated: var(--dh-elevated);
+  --fg: var(--dh-fg);
+  --muted: var(--dh-muted);
+  --faint: var(--dh-muted); /* no lighter grey in the house: a fainter one would drop under 4.5:1 */
+  --line: var(--dh-line);
+  --hover: color-mix(in srgb, var(--dh-fg) 6%, transparent); /* hover wash, derived from the ink */
+  --accent: var(--dh-accent);
+  --accent-soft: color-mix(in srgb, var(--dh-accent) 14%, transparent); /* selection wash, derived from the accent */
+  --on-accent: var(--dh-on-label); /* light text on the day accent, dark on the night one (tokens.json § accents) */
+  --tile: color-mix(in srgb, var(--dh-fg) 7%, var(--dh-surface)); /* placeholder behind a photo still loading */
+  /* product values, not house tokens: */
+  --heart: #ff375f; /* the favourite heart is a symbol on a photo, not a control: it keeps Apple Photos' red */
+  --stage: #0b0b0c; /* viewer and editors: a neutral near-black stage, so photos are judged on true colours */
+  --stage-panel: #151517; /* side panels on that stage */
   color-scheme: light;
 }
 
 :root.dark {
-  --bg: #111113;
-  --panel: rgba(30, 30, 33, 0.86);
-  --surface: #1c1c1f;
-  --elevated: #2a2a2e;
-  --fg: #f5f5f7;
-  --muted: #a1a1a6;
-  --faint: #8a8a90;
-  --line: rgba(255, 255, 255, 0.08);
-  --hover: rgba(255, 255, 255, 0.06);
-  --accent: #0a84ff;
-  --accent-soft: rgba(10, 132, 255, 0.22);
-  --tile: #1f1f22;
+  --accent-soft: color-mix(in srgb, var(--dh-accent) 22%, transparent);
   color-scheme: dark;
 }
 
@@ -106,7 +111,6 @@ html, body, #root {
 
 body {
   margin: 0;
-  background: var(--bg);
   color: var(--fg);
   font-family: var(--font-sans);
   font-size: 13px;
@@ -114,6 +118,35 @@ body {
   user-select: none;
   overflow: hidden;
 }
+
+/* The Brume texture: a seamless tile baked by the house (tools/texture.py), copied here by
+   distribute.py. Always under the content, never over text or photos. `fixed` keeps the
+   tile aligned between the window and the bars that carry it (.brume). */
+body, .brume {
+  background: var(--dh-bg) url("./assets/dh/brume-jour.jpg") repeat fixed;
+  background-size: 512px 512px;
+}
+:root.dark body, :root.dark .brume { background-image: url("./assets/dh/brume-nuit.jpg"); }
+
+/* L'étiquette: main screen titles as a dark band, bold, lowercase (Brume, rule 1) */
+.etiquette {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+  background: var(--dh-label);
+  color: var(--dh-on-label);
+  font-weight: 700;
+  font-size: var(--dh-text-4);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+  padding: 5px 10px;
+  border-radius: var(--dh-radius-label);
+}
+.etiquette.grande { font-size: var(--dh-text-6); padding: 6px 12px; }
 
 .drag { -webkit-app-region: drag; }
 .no-drag { -webkit-app-region: no-drag; }
@@ -123,15 +156,15 @@ body {
 /* thin overlay scrollbars */
 .scroll-thin::-webkit-scrollbar { width: 10px; height: 10px; }
 .scroll-thin::-webkit-scrollbar-thumb { background: transparent; border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
-.scroll-thin:hover::-webkit-scrollbar-thumb { background-color: rgba(128, 128, 128, 0.35); }
+.scroll-thin:hover::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--dh-muted) 45%, transparent); }
 .scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
 @keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.97) } to { opacity: 1; transform: scale(1) } }
-.animate-fade-in { animation: fade-in 180ms var(--ease-out-soft) both; }
-.animate-pop-in { animation: pop-in 220ms var(--ease-out-soft) both; }
+.animate-fade-in { animation: fade-in var(--dh-motion-enter) var(--dh-ease) both; }
+.animate-pop-in { animation: pop-in var(--dh-motion-enter) var(--dh-ease) both; }
 
-img.thumb { opacity: 0; transition: opacity 160ms ease-out; }
+img.thumb { opacity: 0; transition: opacity var(--dh-motion-state) var(--dh-ease); }
 img.thumb.loaded { opacity: 1; }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -154,11 +187,12 @@ img.thumb.loaded { opacity: 1; }
 .maplibre-dark .maplibregl-canvas { filter: brightness(0.85) contrast(1.05) saturate(0.85); }
 .maplibregl-ctrl-attrib { font-size: 10px; }
 
-/* photo thumbnails on the Places map */
+/* photo thumbnails on the Places map: a light frame and a lift so a photo reads on any map
+   tile (product values: map markers are objects on the map, not panels) */
 /* maplibre positions markers with position + transform: leave both alone (hover uses the separate scale property) */
-.map-photo { width: 44px; height: 44px; padding: 0; border: 2px solid #fff; border-radius: 10px; background: #d4d4d8; box-shadow: 0 2px 8px rgb(0 0 0 / 0.35); cursor: pointer; transition: scale 0.15s ease-out; }
+.map-photo { width: 44px; height: 44px; padding: 0; border: 2px solid #fff; border-radius: 10px; background: var(--tile); box-shadow: 0 2px 8px rgb(0 0 0 / 0.35); cursor: pointer; transition: scale var(--dh-motion-state) var(--dh-ease); }
 .map-photo-cluster { width: 56px; height: 56px; border-radius: 12px; }
 .map-photo:hover { scale: 1.08; z-index: 2; }
 .map-photo img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 8px; pointer-events: none; }
 .map-photo-cluster img { border-radius: 10px; }
-.map-photo span { position: absolute; top: -8px; right: -8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: #0a84ff; color: #fff; font: 600 11px/20px system-ui, sans-serif; text-align: center; box-shadow: 0 1px 4px rgb(0 0 0 / 0.3); }
+.map-photo span { position: absolute; top: -8px; right: -8px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--dh-radius-pill); background: var(--dh-accent); color: var(--on-accent); font: 700 11px/20px system-ui, sans-serif; text-align: center; }

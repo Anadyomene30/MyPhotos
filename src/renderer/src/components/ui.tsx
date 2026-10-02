@@ -53,7 +53,7 @@ export function Button({ className, variant = 'secondary', ...rest }: ButtonHTML
       type="button"
       className={clsx(
         'no-drag inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-[7px] text-[13px] font-medium transition-colors disabled:opacity-50',
-        variant === 'primary' && 'bg-accent text-white hover:brightness-110',
+        variant === 'primary' && 'bg-accent text-on-accent hover:brightness-110',
         variant === 'secondary' && 'bg-hover text-fg hover:bg-line',
         variant === 'ghost' && 'text-muted hover:bg-hover hover:text-fg',
         variant === 'danger' && 'bg-red-500/10 text-red-500 hover:bg-red-500/20',

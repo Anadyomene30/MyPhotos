@@ -131,7 +131,7 @@ export function MemoryBook({ id, printMode = false }: { id: number; printMode?: 
 
   if (isLoading || !m) {
     return (
-      <div className="fixed inset-0 z-[55] grid place-items-center bg-[#0b0b0c]">
+      <div className="fixed inset-0 z-[55] grid place-items-center bg-stage">
         <Loader2 className="size-6 animate-spin text-white/40" />
       </div>
     )

@@ -28,7 +28,7 @@ export function InfoPanel({ detail: d }: { detail: AssetDetail }) {
   const labels = (d.categories ?? []).map((c) => cats?.find((x) => x.id === c)?.label ?? c)
 
   return (
-    <aside className="animate-fade-in scroll-thin w-[320px] shrink-0 overflow-y-auto border-l border-white/10 bg-[#161618] px-5 pt-16 pb-6 text-[13px] select-text">
+    <aside className="animate-fade-in scroll-thin w-[320px] shrink-0 overflow-y-auto border-l border-white/10 bg-stage-panel px-5 pt-16 pb-6 text-[13px] select-text">
       <h3 className="mb-1 truncate text-[15px] font-semibold" title={d.name}>{d.name}</h3>
       <div className="divide-y divide-white/8">
         <Row icon={<Calendar className="size-4" />}>
@@ -53,7 +53,7 @@ export function InfoPanel({ detail: d }: { detail: AssetDetail }) {
           </div>
           <div className="text-white/55">{bytes(d.size)}</div>
           <button
-            className="mt-1 block max-w-full truncate text-left text-[12px] text-sky-400 hover:underline"
+            className="mt-1 block max-w-full truncate text-left text-[12px] text-white/85 underline underline-offset-2 hover:text-white"
             title={d.path}
             onClick={() => void window.desktop?.reveal(d.path)}
           >
@@ -91,7 +91,7 @@ export function InfoPanel({ detail: d }: { detail: AssetDetail }) {
             <div className="text-white/55 tabular-nums">
               {d.lat!.toFixed(4)}, {d.lon!.toFixed(4)}
             </div>
-            <button className="text-[12px] text-sky-400 hover:underline" onClick={() => (window.desktop ? void window.desktop.openExternal(osm) : window.open(osm, '_blank'))}>
+            <button className="text-[12px] text-white/85 underline underline-offset-2 hover:text-white" onClick={() => (window.desktop ? void window.desktop.openExternal(osm) : window.open(osm, '_blank'))}>
               {t('Ouvrir la carte')}
             </button>
           </Row>

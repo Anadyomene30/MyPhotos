@@ -38,7 +38,7 @@ export function GroupReview({ group, keepIds, onToggle, onClose, onApply }: {
 
   const removeCount = items.filter((i) => !keepIds.has(i.id)).length
   return (
-    <div className="animate-fade-in fixed inset-0 z-50 flex flex-col bg-[#0b0b0c] text-white">
+    <div className="animate-fade-in fixed inset-0 z-50 flex flex-col bg-stage text-white">
       <div className="drag flex h-[52px] shrink-0 items-center gap-3 pr-4 pl-[84px]">
         <div className="min-w-0 flex-1 text-[13px]">
           <span className="font-semibold">{tn(items.length, '{n} photo', '{n} photos')}</span>
