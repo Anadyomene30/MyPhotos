@@ -12,6 +12,7 @@ import { IntelligenceSettings } from './Intelligence'
 import { CloudSettings } from './Cloud'
 import { OrganizeSettings } from './Organize'
 import { OwnerSettings } from './Owner'
+import { HouseholdSettings } from './Household'
 import { LanguageSettings } from './Language'
 import { UpdateSettings } from './Updates'
 import { useModal } from '@/components/useModal'
@@ -94,6 +95,7 @@ export function Settings() {
             <p className="mt-2 text-[11.5px] text-faint">{t('Retirer un dossier le retire seulement de MyPhotos. Vos fichiers restent intacts.')}</p>
           </section>
           <OwnerSettings />
+          <HouseholdSettings />
           <IntelligenceSettings />
           <CloudSettings />
           <OrganizeSettings />

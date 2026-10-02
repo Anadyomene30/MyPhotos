@@ -3,9 +3,11 @@ import { UserRound } from 'lucide-react'
 import { api } from '@/api/client'
 import { Button } from '@/components/ui'
 import { t } from '@/i18n'
+import { useHousehold } from './Household'
 
-/** The name family members see on shared albums ("Partagé par …"). */
+/** The name family members see on shared albums ("Partagé par …"). In a household, it is the member's profile name. */
 export function OwnerSettings() {
+  const { data: household } = useHousehold()
   const [name, setName] = useState('')
   const [initial, setInitial] = useState('')
   const [saved, setSaved] = useState(false)
@@ -23,6 +25,7 @@ export function OwnerSettings() {
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
+  if (household?.joined) return null
   return (
     <section>
       <h3 className="mb-2 flex items-center gap-2 text-[13px] font-bold"><UserRound className="size-4 text-accent" /> {t('Votre prénom')}</h3>

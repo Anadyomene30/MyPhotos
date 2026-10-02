@@ -14,7 +14,7 @@ function alea(seed: number): () => number {
 }
 
 /** Charcoal shadow: stippled ellipse plus short horizontal strokes. Only under a drawn object. */
-function Ombre({ width }: { width: number }) {
+export function Ombre({ width }: { width: number }) {
   const h = Math.max(20, Math.round(width / 4))
   const r = alea(width * 7 + 3)
   const strokes: ReactElement[] = []

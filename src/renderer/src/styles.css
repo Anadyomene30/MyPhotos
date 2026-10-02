@@ -98,12 +98,25 @@
   --stage: #0b0b0c; /* viewer and editors: a neutral near-black stage, so photos are judged on true colours */
   --stage-panel: #151517; /* side panels on that stage */
   --charcoal: var(--dh-fg); /* ink of the charcoal shadow under the drawn globe (Brume, rule 4) */
+  /* Object heads of the household members (Brume, rule 6): garden colours of the house's vector sketch
+     (Passage, dessins.tsx), illustrations and not interface colours (rule 2); the same by day and night,
+     like a photo. To be replaced with the real illustrations when the house delivers them. */
+  --head-fleur: #eba383; --head-fleur-line: #d98a68; --head-fleur-heart: #e3b548;
+  --head-lampe: #e9c86c; --head-lampe-line: #c9a54a; --head-lampe-foot: #8a7550;
+  --head-theiere: #86afa4; --head-theiere-line: #628e83; --head-theiere-lid: #4f756b;
+  --head-pavillon: #d8ae5e; --head-pavillon-line: #b48a3e; --head-pavillon-mouth: #8e6a2e;
+  --head-globe: #74a0cc; --head-globe-line: #4f7daa; --head-globe-land: #a9c77f;
+  --head-unknown: #b9b5ae;
+  /* the silhouette under the head: shirt, trousers, skin (sketch values, day) */
+  --figure-shirt: #e9e1d3; --figure-trousers: #3e5a73; --figure-skin: #d3b9a0;
   color-scheme: light;
 }
 
 :root.dark {
   --accent-soft: color-mix(in srgb, var(--dh-accent) 22%, transparent);
   --charcoal: #05090c; /* a shadow stays dark at night: the house drawings' night ink */
+  /* sketch values, night; the trousers are lighter than the sketch's #33424f, which vanishes on the night dialog surface */
+  --figure-shirt: #4d5d6b; --figure-trousers: #6b8193; --figure-skin: #8a7a6e;
   color-scheme: dark;
 }
 
