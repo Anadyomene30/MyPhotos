@@ -63,25 +63,33 @@ export class ShareRepo {
     const rows = (assetId === undefined
       ? this.db.prepare('SELECT * FROM share_comments WHERE album_id = ? ORDER BY created_at').all(albumId)
       : this.db.prepare('SELECT * FROM share_comments WHERE album_id = ? AND asset_id = ? ORDER BY created_at').all(albumId, assetId)) as Row[]
-    return rows.map((r) => ({ id: r.id as number, assetId: r.asset_id as number | null, author: r.author as string, text: r.text as string, createdAt: r.created_at as number }))
+    return rows.map((r) => ({ id: r.id as number, assetId: r.asset_id as number | null, author: r.author as string, memberId: (r.author_member_id as string | null) ?? null, text: r.text as string, createdAt: r.created_at as number }))
   }
 
-  addComment(albumId: number, assetId: number | null, author: string, text: string): ShareComment {
-    const r = this.db.prepare('INSERT INTO share_comments (album_id, asset_id, author, text, created_at) VALUES (?, ?, ?, ?, ?)').run(albumId, assetId, author.slice(0, 40), text.slice(0, 1000), Date.now())
+  /** `memberId` when the guest said they are a household member (spec/01 § 11); plain guests sign with a free name. */
+  addComment(albumId: number, assetId: number | null, author: string, text: string, memberId: string | null = null): ShareComment {
+    const r = this.db
+      .prepare('INSERT INTO share_comments (album_id, asset_id, author, text, created_at, author_member_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(albumId, assetId, author.slice(0, 40), text.slice(0, 1000), Date.now(), memberId)
     return this.comments(albumId).find((c) => c.id === Number(r.lastInsertRowid))!
   }
 
-  toggleLike(albumId: number, assetId: number, author: string): boolean {
-    const del = this.db.prepare('DELETE FROM share_likes WHERE album_id = ? AND asset_id = ? AND author = ?').run(albumId, assetId, author)
+  /** A member's like follows their member_id (even after a rename); a plain guest's follows the name they typed. */
+  toggleLike(albumId: number, assetId: number, author: string, memberId: string | null = null): boolean {
+    const del = memberId
+      ? this.db.prepare('DELETE FROM share_likes WHERE album_id = ? AND asset_id = ? AND author_member_id = ?').run(albumId, assetId, memberId)
+      : this.db.prepare('DELETE FROM share_likes WHERE album_id = ? AND asset_id = ? AND author = ? AND author_member_id IS NULL').run(albumId, assetId, author)
     if (Number(del.changes)) return false
-    this.db.prepare('INSERT INTO share_likes (album_id, asset_id, author, created_at) VALUES (?, ?, ?, ?)').run(albumId, assetId, author.slice(0, 40), Date.now())
+    this.db
+      .prepare('INSERT OR IGNORE INTO share_likes (album_id, asset_id, author, created_at, author_member_id) VALUES (?, ?, ?, ?, ?)')
+      .run(albumId, assetId, author.slice(0, 40), Date.now(), memberId)
     return true
   }
 
-  likes(albumId: number): Map<number, string[]> {
-    const m = new Map<number, string[]>()
-    for (const r of this.db.prepare('SELECT asset_id, author FROM share_likes WHERE album_id = ?').all(albumId) as Array<{ asset_id: number; author: string }>) {
-      m.set(r.asset_id, [...(m.get(r.asset_id) ?? []), r.author])
+  likes(albumId: number): Map<number, Array<{ author: string; memberId: string | null }>> {
+    const m = new Map<number, Array<{ author: string; memberId: string | null }>>()
+    for (const r of this.db.prepare('SELECT asset_id, author, author_member_id FROM share_likes WHERE album_id = ?').all(albumId) as Array<{ asset_id: number; author: string; author_member_id: string | null }>) {
+      m.set(r.asset_id, [...(m.get(r.asset_id) ?? []), { author: r.author, memberId: r.author_member_id ?? null }])
     }
     return m
   }

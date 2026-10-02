@@ -34,6 +34,15 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
     if (!unlocked(c, s)) return c.json({ error: 'locked' }, 401)
     return { share: s }
   }
+  /**
+   * Who signs a comment, a like or an upload: a household member by their member_id (their name comes from their
+   * profile), or a plain guest by the free name they typed. Null for a member_id that is not in the household.
+   */
+  const signer = (author: string, memberId: string | null | undefined): { author: string; memberId: string | null } | null => {
+    if (!memberId) return { author: author.trim(), memberId: null }
+    const m = lib.household.member(memberId)
+    return m ? { author: m.name.slice(0, 40), memberId: m.id } : null
+  }
   const albumIds = (s: Share): number[] => lib.assets.ids({ filter: 'all', album: s.albumId })
   const inAlbum = (s: Share, id: number): boolean => albumIds(s).includes(id)
 
@@ -49,7 +58,11 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
     const album = lib.albums.get(s.albumId)!
     const locked = !unlocked(c, s)
     if (!locked) lib.shares.touch(s.id)
-    const info: SharedAlbumInfo = { name: album.name, count: locked ? 0 : album.count, canAdd: s.canAdd && album.kind === 'manual', owner: opts.ownerName(), coverId: locked ? null : album.coverId, locked }
+    const info: SharedAlbumInfo = {
+      name: album.name, count: locked ? 0 : album.count, canAdd: s.canAdd && album.kind === 'manual', owner: opts.ownerName(), coverId: locked ? null : album.coverId, locked,
+      // spec/01 § 11: a guest who is a household member can say « Je suis… »
+      members: locked ? [] : lib.household.members()
+    }
     return c.json(info)
   })
 
@@ -69,7 +82,10 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
     const offset = Math.max(0, parseInt(c.req.query('offset') ?? '0', 10) || 0)
     const limit = Math.min(500, Math.max(1, parseInt(c.req.query('limit') ?? '200', 10) || 200))
     const likes = lib.shares.likes(g.share.albumId)
-    const tiles = lib.assets.page({ filter: 'all', album: g.share.albumId }, offset, limit).map((t) => ({ ...t, likes: likes.get(t.id) ?? [] }))
+    const tiles = lib.assets.page({ filter: 'all', album: g.share.albumId }, offset, limit).map((t) => {
+      const l = likes.get(t.id) ?? []
+      return { ...t, likes: l.map((x) => x.author), likeMembers: l.flatMap((x) => (x.memberId ? [x.memberId] : [])) }
+    })
     return c.json(tiles)
   })
 
@@ -126,10 +142,12 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
   app.post('/g/api/:token/comments', async (c) => {
     const g = guard(c)
     if (g instanceof Response) return g
-    const body = z.object({ assetId: z.number().int().nullable(), author: z.string().min(1).max(40), text: z.string().min(1).max(1000) }).parse(await c.req.json())
+    const body = z.object({ assetId: z.number().int().nullable(), author: z.string().min(1).max(40), text: z.string().min(1).max(1000), memberId: z.string().max(64).nullish() }).parse(await c.req.json())
     if (body.assetId !== null && !inAlbum(g.share, body.assetId)) return c.body(null, 404)
-    const cm = lib.shares.addComment(g.share.albumId, body.assetId, body.author.trim(), body.text.trim())
-    lib.shareActivity(g.share.albumId, 'comment', body.author.trim())
+    const who = signer(body.author, body.memberId)
+    if (!who) return c.json({ error: t('Ce membre n’est pas dans le foyer.') }, 400)
+    const cm = lib.shares.addComment(g.share.albumId, body.assetId, who.author, body.text.trim(), who.memberId)
+    lib.shareActivity(g.share.albumId, 'comment', who.author)
     return c.json(cm)
   })
   app.post('/g/api/:token/like/:id', async (c) => {
@@ -137,9 +155,11 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
     if (g instanceof Response) return g
     const id = parseInt(c.req.param('id'), 10)
     if (!inAlbum(g.share, id)) return c.body(null, 404)
-    const { author } = z.object({ author: z.string().min(1).max(40) }).parse(await c.req.json())
-    const liked = lib.shares.toggleLike(g.share.albumId, id, author.trim())
-    if (liked) lib.shareActivity(g.share.albumId, 'like', author.trim())
+    const body = z.object({ author: z.string().min(1).max(40), memberId: z.string().max(64).nullish() }).parse(await c.req.json())
+    const who = signer(body.author, body.memberId)
+    if (!who) return c.json({ error: t('Ce membre n’est pas dans le foyer.') }, 400)
+    const liked = lib.shares.toggleLike(g.share.albumId, id, who.author, who.memberId)
+    if (liked) lib.shareActivity(g.share.albumId, 'like', who.author)
     return c.json({ liked })
   })
 
@@ -149,7 +169,7 @@ export function createGuestApp(lib: Library, opts: { rendererDir?: string; owner
     if (g instanceof Response) return g
     const album = lib.albums.get(g.share.albumId)!
     if (!g.share.canAdd || album.kind !== 'manual') return c.json({ error: t('Ce lien ne permet pas d’ajouter des photos') }, 403)
-    const author = (c.req.query('author') ?? t('Invité')).slice(0, 40)
+    const author = (signer(c.req.query('author') ?? t('Invité'), c.req.query('member'))?.author ?? t('Invité')).slice(0, 40)
     const dir = lib.sharedUploadDir(album.name)
     if (!dir) return c.json({ error: t('Aucun dossier de photothèque disponible') }, 500)
     await mkdir(dir, { recursive: true })

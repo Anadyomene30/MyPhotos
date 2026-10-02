@@ -327,5 +327,14 @@ export const migrations: string[] = [
   // NULL for memories created before: decided at the next proposal by comparing with the generated title.
   `
   ALTER TABLE memories ADD COLUMN auto_title INTEGER;
+  `,
+  // 18: accounts and household (LesDaguesHautes spec/01 § 7, § 11). Owner and visibility of albums; a guest who is a
+  // household member signs comments and likes with their member_id. Albums get their owner when the device joins.
+  `
+  ALTER TABLE albums ADD COLUMN owner_id TEXT;
+  ALTER TABLE albums ADD COLUMN visibility TEXT NOT NULL DEFAULT 'perso';
+  ALTER TABLE albums ADD COLUMN shared_with TEXT NOT NULL DEFAULT '[]';
+  ALTER TABLE share_comments ADD COLUMN author_member_id TEXT;
+  ALTER TABLE share_likes ADD COLUMN author_member_id TEXT;
   `
 ]

@@ -8,6 +8,7 @@ import { openDb, transaction, type Db, type Row } from './db'
 import { AssetRepo } from './repo/assets'
 import { AlbumRepo } from './repo/albums'
 import { ShareRepo } from './repo/shares'
+import { Household } from './household'
 import { applyChanges, pairLivePhotos, scanSource, type Shortcut } from './scan/scanner'
 import { FolderWatcher } from './scan/watcher'
 import { readMetadata } from './media/metadata'
@@ -58,6 +59,8 @@ export interface LibraryOptions {
   printPdf?: (url: string, outFile: string, format: 'square' | 'a4' | 'large') => Promise<string>
   /** URL of the running app, used to render pages (set once the server listens) */
   appUrl?: () => string
+  /** the launcher's machine-wide household pre-setting (foyer.local.json), read only; absent in tests */
+  householdPreset?: string | null
 }
 
 type Stage = 'meta' | 'thumb' | 'analyze' | 'ml'
@@ -70,6 +73,7 @@ export class Library extends EventEmitter {
   readonly assets: AssetRepo
   readonly albums: AlbumRepo
   readonly shares: ShareRepo
+  readonly household: Household
   readonly thumbs: ThumbStore
   readonly ml: MlService
   private geocoder: Geocoder | null | undefined
@@ -94,6 +98,7 @@ export class Library extends EventEmitter {
     this.assets = new AssetRepo(this.db)
     this.albums = new AlbumRepo(this.db)
     this.shares = new ShareRepo(this.db)
+    this.household = new Household(this, opts.householdPreset ?? null)
     this.assets.albumCondition = (id) => this.albums.condition(id)
     this.thumbs = new ThumbStore(join(opts.dataDir, 'cache'))
     this.watcher = opts.watch === false ? null : new FolderWatcher((root, paths) => void this.onFsChanges(root, paths))
@@ -117,6 +122,7 @@ export class Library extends EventEmitter {
 
   async start(): Promise<void> {
     this.retryFailuresAfterUpgrade()
+    void this.household.touch().catch(() => undefined)
     this.ml.loadVectors()
     void this.ml.ensureStarted().then(() => this.kickIndexer())
     for (const s of this.sources()) {
@@ -125,6 +131,9 @@ export class Library extends EventEmitter {
     }
     this.sourcePoll = setInterval(() => this.pollSources(), 15000)
     this.sourcePoll.unref?.()
+    // spec/01 § 6: re-read the household folder every 20 to 30 s (members' names and object heads)
+    this.householdPoll = setInterval(() => void this.household.refresh().catch(() => false), 30000)
+    this.householdPoll.unref?.()
     await this.rescanAll()
   }
 
@@ -141,6 +150,7 @@ export class Library extends EventEmitter {
   close(): void {
     this.closed = true
     if (this.sourcePoll) clearInterval(this.sourcePoll)
+    if (this.householdPoll) clearInterval(this.householdPoll)
     void this.dbTasks.close()
     void this.ml.stop()
     this.watcher?.close()
@@ -187,6 +197,7 @@ export class Library extends EventEmitter {
 
   private online = new Map<number, boolean>()
   private sourcePoll: ReturnType<typeof setInterval> | null = null
+  private householdPoll: ReturnType<typeof setInterval> | null = null
 
   /** Rescan when an offline source comes back (disk plugged in again) and refresh the UI when one goes away. */
   private pollSources(): void {

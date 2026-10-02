@@ -56,6 +56,18 @@ interface AlbumRow {
   created_at: number
   updated_at: number
   sort_order: number
+  owner_id: string | null
+  visibility: string
+  shared_with: string
+}
+
+function parseIds(v: string | null | undefined): string[] {
+  try {
+    const a: unknown = JSON.parse(v ?? '[]')
+    return Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string') : []
+  } catch {
+    return []
+  }
 }
 
 export class AlbumRepo {
@@ -100,7 +112,10 @@ export class AlbumRepo {
       coverId,
       coverV,
       createdAt: r.created_at,
-      updatedAt: r.updated_at
+      updatedAt: r.updated_at,
+      ownerId: r.owner_id ?? null,
+      visibility: r.visibility === 'foyer' || r.visibility === 'choisis' ? r.visibility : 'perso',
+      sharedWith: parseIds(r.shared_with)
     }
   }
 
@@ -109,7 +124,8 @@ export class AlbumRepo {
     const id = transaction(this.db, () => {
       const max = (this.db.prepare('SELECT coalesce(max(sort_order), 0) AS m FROM albums').get() as { m: number }).m
       const r = this.db
-        .prepare('INSERT INTO albums (name, kind, rules, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+        // owned by this installation's household member when there is one (spec/01 § 7); claimed on joining otherwise
+        .prepare("INSERT INTO albums (name, kind, rules, sort_order, created_at, updated_at, owner_id) VALUES (?, ?, ?, ?, ?, ?, (SELECT value FROM settings WHERE key = 'member_id'))")
         .run(name.trim() || 'Sans titre', kind, rules ? JSON.stringify(rules) : null, max + 1, now, now)
       const id = Number(r.lastInsertRowid)
       if (kind === 'manual' && assetIds.length) this.addAssetsTx(id, assetIds)

@@ -109,6 +109,41 @@ export interface Album {
   coverV: string
   createdAt: number
   updatedAt: number
+  /** member_id of the owner once the device joined a household (spec/01 § 7); null before */
+  ownerId: string | null
+  visibility: Visibility
+  sharedWith: string[]
+}
+
+/** spec/01 § 2: « Moi seulement », « Tout le foyer », « Membres choisis ». Everything is `perso` in v1. */
+export type Visibility = 'perso' | 'foyer' | 'choisis'
+
+/** A household member as the app shows them: first name and object head (spec/01 § 4). */
+export interface HouseholdMember {
+  id: string
+  name: string
+  objet: string
+}
+
+/** What a chosen household folder holds. */
+export interface HouseholdFolder {
+  exists: boolean
+  name: string | null
+  members: HouseholdMember[]
+}
+
+export interface HouseholdStatus {
+  joined: boolean
+  dir: string | null
+  /** household name, from foyer.json */
+  name: string | null
+  me: HouseholdMember | null
+  /** whether the folder could be read just now */
+  reachable: boolean
+  /** last time the folder was read (ms) */
+  seenAt: number | null
+  /** the launcher's machine-wide proposal, when this installation has not joined yet */
+  preset: { dir: string; member: HouseholdMember } | null
 }
 
 export interface DayBucket {
@@ -402,12 +437,16 @@ export interface SharedAlbumInfo {
   owner: string
   coverId: number | null
   locked: boolean
+  /** household members a guest can say they are (« Je suis… »); empty when the owner has no household */
+  members: HouseholdMember[]
 }
 
 export interface ShareComment {
   id: number
   assetId: number | null
   author: string
+  /** set when the guest said they are this household member */
+  memberId: string | null
   text: string
   createdAt: number
 }

@@ -172,5 +172,13 @@ export const server: Record<string, string> = {
   'Code incorrect': 'Incorrect code',
   'Ce lien ne permet pas d’ajouter des photos': 'This link does not allow adding photos',
   'Invité': 'Guest',
-  'Aucun dossier de photothèque disponible': 'No library folder available'
+  'Aucun dossier de photothèque disponible': 'No library folder available',
+  // household (spec/01)
+  'Ce dossier a déjà un foyer.': 'This folder already has a household.',
+  'Il faut un prénom.': 'A first name is needed.',
+  'Objet inconnu.': 'Unknown object.',
+  'Dossier invalide.': 'Invalid folder.',
+  'Ce dossier n’a pas encore de foyer.': 'This folder has no household yet.',
+  'Ce membre n’est pas dans le foyer.': 'This member is not in the household.',
+  'Ce dossier est introuvable.': 'This folder can’t be found.'
 }

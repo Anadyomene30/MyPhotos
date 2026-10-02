@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { serve } from '@hono/node-server'
 import { Library } from '@core/library'
+import { defaultAppDataDir, presetFile } from '@core/household'
 import { createApp } from '../server/app'
 import { hostCall, notifyParent } from './host'
 import { createGuestApp } from '../server/guest'
@@ -24,7 +25,9 @@ const lib = new Library({
   workerDir: import.meta.dirname,
   moveToSystemTrash: (paths) => hostCall<string[]>('trash', paths),
   printPdf: (url, outFile, format) => hostCall<string>('print-pdf', { url, outFile, format }),
-  appUrl: () => `http://127.0.0.1:${listeningPort}/?t=${token}`
+  appUrl: () => `http://127.0.0.1:${listeningPort}/?t=${token}`,
+  // the launcher's household pre-setting; Electron passes app.getPath('appData'), headless runs use the same place
+  householdPreset: process.env.MYPHOTOS_HOUSEHOLD_PRESET || presetFile(defaultAppDataDir())
 })
 let listeningPort = preferredPort
 const guest = createGuestApp(lib, { rendererDir, ownerName: () => lib.ownerName })

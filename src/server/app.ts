@@ -1,11 +1,12 @@
-import { dirname, join, normalize, sep } from 'node:path'
+import { dirname, isAbsolute, join, normalize, sep } from 'node:path'
 import { existsSync } from 'node:fs'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, stat, writeFile } from 'node:fs/promises'
 import { Hono, type Context } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { cors } from 'hono/cors'
 import { z } from 'zod'
 import { decodeInput, type Library } from '@core/library'
+import { createHousehold, createMember, readHousehold, toMember } from '@core/household'
 import { thumbKey } from '@core/repo/assets'
 import { CATEGORIES } from '@core/ml/categories'
 import type { Row } from '@core/db'
@@ -333,6 +334,39 @@ export function createApp(lib: Library, opts: AppOptions): Hono {
     return c.json({ ok: true })
   })
   app.get('/api/settings/owner', (c) => c.json({ name: lib.ownerName }))
+
+  // ── household (LesDaguesHautes spec/01 § 4–5): optional, the app works the same without it ──
+  /** The folder the person picked in the native dialog: absolute and existing, nothing else. */
+  const householdDir = async (c: Context): Promise<{ dir: string; body: Record<string, unknown> }> => {
+    const body = (await c.req.json()) as Record<string, unknown>
+    const dir = z.string().min(1).max(1024).parse(body.dir)
+    if (!isAbsolute(dir) || !(await stat(dir).then((s) => s.isDirectory(), () => false))) throw new Error(t('Ce dossier est introuvable.'))
+    return { dir, body }
+  }
+  const folderView = async (dir: string) => {
+    const h = await readHousehold(dir)
+    return { exists: h.exists, name: h.name, members: h.members }
+  }
+  app.get('/api/household', async (c) => c.json(await lib.household.status()))
+  app.post('/api/household/folder', async (c) => c.json(await folderView((await householdDir(c)).dir)))
+  app.post('/api/household/create', async (c) => {
+    const { dir, body } = await householdDir(c)
+    await createHousehold(dir, z.string().trim().min(1).max(60).parse(body.name))
+    return c.json(await folderView(dir))
+  })
+  app.post('/api/household/members', async (c) => {
+    const { dir, body } = await householdDir(c)
+    const p = await createMember(dir, z.string().min(1).max(40).parse(body.name), z.string().max(24).parse(body.objet))
+    return c.json(toMember(p))
+  })
+  app.post('/api/household/join', async (c) => {
+    const { dir, body } = await householdDir(c)
+    return c.json(await lib.household.join(dir, z.string().min(1).max(64).parse(body.memberId)))
+  })
+  app.delete('/api/household', async (c) => {
+    lib.household.leave()
+    return c.json(await lib.household.status())
+  })
   app.put('/api/settings/locale', async (c) => {
     const body = z.object({ pref: z.enum(['auto', 'fr', 'en']), system: z.string().max(35) }).parse(await c.req.json())
     lib.setLocalePref(body.pref, body.system)

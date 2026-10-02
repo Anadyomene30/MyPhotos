@@ -27,6 +27,8 @@ function startBackend(): Promise<BackendInfo> {
       MYPHOTOS_RESOURCES: resources,
       MYPHOTOS_RENDERER_DIR: join(here, '../renderer'),
       MYPHOTOS_CREATIONS: process.env.MYPHOTOS_CREATIONS ?? join(app.getPath('pictures'), 'MyPhotos Créations'),
+      // the launcher's machine-wide household pre-setting (LesDaguesHautes spec/01 § 5 bis), only read
+      MYPHOTOS_HOUSEHOLD_PRESET: process.env.MYPHOTOS_HOUSEHOLD_PRESET ?? join(app.getPath('appData'), 'LesDaguesHautes', 'foyer.local.json'),
       ...(isDev ? { MYPHOTOS_DEV_ORIGIN: new URL(process.env.ELECTRON_RENDERER_URL!).origin, MYPHOTOS_TOKEN: 'dev' } : {})
     }
   })
