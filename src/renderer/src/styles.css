@@ -20,21 +20,23 @@
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* DH:tokens:start — design/tokens.json v1 (2026-10-02)
+/* DH:tokens:start — design/tokens.json v2 (2026-10-02)
    Ecrit par LesDaguesHautes/tools/distribute.py. Ne pas editer entre les
    marqueurs : la prochaine execution ecrase la correction. Une valeur fausse
    se corrige dans design/tokens.json. Hors des marqueurs : le produit. */
 :root {
-  --dh-fg: #1d1d1f;
-  --dh-bg: #fbfbfc;
-  --dh-surface: #ffffff;
-  --dh-elevated: #ffffff;
-  --dh-muted: #5f5f64;
-  --dh-line: rgb(0 0 0 / 0.08);
-  --dh-accent: #0071e3;
-  --dh-radius-control: 8px;
-  --dh-radius-card: 12px;
-  --dh-radius-sheet: 16px;
+  --dh-fg: #2a2826;
+  --dh-bg: #e7e3db;
+  --dh-surface: #f0ece4;
+  --dh-elevated: #f7f4ee;
+  --dh-muted: #5f5b55;
+  --dh-line: rgb(42 40 38 / 0.12);
+  --dh-label: #1a1918;
+  --dh-on-label: #f7f4ee;
+  --dh-accent: #3f76b0;
+  --dh-radius-label: 3px;
+  --dh-radius-card: 3px;
+  --dh-radius-sheet: 12px;
   --dh-radius-pill: 999px;
   --dh-space-unit: 4px;
   --dh-space-gutter: 16px;
@@ -44,20 +46,23 @@
   --dh-text-3: 13px;
   --dh-text-4: 15px;
   --dh-text-5: 17px;
-  --dh-text-6: 20px;
+  --dh-text-6: 22px;
   --dh-text-7: 28px;
+  --dh-text-8: 34px;
   --dh-motion-state: 160ms;
   --dh-motion-enter: 220ms;
   --dh-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 :root.dark {
-  --dh-fg: #f5f5f7;
-  --dh-bg: #111113;
-  --dh-surface: #1c1c1f;
-  --dh-elevated: #2a2a2e;
-  --dh-muted: #a1a1a6;
-  --dh-line: rgb(255 255 255 / 0.08);
-  --dh-accent: #0a84ff;
+  --dh-fg: #efe9df;
+  --dh-bg: #1d2a35;
+  --dh-surface: #26353f;
+  --dh-elevated: #30414c;
+  --dh-muted: #a3acb3;
+  --dh-line: rgb(239 233 223 / 0.12);
+  --dh-label: #efe9df;
+  --dh-on-label: #1a1918;
+  --dh-accent: #8ab0da;
 }
 /* DH:tokens:end */
 
